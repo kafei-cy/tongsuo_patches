@@ -1,0 +1,26 @@
+From 1a9791047461b67b0de85236755731c65ee63a6f Mon Sep 17 00:00:00 2001
+From: kafei-cy <yaouioh@gmail.com>
+Date: Sun, 7 Dec 2025 16:05:17 +0800
+Subject: [PATCH 14/26] add a check for the return of OBJ_new_nid()
+
+---
+ crypto/objects/obj_dat.c | 3 +++
+ 1 file changed, 3 insertions(+)
+
+diff --git a/crypto/objects/obj_dat.c b/crypto/objects/obj_dat.c
+index 22e0a633..89600e81 100644
+--- a/crypto/objects/obj_dat.c
++++ b/crypto/objects/obj_dat.c
+@@ -732,6 +732,9 @@ int OBJ_create(const char *oid, const char *sn, const char *ln)
+     }
+ 
+     tmpoid->nid = OBJ_new_nid(1);
++    if (tmpoid->nid == NID_undef)
++        goto err;
++
+     tmpoid->sn = (char *)sn;
+     tmpoid->ln = (char *)ln;
+ 
+-- 
+2.34.1
+

@@ -1,0 +1,385 @@
+From b4f9d6fc09e1514405a15efe6208dec2c938a359 Mon Sep 17 00:00:00 2001
+From: kafei-cy <yaouioh@gmail.com>
+Date: Sun, 7 Dec 2025 17:45:39 +0800
+Subject: [PATCH 25/26] For known safe primes use the minimum key length
+ according to RFC 7919
+
+---
+ crypto/dh/dh_group_params.c                   |  5 +-
+ crypto/ffc/ffc_backend.c                      |  2 +-
+ crypto/ffc/ffc_dh.c                           | 49 +++++++++++++------
+ crypto/ffc/ffc_key_generate.c                 |  8 +--
+ crypto/ffc/ffc_params.c                       |  1 +
+ include/internal/ffc.h                        |  5 +-
+ .../encode_decode/encode_key2text.c           |  6 +++
+ test/evp_extra_test2.c                        | 10 ++++
+ test/ffc_internal_test.c                      | 44 ++++++++++++++++-
+ .../30-test_evp_pkey_provided/DH.priv.txt     |  1 +
+ .../30-test_evp_pkey_provided/DH.pub.txt      |  1 +
+ 11 files changed, 106 insertions(+), 26 deletions(-)
+
+diff --git a/crypto/dh/dh_group_params.c b/crypto/dh/dh_group_params.c
+index 3f843fe9..460bd8f0 100644
+--- a/crypto/dh/dh_group_params.c
++++ b/crypto/dh/dh_group_params.c
+@@ -31,7 +31,7 @@ static DH *dh_param_init(OSSL_LIB_CTX *libctx, const DH_NAMED_GROUP *group)
+     if (dh == NULL)
+         return NULL;
+ 
+-    ossl_ffc_named_group_set_pqg(&dh->params, group);
++    ossl_ffc_named_group_set(&dh->params, group);
+     dh->params.nid = ossl_ffc_named_group_get_uid(group);
+     dh->dirty_cnt++;
+     return dh;
+@@ -72,8 +72,9 @@ void ossl_dh_cache_named_group(DH *dh)
+                                                     dh->params.g)) != NULL) {
+         if (dh->params.q == NULL)
+             dh->params.q = (BIGNUM *)ossl_ffc_named_group_get_q(group);
+-        /* cache the nid */
++        /* cache the nid and default key length */
+         dh->params.nid = ossl_ffc_named_group_get_uid(group);
++        dh->params.keylength = ossl_ffc_named_group_get_keylength(group);
+         dh->dirty_cnt++;
+     }
+ }
+diff --git a/crypto/ffc/ffc_backend.c b/crypto/ffc/ffc_backend.c
+index 9a013d95..dbd28b0e 100644
+--- a/crypto/ffc/ffc_backend.c
++++ b/crypto/ffc/ffc_backend.c
+@@ -39,7 +39,7 @@ int ossl_ffc_params_fromdata(FFC_PARAMS *ffc, const OSSL_PARAM params[])
+         if (prm->data_type != OSSL_PARAM_UTF8_STRING
+             || prm->data == NULL
+             || (group = ossl_ffc_name_to_dh_named_group(prm->data)) == NULL
+-            || !ossl_ffc_named_group_set_pqg(ffc, group))
++            || !ossl_ffc_named_group_set(ffc, group))
+ #endif
+             goto err;
+     }
+diff --git a/crypto/ffc/ffc_dh.c b/crypto/ffc/ffc_dh.c
+index 9a7e99cf..6d08dfea 100644
+--- a/crypto/ffc/ffc_dh.c
++++ b/crypto/ffc/ffc_dh.c
+@@ -13,15 +13,17 @@
+ 
+ #ifndef OPENSSL_NO_DH
+ 
+-# define FFDHE(sz) {                                                        \
++# define FFDHE(sz, keylength) {                                             \
+         SN_ffdhe##sz, NID_ffdhe##sz,                                        \
++        keylength,                                                          \
+         sz,                                                                 \
+         &ossl_bignum_ffdhe##sz##_p, &ossl_bignum_ffdhe##sz##_q,             \
+         &ossl_bignum_const_2,                                               \
+     }
+ 
+-# define MODP(sz)  {                                                        \
++# define MODP(sz, keylength)  {                                             \
+         SN_modp_##sz, NID_modp_##sz,                                        \
++        keylength,                                                          \
+         sz,                                                                 \
+         &ossl_bignum_modp_##sz##_p, &ossl_bignum_modp_##sz##_q,             \
+         &ossl_bignum_const_2                                                \
+@@ -30,14 +32,15 @@
+ # define RFC5114(name, uid, sz, tag) {                                      \
+         name, uid,                                                          \
+         sz,                                                                 \
++        0,                                                                  \
+         &ossl_bignum_dh##tag##_p, &ossl_bignum_dh##tag##_q,                 \
+         &ossl_bignum_dh##tag##_g                                            \
+     }
+ 
+ #else
+ 
+-# define FFDHE(sz)                      { SN_ffdhe##sz, NID_ffdhe##sz }
+-# define MODP(sz)                       { SN_modp_##sz, NID_modp_##sz }
++# define FFDHE(sz, keylength)           { SN_ffdhe##sz, NID_ffdhe##sz }
++# define MODP(sz, keylength)            { SN_modp_##sz, NID_modp_##sz }
+ # define RFC5114(name, uid, sz, tag)    { name, uid }
+ 
+ #endif
+@@ -47,26 +50,32 @@ struct dh_named_group_st {
+     int uid;
+ #ifndef OPENSSL_NO_DH
+     int32_t nbits;
++    int keylength;
+     const BIGNUM *p;
+     const BIGNUM *q;
+     const BIGNUM *g;
+ #endif
+ };
+ 
++/*
++ * The private key length values are taken from RFC7919 with the values for
++ * MODP primes given the same lengths as the equivalent FFDHE.
++ * The MODP 1536 value is approximated.
++ */
+ static const DH_NAMED_GROUP dh_named_groups[] = {
+-    FFDHE(2048),
+-    FFDHE(3072),
+-    FFDHE(4096),
+-    FFDHE(6144),
+-    FFDHE(8192),
++    FFDHE(2048, 225),
++    FFDHE(3072, 275),
++    FFDHE(4096, 325),
++    FFDHE(6144, 375),
++    FFDHE(8192, 400),
+ #ifndef FIPS_MODULE
+-    MODP(1536),
++    MODP(1536, 200),
+ #endif
+-    MODP(2048),
+-    MODP(3072),
+-    MODP(4096),
+-    MODP(6144),
+-    MODP(8192),
++    MODP(2048, 225),
++    MODP(3072, 275),
++    MODP(4096, 325),
++    MODP(6144, 375),
++    MODP(8192, 400),
+     /*
+      * Additional dh named groups from RFC 5114 that have a different g.
+      * The uid can be any unique identifier.
+@@ -134,6 +143,13 @@ const char *ossl_ffc_named_group_get_name(const DH_NAMED_GROUP *group)
+ }
+ 
+ #ifndef OPENSSL_NO_DH
++int ossl_ffc_named_group_get_keylength(const DH_NAMED_GROUP *group)
++{
++    if (group == NULL)
++        return 0;
++    return group->keylength;
++}
++
+ const BIGNUM *ossl_ffc_named_group_get_q(const DH_NAMED_GROUP *group)
+ {
+     if (group == NULL)
+@@ -141,13 +157,14 @@ const BIGNUM *ossl_ffc_named_group_get_q(const DH_NAMED_GROUP *group)
+     return group->q;
+ }
+ 
+-int ossl_ffc_named_group_set_pqg(FFC_PARAMS *ffc, const DH_NAMED_GROUP *group)
++int ossl_ffc_named_group_set(FFC_PARAMS *ffc, const DH_NAMED_GROUP *group)
+ {
+     if (ffc == NULL || group == NULL)
+         return 0;
+ 
+     ossl_ffc_params_set0_pqg(ffc, (BIGNUM *)group->p, (BIGNUM *)group->q,
+                              (BIGNUM *)group->g);
++    ffc->keylength = group->keylength;
+ 
+     /* flush the cached nid, The DH layer is responsible for caching */
+     ffc->nid = NID_undef;
+diff --git a/crypto/ffc/ffc_key_generate.c b/crypto/ffc/ffc_key_generate.c
+index c18f349e..cb895f2a 100644
+--- a/crypto/ffc/ffc_key_generate.c
++++ b/crypto/ffc/ffc_key_generate.c
+@@ -25,11 +25,11 @@ int ossl_ffc_generate_private_key(BN_CTX *ctx, const FFC_PARAMS *params,
+     int ret = 0, qbits = BN_num_bits(params->q);
+     BIGNUM *m, *two_powN = NULL;
+ 
+-    /* Deal with the edge case where the value of N is not set */
+-    if (N == 0)
+-        N = qbits;
++    /* Deal with the edge cases where the value of N and/or s is not set */
+     if (s == 0)
+-        s = N / 2;
++        goto err;
++    if (N == 0)
++        N = params->keylength ? params->keylength : 2 * s;
+ 
+     /* Step (2) : check range of N */
+     if (N < 2 * s || N > qbits)
+diff --git a/crypto/ffc/ffc_params.c b/crypto/ffc/ffc_params.c
+index 073f661c..fb558f82 100644
+--- a/crypto/ffc/ffc_params.c
++++ b/crypto/ffc/ffc_params.c
+@@ -196,6 +196,7 @@ int ossl_ffc_params_copy(FFC_PARAMS *dst, const FFC_PARAMS *src)
+     dst->h = src->h;
+     dst->gindex = src->gindex;
+     dst->flags = src->flags;
++    dst->keylength = src->keylength;
+     return 1;
+ }
+ 
+diff --git a/include/internal/ffc.h b/include/internal/ffc.h
+index 3e8f6550..d8ab7249 100644
+--- a/include/internal/ffc.h
++++ b/include/internal/ffc.h
+@@ -118,6 +118,8 @@ typedef struct ffc_params_st {
+      */
+     const char *mdname;
+     const char *mdprops;
++    /* Default key length for known named groups according to RFC7919 */
++    int keylength;
+ } FFC_PARAMS;
+ 
+ void ossl_ffc_params_init(FFC_PARAMS *params);
+@@ -211,8 +213,9 @@ const DH_NAMED_GROUP *ossl_ffc_numbers_to_dh_named_group(const BIGNUM *p,
+ int ossl_ffc_named_group_get_uid(const DH_NAMED_GROUP *group);
+ const char *ossl_ffc_named_group_get_name(const DH_NAMED_GROUP *);
+ #ifndef OPENSSL_NO_DH
++int ossl_ffc_named_group_get_keylength(const DH_NAMED_GROUP *group);
+ const BIGNUM *ossl_ffc_named_group_get_q(const DH_NAMED_GROUP *group);
+-int ossl_ffc_named_group_set_pqg(FFC_PARAMS *ffc, const DH_NAMED_GROUP *group);
++int ossl_ffc_named_group_set(FFC_PARAMS *ffc, const DH_NAMED_GROUP *group);
+ #endif
+ 
+ #endif /* OSSL_INTERNAL_FFC_H */
+diff --git a/providers/implementations/encode_decode/encode_key2text.c b/providers/implementations/encode_decode/encode_key2text.c
+index 27162ff7..9f76f7a0 100644
+--- a/providers/implementations/encode_decode/encode_key2text.c
++++ b/providers/implementations/encode_decode/encode_key2text.c
+@@ -222,6 +222,7 @@ static int dh_to_text(BIO *out, const void *key, int selection)
+     const BIGNUM *priv_key = NULL, *pub_key = NULL;
+     const FFC_PARAMS *params = NULL;
+     const BIGNUM *p = NULL;
++    long length;
+ 
+     if (out == NULL || dh == NULL) {
+         ERR_raise(ERR_LIB_PROV, ERR_R_PASSED_NULL_PARAMETER);
+@@ -274,6 +275,11 @@ static int dh_to_text(BIO *out, const void *key, int selection)
+     if (params != NULL
+         && !ffc_params_to_text(out, params))
+         return 0;
++    length = DH_get_length(dh);
++    if (length > 0
++        && BIO_printf(out, "recommended-private-length: %ld bits\n",
++                      length) <= 0)
++        return 0;
+ 
+     return 1;
+ }
+diff --git a/test/evp_extra_test2.c b/test/evp_extra_test2.c
+index 3dd6c821..423bef5a 100644
+--- a/test/evp_extra_test2.c
++++ b/test/evp_extra_test2.c
+@@ -333,6 +333,10 @@ static int test_dh_tofrom_data_select(void)
+     OSSL_PARAM params[2];
+     EVP_PKEY *key = NULL;
+     EVP_PKEY_CTX *gctx = NULL;
++# ifndef OPENSSL_NO_DEPRECATED_3_0
++    const DH *dhkey;
++    const BIGNUM *privkey;
++# endif
+ 
+     params[0] = OSSL_PARAM_construct_utf8_string("group", "ffdhe2048", 0);
+     params[1] = OSSL_PARAM_construct_end();
+@@ -341,6 +345,12 @@ static int test_dh_tofrom_data_select(void)
+           && TEST_true(EVP_PKEY_CTX_set_params(gctx, params))
+           && TEST_int_gt(EVP_PKEY_generate(gctx, &key), 0)
+           && TEST_true(do_pkey_tofrom_data_select(key, "DHX"));
++# ifndef OPENSSL_NO_DEPRECATED_3_0
++    dhkey = EVP_PKEY_get0_DH(key);
++    ret = ret && TEST_ptr(dhkey);
++    ret = ret && TEST_ptr(privkey = DH_get0_priv_key(dhkey))
++              && TEST_int_le(BN_num_bits(privkey), 225);
++# endif
+     EVP_PKEY_free(key);
+     EVP_PKEY_CTX_free(gctx);
+     return ret;
+diff --git a/test/ffc_internal_test.c b/test/ffc_internal_test.c
+index 7c3dcde9..5722441d 100644
+--- a/test/ffc_internal_test.c
++++ b/test/ffc_internal_test.c
+@@ -27,6 +27,7 @@
+ #include "testutil.h"
+ 
+ #include "internal/ffc.h"
++#include "crypto/security_bits.h"
+ 
+ #ifndef OPENSSL_NO_DSA
+ static const unsigned char dsa_2048_224_sha224_p[] = {
+@@ -629,6 +630,9 @@ static int ffc_private_gen_test(int index)
+     /* fail since N > len(q) */
+     if (!TEST_false(ossl_ffc_generate_private_key(ctx, params, N + 1, 112, priv)))
+         goto err;
++    /* s must be always set */
++    if (!TEST_false(ossl_ffc_generate_private_key(ctx, params, N, 0, priv)))
++        goto err;
+     /* pass since 2s <= N <= len(q) */
+     if (!TEST_true(ossl_ffc_generate_private_key(ctx, params, N, 112, priv)))
+         goto err;
+@@ -641,8 +645,12 @@ static int ffc_private_gen_test(int index)
+     if (!TEST_true(ossl_ffc_validate_private_key(params->q, priv, &res)))
+         goto err;
+ 
+-    /* N and s are ignored in this case */
+-    if (!TEST_true(ossl_ffc_generate_private_key(ctx, params, 0, 0, priv)))
++    /* N is ignored in this case */
++    if (!TEST_true(ossl_ffc_generate_private_key(ctx, params, 0,
++                                                 ossl_ifc_ffc_compute_security_bits(BN_num_bits(params->p)),
++                                                 priv)))
++        goto err;
++    if (!TEST_int_le(BN_num_bits(priv), 225))
+         goto err;
+     if (!TEST_true(ossl_ffc_validate_private_key(params->q, priv, &res)))
+         goto err;
+@@ -654,6 +662,37 @@ err:
+     BN_CTX_free(ctx);
+     return ret;
+ }
++
++static int ffc_params_copy_test(void)
++{
++    int ret = 0;
++    DH *dh = NULL;
++    FFC_PARAMS *params, copy;
++
++    ossl_ffc_params_init(&copy);
++
++    if (!TEST_ptr(dh = DH_new_by_nid(NID_ffdhe3072)))
++        goto err;
++    params = ossl_dh_get0_params(dh);
++
++    if (!TEST_int_eq(params->keylength, 275))
++        goto err;
++
++    if (!TEST_true(ossl_ffc_params_copy(&copy, params)))
++        goto err;
++
++    if (!TEST_int_eq(copy.keylength, 275))
++        goto err;
++
++    if (!TEST_true(ossl_ffc_params_cmp(&copy, params, 0)))
++        goto err;
++
++    ret = 1;
++err:
++    ossl_ffc_params_cleanup(&copy);
++    DH_free(dh);
++    return ret;
++}
+ #endif /* OPENSSL_NO_DH */
+ 
+ int setup_tests(void)
+@@ -669,6 +708,7 @@ int setup_tests(void)
+     ADD_TEST(ffc_public_validate_test);
+     ADD_TEST(ffc_private_validate_test);
+     ADD_ALL_TESTS(ffc_private_gen_test, 10);
++    ADD_TEST(ffc_params_copy_test);
+ #endif /* OPENSSL_NO_DH */
+     return 1;
+ }
+diff --git a/test/recipes/30-test_evp_pkey_provided/DH.priv.txt b/test/recipes/30-test_evp_pkey_provided/DH.priv.txt
+index 0e6f9519..0dd83429 100644
+--- a/test/recipes/30-test_evp_pkey_provided/DH.priv.txt
++++ b/test/recipes/30-test_evp_pkey_provided/DH.priv.txt
+@@ -22,3 +22,4 @@ public-key:
+     a8:ee:72:13:45:65:15:42:17:aa:d8:ab:cf:33:42:
+     83:42
+ GROUP: ffdhe2048
++recommended-private-length: 224 bits
+diff --git a/test/recipes/30-test_evp_pkey_provided/DH.pub.txt b/test/recipes/30-test_evp_pkey_provided/DH.pub.txt
+index 325e160f..491f9d9d 100644
+--- a/test/recipes/30-test_evp_pkey_provided/DH.pub.txt
++++ b/test/recipes/30-test_evp_pkey_provided/DH.pub.txt
+@@ -19,3 +19,4 @@ public-key:
+     a8:ee:72:13:45:65:15:42:17:aa:d8:ab:cf:33:42:
+     83:42
+ GROUP: ffdhe2048
++recommended-private-length: 224 bits
+-- 
+2.34.1
+

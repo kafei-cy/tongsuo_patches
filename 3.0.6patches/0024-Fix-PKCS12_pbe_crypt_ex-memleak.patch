@@ -1,0 +1,25 @@
+From 14341e7f29134ab6cf40f7c2e405b68fb5aaff09 Mon Sep 17 00:00:00 2001
+From: kafei-cy <yaouioh@gmail.com>
+Date: Sun, 7 Dec 2025 17:23:19 +0800
+Subject: [PATCH 24/26] Fix PKCS12_pbe_crypt_ex() memleak
+
+---
+ crypto/pkcs12/p12_decr.c | 2 ++
+ 1 file changed, 2 insertions(+)
+
+diff --git a/crypto/pkcs12/p12_decr.c b/crypto/pkcs12/p12_decr.c
+index 0e3e825d..b0c0a983 100644
+--- a/crypto/pkcs12/p12_decr.c
++++ b/crypto/pkcs12/p12_decr.c
+@@ -88,6 +88,8 @@ unsigned char *PKCS12_pbe_crypt_ex(const X509_ALGOR *algor,
+         if (EVP_CIPHER_CTX_is_encrypting(ctx)) {
+             if (EVP_CIPHER_CTX_ctrl(ctx, EVP_CTRL_AEAD_GET_TAG,
+                 (int)mac_len, out+outlen) < 0) {
++                OPENSSL_free(out);
++                out = NULL;
+                 ERR_raise(ERR_LIB_PKCS12, ERR_R_INTERNAL_ERROR);
+                 goto err;
+             }
+-- 
+2.34.1
+

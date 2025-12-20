@@ -1,0 +1,152 @@
+From cffb93467adffd01eecf8bd85aec61c76f115502 Mon Sep 17 00:00:00 2001
+From: kafei-cy <yaouioh@gmail.com>
+Date: Sun, 7 Dec 2025 16:35:31 +0800
+Subject: [PATCH 17/26] Check for EVP_MD being NULL inside ssl
+
+---
+ ssl/s3_lib.c                 |  5 +++--
+ ssl/ssl_ciph.c               |  7 +++++--
+ ssl/statem/extensions_srvr.c |  6 +++++-
+ ssl/statem/statem_clnt.c     |  6 ++++--
+ ssl/tls13_enc.c              | 15 ++++++++++-----
+ 5 files changed, 27 insertions(+), 12 deletions(-)
+
+diff --git a/ssl/s3_lib.c b/ssl/s3_lib.c
+index 94d51976..58659fdd 100644
+--- a/ssl/s3_lib.c
++++ b/ssl/s3_lib.c
+@@ -3599,9 +3599,10 @@ retry:
+ 
+             if (prefer_sha256) {
+                 const SSL_CIPHER *tmp = sk_SSL_CIPHER_value(allow, ii);
++                const EVP_MD *md = ssl_md(s->ctx, tmp->algorithm2);
+ 
+-                if (EVP_MD_is_a(ssl_md(s->ctx, tmp->algorithm2),
+-                                       OSSL_DIGEST_NAME_SHA2_256)) {
++                if (md != NULL
++                        && EVP_MD_is_a(md, OSSL_DIGEST_NAME_SHA2_256)) {
+                     ret = tmp;
+                     break;
+                 }
+diff --git a/ssl/ssl_ciph.c b/ssl/ssl_ciph.c
+index 3e20412d..2839e6ac 100644
+--- a/ssl/ssl_ciph.c
++++ b/ssl/ssl_ciph.c
+@@ -456,11 +456,14 @@ int ssl_cipher_get_evp(SSL_CTX *ctx, const SSL_SESSION *s,
+         if (c->algorithm_mac == SSL_AEAD)
+             mac_pkey_type = NULL;
+     } else {
+-        if (!ssl_evp_md_up_ref(ctx->ssl_digest_methods[i])) {
++        const EVP_MD *digest = ctx->ssl_digest_methods[i];
++
++        if (digest == NULL
++                || !ssl_evp_md_up_ref(digest)) {
+             ssl_evp_cipher_free(*enc);
+             return 0;
+         }
+-        *md = ctx->ssl_digest_methods[i];
++        *md = digest;
+         if (mac_pkey_type != NULL)
+             *mac_pkey_type = ctx->ssl_mac_pkey_id[i];
+         if (mac_secret_size != NULL)
+diff --git a/ssl/statem/extensions_srvr.c b/ssl/statem/extensions_srvr.c
+index b386cfa9..236b5b52 100644
+--- a/ssl/statem/extensions_srvr.c
++++ b/ssl/statem/extensions_srvr.c
+@@ -1207,7 +1207,11 @@ int tls_parse_ctos_psk(SSL *s, PACKET *pkt, unsigned int context, X509 *x,
+         }
+ 
+         md = ssl_md(s->ctx, sess->cipher->algorithm2);
+-        if (!EVP_MD_is_a(md,
++        if (md == NULL) {
++            SSLfatal(s, SSL_AD_INTERNAL_ERROR, ERR_R_INTERNAL_ERROR);
++            goto err;
++        }
++	if (!EVP_MD_is_a(md,
+                 EVP_MD_get0_name(ssl_md(s->ctx,
+                                         s->s3.tmp.new_cipher->algorithm2)))) {
+             /* The ciphersuite is not compatible with this session. */
+diff --git a/ssl/statem/statem_clnt.c b/ssl/statem/statem_clnt.c
+index 689a75e7..01c0aa4d 100644
+--- a/ssl/statem/statem_clnt.c
++++ b/ssl/statem/statem_clnt.c
+@@ -1382,12 +1382,14 @@ static int set_client_ciphersuite(SSL *s, const unsigned char *cipherchars)
+         s->session->cipher_id = s->session->cipher->id;
+     if (s->hit && (s->session->cipher_id != c->id)) {
+         if (SSL_IS_TLS13(s)) {
++            const EVP_MD *md = ssl_md(s->ctx, c->algorithm2);
++
+             /*
+              * In TLSv1.3 it is valid for the server to select a different
+              * ciphersuite as long as the hash is the same.
+              */
+-            if (ssl_md(s->ctx, c->algorithm2)
+-                    != ssl_md(s->ctx, s->session->cipher->algorithm2)) {
++            if (md == NULL
++                    || md != ssl_md(s->ctx, s->session->cipher->algorithm2)) {
+                 SSLfatal(s, SSL_AD_ILLEGAL_PARAMETER,
+                          SSL_R_CIPHERSUITE_DIGEST_HAS_CHANGED);
+                 return 0;
+diff --git a/ssl/tls13_enc.c b/ssl/tls13_enc.c
+index 53145238..d2feedf3 100644
+--- a/ssl/tls13_enc.c
++++ b/ssl/tls13_enc.c
+@@ -257,13 +257,17 @@ int tls13_generate_master_secret(SSL *s, unsigned char *out,
+ size_t tls13_final_finish_mac(SSL *s, const char *str, size_t slen,
+                              unsigned char *out)
+ {
+-    const char *mdname = EVP_MD_get0_name(ssl_handshake_md(s));
++    const EVP_MD *md = ssl_handshake_md(s);
++    const char *mdname = EVP_MD_get0_name(md);
+     unsigned char hash[EVP_MAX_MD_SIZE];
+     unsigned char finsecret[EVP_MAX_MD_SIZE];
+     unsigned char *key = NULL;
+     size_t len = 0, hashlen;
+     OSSL_PARAM params[2], *p = params;
+ 
++    if (md == NULL)
++        return 0;
++
+     /* Safe to cast away const here since we're not "getting" any data */
+     if (s->ctx->propq != NULL)
+         *p++ = OSSL_PARAM_construct_utf8_string(OSSL_ALG_PARAM_PROPERTIES,
+@@ -281,7 +285,7 @@ size_t tls13_final_finish_mac(SSL *s, const char *str, size_t slen,
+     } else if (SSL_IS_FIRST_HANDSHAKE(s)) {
+         key = s->client_finished_secret;
+     } else {
+-        if (!tls13_derive_finishedkey(s, ssl_handshake_md(s),
++        if (!tls13_derive_finishedkey(s, md,
+                                       s->client_app_traffic_secret,
+                                       finsecret, hashlen))
+             goto err;
+@@ -952,7 +956,7 @@ int tls13_update_key(SSL *s, int sending)
+         RECORD_LAYER_reset_read_sequence(&s->rlayer);
+     }
+ 
+-    if (!derive_secret_key_and_iv(s, sending, ssl_handshake_md(s),
++    if (!derive_secret_key_and_iv(s, sending, md,
+                                   s->s3.tmp.new_sym_enc, insecret, NULL,
+                                   application_traffic,
+                                   sizeof(application_traffic) - 1, secret, key,
+@@ -997,7 +1001,7 @@ int tls13_export_keying_material(SSL *s, unsigned char *out, size_t olen,
+     unsigned int hashsize, datalen;
+     int ret = 0;
+ 
+-    if (ctx == NULL || !ossl_statem_export_allowed(s))
++    if (ctx == NULL || md == NULL || !ossl_statem_export_allowed(s))
+         goto err;
+ 
+     if (!use_context)
+@@ -1066,7 +1070,8 @@ int tls13_export_keying_material_early(SSL *s, unsigned char *out, size_t olen,
+      *
+      * Here Transcript-Hash is the cipher suite hash algorithm.
+      */
+-    if (EVP_DigestInit_ex(ctx, md, NULL) <= 0
++    if (md == NULL
++            || EVP_DigestInit_ex(ctx, md, NULL) <= 0
+             || EVP_DigestUpdate(ctx, context, contextlen) <= 0
+             || EVP_DigestFinal_ex(ctx, hash, &hashsize) <= 0
+             || EVP_DigestInit_ex(ctx, md, NULL) <= 0
+-- 
+2.34.1
+

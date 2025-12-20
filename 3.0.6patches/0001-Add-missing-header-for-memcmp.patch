@@ -1,0 +1,24 @@
+From 43f0397263b25216118a22824df939a45eb13cd5 Mon Sep 17 00:00:00 2001
+From: kafei-cy <yaouioh@gmail.com>
+Date: Sun, 7 Dec 2025 12:58:58 +0800
+Subject: [PATCH 01/26] Add missing header for memcmp
+
+---
+ test/v3ext.c | 1 +
+ 1 file changed, 1 insertion(+)
+
+diff --git a/test/v3ext.c b/test/v3ext.c
+index 2862660b..228db586 100644
+--- a/test/v3ext.c
++++ b/test/v3ext.c
+@@ -8,6 +8,7 @@
+  */
+ 
+ #include <stdio.h>
++#include <string.h>
+ #include <openssl/x509.h>
+ #include <openssl/x509v3.h>
+ #include <openssl/pem.h>
+-- 
+2.34.1
+

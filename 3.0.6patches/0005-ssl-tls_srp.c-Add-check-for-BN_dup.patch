@@ -1,0 +1,25 @@
+From 7593c3ddf6e438308e9dfec34fb81d9b9942223f Mon Sep 17 00:00:00 2001
+From: kafei-cy <yaouioh@gmail.com>
+Date: Sun, 7 Dec 2025 13:15:42 +0800
+Subject: [PATCH 05/26] ssl/tls_srp.c: Add check for BN_dup
+
+---
+ ssl/tls_srp.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/ssl/tls_srp.c b/ssl/tls_srp.c
+index e69ddfe9..a4ec363c 100644
+--- a/ssl/tls_srp.c
++++ b/ssl/tls_srp.c
+@@ -238,7 +238,7 @@ int SSL_set_srp_server_param_pw(SSL *s, const char *user, const char *pass,
+     BN_clear_free(s->srp_ctx.s);
+     s->srp_ctx.s = NULL;
+     if (!SRP_create_verifier_BN_ex(user, pass, &s->srp_ctx.s, &s->srp_ctx.v,
+-                                   GN->N, GN->g, s->ctx->libctx,
++                                   s->srp_ctx.N, s->srp_ctx.g, s->ctx->libctx,
+                                    s->ctx->propq))
+         return -1;
+ 
+-- 
+2.34.1
+

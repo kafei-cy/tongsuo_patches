@@ -1,0 +1,25 @@
+From e48520a4746ccd048e44e015ccb052ec2adf61ba Mon Sep 17 00:00:00 2001
+From: kafei-cy <yaouioh@gmail.com>
+Date: Sun, 7 Dec 2025 17:58:51 +0800
+Subject: [PATCH 26/26] Fix up! apps/cmp.c: fix cleanup of CMP_CTX vs. info in
+ its http_cb_arg field
+
+---
+ apps/cmp.c | 1 -
+ 1 file changed, 1 deletion(-)
+
+diff --git a/apps/cmp.c b/apps/cmp.c
+index 5ba3d681..f98e5ab9 100644
+--- a/apps/cmp.c
++++ b/apps/cmp.c
+@@ -3000,7 +3000,6 @@ int cmp_main(int argc, char **argv)
+     if (ret != 1)
+         OSSL_CMP_CTX_print_errors(cmp_ctx);
+ 
+-    ossl_cmp_mock_srv_free(OSSL_CMP_CTX_get_transfer_cb_arg(cmp_ctx));
+     if (cmp_ctx != NULL) {
+ #ifndef OPENSSL_NO_SOCK
+         APP_HTTP_TLS_INFO *info = OSSL_CMP_CTX_get_http_cb_arg(cmp_ctx);
+-- 
+2.34.1
+

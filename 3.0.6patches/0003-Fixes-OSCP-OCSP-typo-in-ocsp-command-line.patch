@@ -1,0 +1,25 @@
+From 7f0695b2e1d8bcfb9b2f4e3c55cedb265d2f61dd Mon Sep 17 00:00:00 2001
+From: kafei-cy <yaouioh@gmail.com>
+Date: Sun, 7 Dec 2025 13:07:17 +0800
+Subject: [PATCH 03/26] Fixes OSCP->OCSP typo in ocsp command line
+
+---
+ apps/ocsp.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/apps/ocsp.c b/apps/ocsp.c
+index dfc1de66..d0347bbc 100644
+--- a/apps/ocsp.c
++++ b/apps/ocsp.c
+@@ -129,7 +129,7 @@ const OPTIONS ocsp_options[] = {
+     {"no_certs", OPT_NO_CERTS, '-',
+      "Don't include any certificates in signed request"},
+     {"badsig", OPT_BADSIG, '-',
+-        "Corrupt last byte of loaded OSCP response signature (for test)"},
++        "Corrupt last byte of loaded OCSP response signature (for test)"},
+     {"CA", OPT_CA, '<', "CA certificate"},
+     {"nmin", OPT_NMIN, 'p', "Number of minutes before next update"},
+     {"nrequest", OPT_REQUEST, 'p',
+-- 
+2.34.1
+

@@ -1,0 +1,27 @@
+From 1f1c6d7efdc4fda2d8f638b34efe8ec38691dc26 Mon Sep 17 00:00:00 2001
+From: kafei-cy <yaouioh@gmail.com>
+Date: Sun, 7 Dec 2025 13:59:54 +0800
+Subject: [PATCH 09/26] use #pragma comment(lib) with _MSC_VER only
+
+---
+ providers/implementations/rands/seeding/rand_win.c | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)
+
+diff --git a/providers/implementations/rands/seeding/rand_win.c b/providers/implementations/rands/seeding/rand_win.c
+index 6bf741a2..7f151dec 100644
+--- a/providers/implementations/rands/seeding/rand_win.c
++++ b/providers/implementations/rands/seeding/rand_win.c
+@@ -28,7 +28,9 @@
+ 
+ # ifdef USE_BCRYPTGENRANDOM
+ #  include <bcrypt.h>
+-#  pragma comment(lib, "bcrypt.lib")
++#  ifdef _MSC_VER
++#   pragma comment(lib, "bcrypt.lib")
++#  endif
+ #  ifndef STATUS_SUCCESS
+ #   define STATUS_SUCCESS ((NTSTATUS)0x00000000L)
+ #  endif
+-- 
+2.34.1
+

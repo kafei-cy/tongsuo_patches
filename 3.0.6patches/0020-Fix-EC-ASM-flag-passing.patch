@@ -1,0 +1,31 @@
+From e94fbf4a9ce7967c7ba2e5afe54b4d1f72fdf049 Mon Sep 17 00:00:00 2001
+From: kafei-cy <yaouioh@gmail.com>
+Date: Sun, 7 Dec 2025 17:00:23 +0800
+Subject: [PATCH 20/26] Fix EC ASM flag passing
+
+---
+ crypto/ec/build.info | 8 ++++++++
+ 1 file changed, 8 insertions(+)
+
+diff --git a/crypto/ec/build.info b/crypto/ec/build.info
+index 16f06297..ca85edf0 100644
+--- a/crypto/ec/build.info
++++ b/crypto/ec/build.info
+@@ -73,6 +73,14 @@ SOURCE[../../providers/libfips.a]=$COMMON
+ # need to be applied to all affected libraries and modules.
+ DEFINE[../../libcrypto]=$ECDEF
+ DEFINE[../../providers/libfips.a]=$ECDEF
++DEFINE[../../providers/libdefault.a]=$ECDEF
++# We only need to include the ECDEF stuff in the legacy provider when
++# it's a separate module and it's dynamically linked with libcrypto.
++# Otherwise, it already gets everything that the static libcrypto.a
++# has, and doesn't need it added again.
++IF[{- !$disabled{module} && !$disabled{shared} -}]
++  DEFINE[../providers/liblegacy.a]=$ECDEF
++ENDIF
+ 
+ GENERATE[ecp_nistz256-x86.s]=asm/ecp_nistz256-x86.pl
+ 
+-- 
+2.34.1
+

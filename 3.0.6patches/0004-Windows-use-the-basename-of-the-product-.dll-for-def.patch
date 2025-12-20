@@ -1,0 +1,26 @@
+From 0bb93b0119940399f548f51dfae2f08b8b1f59bf Mon Sep 17 00:00:00 2001
+From: kafei-cy <yaouioh@gmail.com>
+Date: Sun, 7 Dec 2025 13:08:52 +0800
+Subject: [PATCH 04/26] Windows: use the basename of the product (.dll) for
+ definition files
+
+---
+ Configurations/windows-makefile.tmpl | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/Configurations/windows-makefile.tmpl b/Configurations/windows-makefile.tmpl
+index f2349373..e14e9cb6 100644
+--- a/Configurations/windows-makefile.tmpl
++++ b/Configurations/windows-makefile.tmpl
+@@ -664,7 +664,7 @@ EOF
+                               rel2abs($config{builddir}));
+           my $ord_ver = $args{intent} eq 'lib' ? ' --version $(VERSION_NUMBER)' : '';
+           my $ord_name =
+-              $args{generator}->[1] || platform->dsoname($args{product});
++              $args{generator}->[1] || basename(platform->dsoname($args{product}));
+           return <<"EOF";
+ $target: $gen0 $deps $mkdef
+ 	"\$(PERL)" "$mkdef"$ord_ver --type $args{intent} --ordinals $gen0 --name $ord_name --OS windows > $target
+-- 
+2.34.1
+

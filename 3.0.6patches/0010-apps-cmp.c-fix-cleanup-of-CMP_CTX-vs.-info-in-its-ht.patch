@@ -1,0 +1,82 @@
+From 253f41634080c5ee9c4145d3e1a8e2667e471c4d Mon Sep 17 00:00:00 2001
+From: kafei-cy <yaouioh@gmail.com>
+Date: Sun, 7 Dec 2025 14:04:14 +0800
+Subject: [PATCH 10/26] apps/cmp.c: fix cleanup of CMP_CTX vs. info in its
+ http_cb_arg field
+
+---
+ apps/cmp.c            | 15 +++++++++++----
+ crypto/cmp/cmp_http.c |  5 ++++-
+ crypto/x509/v3_lib.c  |  4 +++-
+ 3 files changed, 18 insertions(+), 6 deletions(-)
+
+diff --git a/apps/cmp.c b/apps/cmp.c
+index 5c6bcdad..5ba3d681 100644
+--- a/apps/cmp.c
++++ b/apps/cmp.c
+@@ -1923,7 +1923,6 @@ static int setup_client_ctx(OSSL_CMP_CTX *ctx, ENGINE *engine)
+         if ((info = OPENSSL_zalloc(sizeof(*info))) == NULL)
+             goto err;
+         (void)OSSL_CMP_CTX_set_http_cb_arg(ctx, info);
+-        /* info will be freed along with CMP ctx */
+         info->server = opt_server;
+         info->port = server_port;
+         /* workaround for callback design flaw, see #17088: */
+@@ -3002,11 +3001,19 @@ int cmp_main(int argc, char **argv)
+         OSSL_CMP_CTX_print_errors(cmp_ctx);
+ 
+     ossl_cmp_mock_srv_free(OSSL_CMP_CTX_get_transfer_cb_arg(cmp_ctx));
++    if (cmp_ctx != NULL) {
+ #ifndef OPENSSL_NO_SOCK
+-    APP_HTTP_TLS_INFO_free(OSSL_CMP_CTX_get_http_cb_arg(cmp_ctx));
++        APP_HTTP_TLS_INFO *info = OSSL_CMP_CTX_get_http_cb_arg(cmp_ctx);
++
++#endif
++        ossl_cmp_mock_srv_free(OSSL_CMP_CTX_get_transfer_cb_arg(cmp_ctx));
++        X509_STORE_free(OSSL_CMP_CTX_get_certConf_cb_arg(cmp_ctx));
++        /* cannot free info already here, as it may be used indirectly by: */
++        OSSL_CMP_CTX_free(cmp_ctx);
++#ifndef OPENSSL_NO_SOCK
++        APP_HTTP_TLS_INFO_free(info);
+ #endif
+-    X509_STORE_free(OSSL_CMP_CTX_get_certConf_cb_arg(cmp_ctx));
+-    OSSL_CMP_CTX_free(cmp_ctx);
++    }
+     X509_VERIFY_PARAM_free(vpm);
+     release_engine(engine);
+ 
+diff --git a/crypto/cmp/cmp_http.c b/crypto/cmp/cmp_http.c
+index 6ac4212d..9e8b0c4d 100644
+--- a/crypto/cmp/cmp_http.c
++++ b/crypto/cmp/cmp_http.c
+@@ -31,7 +31,10 @@
+ static int keep_alive(int keep_alive, int body_type)
+ {
+     if (keep_alive != 0
+-        /* Ask for persistent connection only if may need more round trips */
++        /*
++         * Ask for persistent connection only if may need more round trips.
++         * Do so even with disableConfirm because polling might be needed.
++         */
+             && body_type != OSSL_CMP_PKIBODY_IR
+             && body_type != OSSL_CMP_PKIBODY_CR
+             && body_type != OSSL_CMP_PKIBODY_P10CR
+diff --git a/crypto/x509/v3_lib.c b/crypto/x509/v3_lib.c
+index 42b6ff15..5c05b56d 100644
+--- a/crypto/x509/v3_lib.c
++++ b/crypto/x509/v3_lib.c
+@@ -242,8 +242,10 @@ int X509V3_add1_i2d(STACK_OF(X509_EXTENSION) **x, int nid, void *value,
+         }
+         /* If delete, just delete it */
+         if (ext_op == X509V3_ADD_DELETE) {
+-            if (!sk_X509_EXTENSION_delete(*x, extidx))
++            extmp = sk_X509_EXTENSION_delete(*x, extidx);
++            if (extmp == NULL)
+                 return -1;
++            X509_EXTENSION_free(extmp);
+             return 1;
+         }
+     } else {
+-- 
+2.34.1
+

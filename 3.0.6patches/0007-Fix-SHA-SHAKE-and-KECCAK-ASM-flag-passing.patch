@@ -1,0 +1,31 @@
+From c0308dade22dd0dcb43d82635730f61255f34e77 Mon Sep 17 00:00:00 2001
+From: kafei-cy <yaouioh@gmail.com>
+Date: Sun, 7 Dec 2025 13:52:56 +0800
+Subject: [PATCH 07/26] Fix SHA, SHAKE, and KECCAK ASM flag passing
+
+---
+ crypto/sha/build.info | 8 ++++++++
+ 1 file changed, 8 insertions(+)
+
+diff --git a/crypto/sha/build.info b/crypto/sha/build.info
+index 5a433b91..17684874 100644
+--- a/crypto/sha/build.info
++++ b/crypto/sha/build.info
+@@ -74,6 +74,14 @@ SOURCE[../../providers/libfips.a]= $COMMON
+ # need to be applied to all affected libraries and modules.
+ DEFINE[../../libcrypto]=$SHA1DEF $KECCAK1600DEF
+ DEFINE[../../providers/libfips.a]=$SHA1DEF $KECCAK1600DEF
++DEFINE[../../providers/libdefault.a]=$SHA1DEF $KECCAK1600DEF
++# We only need to include the SHA1DEF and KECCAK1600DEF stuff in the
++# legacy provider when it's a separate module and it's dynamically
++# linked with libcrypto.  Otherwise, it already gets everything that
++# the static libcrypto.a has, and doesn't need it added again.
++IF[{- !$disabled{module} && !$disabled{shared} -}]
++  DEFINE[../providers/liblegacy.a]=$SHA1DEF $KECCAK1600DEF
++ENDIF
+ 
+ GENERATE[sha1-586.s]=asm/sha1-586.pl
+ DEPEND[sha1-586.s]=../perlasm/x86asm.pl
+-- 
+2.34.1
+
