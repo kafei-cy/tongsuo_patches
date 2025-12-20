@@ -1,0 +1,36 @@
+From 7c05215b872a78c48326bf6d646410bb7d30db40 Mon Sep 17 00:00:00 2001
+From: Tianjia Zhang <tianjia.zhang@linux.alibaba.com>
+Date: Tue, 28 Sep 2021 23:23:44 +0800
+Subject: [PATCH 181/209] test: Fix memory leak of asynctest
+
+ASYNC_init_thread() will be called automatically by ASYNC_start_job(),
+so ASYNC_cleanup_thread() must be called at last, otherwise it will
+cause memory leak.
+
+Signed-off-by: Tianjia Zhang <tianjia.zhang@linux.alibaba.com>
+
+Reviewed-by: Paul Dale <pauli@openssl.org>
+Reviewed-by: David von Oheimb <david.von.oheimb@siemens.com>
+Reviewed-by: Hugo Landau <hlandau@openssl.org>
+(Merged from https://github.com/openssl/openssl/pull/16703)
+
+(cherry picked from commit c5d061290baa9466182b6d1a5b88aa9e5a4b2386)
+---
+ test/asynctest.c | 1 +
+ 1 file changed, 1 insertion(+)
+
+diff --git a/test/asynctest.c b/test/asynctest.c
+index 6502ee9845..628d0d86ea 100644
+--- a/test/asynctest.c
++++ b/test/asynctest.c
+@@ -409,6 +409,7 @@ static int test_ASYNC_start_job_ex(void)
+     ret = 1;
+  err:
+     ASYNC_WAIT_CTX_free(waitctx);
++    ASYNC_cleanup_thread();
+     OSSL_LIB_CTX_free(libctx);
+     return ret;
+ }
+-- 
+2.34.1
+

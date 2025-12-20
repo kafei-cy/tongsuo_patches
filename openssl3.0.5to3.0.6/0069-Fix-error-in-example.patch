@@ -1,0 +1,40 @@
+From 32eb729a420e2eaaa05e9fa4abb4c93ce132cdbd Mon Sep 17 00:00:00 2001
+From: Pauli <pauli@openssl.org>
+Date: Wed, 20 Jul 2022 10:09:53 +1000
+Subject: [PATCH 069/209] Fix error in example.
+
+Fixes #18828
+
+Reviewed-by: Tomas Mraz <tomas@openssl.org>
+Reviewed-by: Hugo Landau <hlandau@openssl.org>
+(Merged from https://github.com/openssl/openssl/pull/18829)
+
+(cherry picked from commit 2752ab2eb61dcfc799775d34eaeda3621b85f95f)
+---
+ doc/man3/EVP_PKEY_gettable_params.pod | 3 +--
+ 1 file changed, 1 insertion(+), 2 deletions(-)
+
+diff --git a/doc/man3/EVP_PKEY_gettable_params.pod b/doc/man3/EVP_PKEY_gettable_params.pod
+index c3dfe4e30d..1afda9c19b 100644
+--- a/doc/man3/EVP_PKEY_gettable_params.pod
++++ b/doc/man3/EVP_PKEY_gettable_params.pod
+@@ -92,7 +92,7 @@ buffer size to hold the value.
+ 
+  #include <openssl/evp.h>
+ 
+- char *curve_name[64];
++ char curve_name[64];
+  unsigned char pub[256];
+  BIGNUM *bn_priv = NULL;
+ 
+@@ -113,7 +113,6 @@ buffer size to hold the value.
+      /* Error */
+  }
+ 
+-
+  BN_clear_free(bn_priv);
+ 
+ =head1 SEE ALSO
+-- 
+2.34.1
+

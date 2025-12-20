@@ -1,0 +1,199 @@
+From b74fc77b447ad6dd47a5d3dbe1dfedde75ff6278 Mon Sep 17 00:00:00 2001
+From: "Dr. David von Oheimb" <David.von.Oheimb@siemens.com>
+Date: Mon, 30 May 2022 16:53:05 +0200
+Subject: [PATCH 035/209] APPS/x509: With -CA but both -CAserial and
+ -CAcreateserial not given, use random serial.
+
+Also improve openssl-x509.pod.in and error handling of load_serial() in apps.c.
+
+Reviewed-by: Tomas Mraz <tomas@openssl.org>
+Reviewed-by: Paul Dale <pauli@openssl.org>
+Reviewed-by: Hugo Landau <hlandau@openssl.org>
+(Merged from https://github.com/openssl/openssl/pull/18373)
+
+(cherry picked from commit ec8a3409487c871b440fa52bff7c3ef33378494a)
+---
+ apps/ca.c                    |  6 ++++--
+ apps/include/apps.h          | 10 +++++++---
+ apps/lib/apps.c              | 18 ++++++++++++++----
+ apps/x509.c                  | 12 ++++++++----
+ doc/man1/openssl-x509.pod.in | 12 +++++++-----
+ 5 files changed, 40 insertions(+), 18 deletions(-)
+
+diff --git a/apps/ca.c b/apps/ca.c
+index 3bab357646..e14a5cff78 100644
+--- a/apps/ca.c
++++ b/apps/ca.c
+@@ -922,7 +922,8 @@ end_of_options:
+                 goto end;
+             }
+         } else {
+-            if ((serial = load_serial(serialfile, create_ser, NULL)) == NULL) {
++            serial = load_serial(serialfile, NULL, create_ser, NULL);
++            if (serial == NULL) {
+                 BIO_printf(bio_err, "error while loading serial number\n");
+                 goto end;
+             }
+@@ -1162,7 +1163,8 @@ end_of_options:
+ 
+         if ((crlnumberfile = NCONF_get_string(conf, section, ENV_CRLNUMBER))
+             != NULL)
+-            if ((crlnumber = load_serial(crlnumberfile, 0, NULL)) == NULL) {
++            if ((crlnumber = load_serial(crlnumberfile, NULL, 0, NULL))
++                == NULL) {
+                 BIO_printf(bio_err, "error while loading CRL number\n");
+                 goto end;
+             }
+diff --git a/apps/include/apps.h b/apps/include/apps.h
+index 9d5db16600..848d111bbd 100644
+--- a/apps/include/apps.h
++++ b/apps/include/apps.h
+@@ -219,12 +219,16 @@ typedef struct ca_db_st {
+ 
+ void app_bail_out(char *fmt, ...);
+ void *app_malloc(size_t sz, const char *what);
+-BIGNUM *load_serial(const char *serialfile, int create, ASN1_INTEGER **retai);
+-int save_serial(const char *serialfile, const char *suffix, const BIGNUM *serial,
+-                ASN1_INTEGER **retai);
++
++/* load_serial, save_serial, and rotate_serial are also used for CRL numbers */
++BIGNUM *load_serial(const char *serialfile, int *exists, int create,
++                    ASN1_INTEGER **retai);
++int save_serial(const char *serialfile, const char *suffix,
++                const BIGNUM *serial, ASN1_INTEGER **retai);
+ int rotate_serial(const char *serialfile, const char *new_suffix,
+                   const char *old_suffix);
+ int rand_serial(BIGNUM *b, ASN1_INTEGER *ai);
++
+ CA_DB *load_index(const char *dbfile, DB_ATTR *dbattr);
+ int index_index(CA_DB *db);
+ int save_index(const char *dbfile, const char *suffix, CA_DB *db);
+diff --git a/apps/lib/apps.c b/apps/lib/apps.c
+index 8b952a1b03..c501e32f3f 100644
+--- a/apps/lib/apps.c
++++ b/apps/lib/apps.c
+@@ -1456,7 +1456,8 @@ static IMPLEMENT_LHASH_HASH_FN(index_name, OPENSSL_CSTRING)
+ static IMPLEMENT_LHASH_COMP_FN(index_name, OPENSSL_CSTRING)
+ #undef BSIZE
+ #define BSIZE 256
+-BIGNUM *load_serial(const char *serialfile, int create, ASN1_INTEGER **retai)
++BIGNUM *load_serial(const char *serialfile, int *exists, int create,
++                    ASN1_INTEGER **retai)
+ {
+     BIO *in = NULL;
+     BIGNUM *ret = NULL;
+@@ -1468,6 +1469,8 @@ BIGNUM *load_serial(const char *serialfile, int create, ASN1_INTEGER **retai)
+         goto err;
+ 
+     in = BIO_new_file(serialfile, "r");
++    if (exists != NULL)
++        *exists = in != NULL;
+     if (in == NULL) {
+         if (!create) {
+             perror(serialfile);
+@@ -1475,8 +1478,14 @@ BIGNUM *load_serial(const char *serialfile, int create, ASN1_INTEGER **retai)
+         }
+         ERR_clear_error();
+         ret = BN_new();
+-        if (ret == NULL || !rand_serial(ret, ai))
++        if (ret == NULL) {
+             BIO_printf(bio_err, "Out of memory\n");
++        } else if (!rand_serial(ret, ai)) {
++            BIO_printf(bio_err, "Error creating random number to store in %s\n",
++                       serialfile);
++            BN_free(ret);
++            ret = NULL;
++        }
+     } else {
+         if (!a2i_ASN1_INTEGER(in, ai, buf, 1024)) {
+             BIO_printf(bio_err, "Unable to load number from %s\n",
+@@ -1490,12 +1499,13 @@ BIGNUM *load_serial(const char *serialfile, int create, ASN1_INTEGER **retai)
+         }
+     }
+ 
+-    if (ret && retai) {
++    if (ret != NULL && retai != NULL) {
+         *retai = ai;
+         ai = NULL;
+     }
+  err:
+-    ERR_print_errors(bio_err);
++    if (ret == NULL)
++        ERR_print_errors(bio_err);
+     BIO_free(in);
+     ASN1_INTEGER_free(ai);
+     return ret;
+diff --git a/apps/x509.c b/apps/x509.c
+index dca33f1e6a..ce7c65cc07 100644
+--- a/apps/x509.c
++++ b/apps/x509.c
+@@ -534,7 +534,7 @@ int x509_main(int argc, char **argv)
+             aliasout = ++num;
+             break;
+         case OPT_CACREATESERIAL:
+-            CA_createserial = ++num;
++            CA_createserial = 1;
+             break;
+         case OPT_CLREXT:
+             clrext = 1;
+@@ -1081,6 +1081,7 @@ static ASN1_INTEGER *x509_load_serial(const char *CAfile,
+     char *buf = NULL;
+     ASN1_INTEGER *bs = NULL;
+     BIGNUM *serial = NULL;
++    int defaultfile = 0, file_exists;
+ 
+     if (serialfile == NULL) {
+         const char *p = strrchr(CAfile, '.');
+@@ -1090,9 +1091,10 @@ static ASN1_INTEGER *x509_load_serial(const char *CAfile,
+         memcpy(buf, CAfile, len);
+         memcpy(buf + len, POSTFIX, sizeof(POSTFIX));
+         serialfile = buf;
++        defaultfile = 1;
+     }
+ 
+-    serial = load_serial(serialfile, create, NULL);
++    serial = load_serial(serialfile, &file_exists, create || defaultfile, NULL);
+     if (serial == NULL)
+         goto end;
+ 
+@@ -1101,8 +1103,10 @@ static ASN1_INTEGER *x509_load_serial(const char *CAfile,
+         goto end;
+     }
+ 
+-    if (!save_serial(serialfile, NULL, serial, &bs))
+-        goto end;
++    if (file_exists || create)
++        save_serial(serialfile, NULL, serial, &bs);
++    else
++        bs = BN_to_ASN1_INTEGER(serial, NULL);
+ 
+  end:
+     OPENSSL_free(buf);
+diff --git a/doc/man1/openssl-x509.pod.in b/doc/man1/openssl-x509.pod.in
+index b86f409ce8..ee1aa4492f 100644
+--- a/doc/man1/openssl-x509.pod.in
++++ b/doc/man1/openssl-x509.pod.in
+@@ -506,13 +506,15 @@ F<.srl> appended. For example if the CA certificate file is called
+ F<mycacert.pem> it expects to find a serial number file called
+ F<mycacert.srl>.
+ 
++If the B<-CA> option is specified and both the <-CAserial> and <-CAcreateserial>
++options are not given and the default serial number file does not exist,
++a random number is generated; this is the recommended practice.
++
+ =item B<-CAcreateserial>
+ 
+-With this option the CA serial number file is created if it does not exist:
+-it will contain the serial number "02" and the certificate being signed will
+-have the 1 as its serial number. If the B<-CA> option is specified
+-and the serial number file does not exist a random number is generated;
+-this is the recommended practice.
++With this option the CA serial number file is created if it does not exist.
++A random number is generated, used for the certificate, and saved into the
++serial number file in that case.
+ 
+ =back
+ 
+-- 
+2.34.1
+

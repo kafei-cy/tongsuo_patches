@@ -1,0 +1,34 @@
+From a2893b62333d97c8dfaaf655eaea919d30fb9a7b Mon Sep 17 00:00:00 2001
+From: Matt Caswell <matt@openssl.org>
+Date: Thu, 29 Sep 2022 12:08:49 +0100
+Subject: [PATCH 197/209] Ensure we call the cleanup() function when cleaning
+ an EVP_CIPHER_CTX
+
+In some circumstances we were not calling the cleanup() function to
+remove cipher specific data from an EVP_CIPHER_CTX.
+
+Reviewed-by: Tomas Mraz <tomas@openssl.org>
+Reviewed-by: Paul Dale <pauli@openssl.org>
+(Merged from https://github.com/openssl/openssl/pull/19300)
+
+(cherry picked from commit f817a7439eaa705429cf699dd0485e665b0ffc49)
+---
+ crypto/evp/evp_enc.c | 2 ++
+ 1 file changed, 2 insertions(+)
+
+diff --git a/crypto/evp/evp_enc.c b/crypto/evp/evp_enc.c
+index 8480a86fab..b178d10864 100644
+--- a/crypto/evp/evp_enc.c
++++ b/crypto/evp/evp_enc.c
+@@ -151,6 +151,8 @@ static int evp_cipher_init_internal(EVP_CIPHER_CTX *ctx,
+      * (legacy code)
+      */
+     if (cipher != NULL && ctx->cipher != NULL) {
++        if (ctx->cipher->cleanup != NULL && !ctx->cipher->cleanup(ctx))
++            return 0;
+         OPENSSL_clear_free(ctx->cipher_data, ctx->cipher->ctx_size);
+         ctx->cipher_data = NULL;
+     }
+-- 
+2.34.1
+

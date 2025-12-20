@@ -1,0 +1,116 @@
+From 4fe6c2fdc80b11d6ec16c7a87ec46031d459e86b Mon Sep 17 00:00:00 2001
+From: Clemens Lang <cllang@redhat.com>
+Date: Mon, 4 Jul 2022 16:15:07 +0200
+Subject: [PATCH 107/209] APPS: dgst: Support properties when signing
+
+The -provider and -propquery options did not work on dgst when using it
+for signing or signature verification (including HMACs). Fix this and
+add tests that check that operations that would usually fail with the
+FIPS provider work when run with
+
+| -provider default -propquery '?fips!=yes'
+
+Additionally, modify the behavior of dgst -list to also use the current
+library context and property query. This reduces the output below the
+headline "Supported digests" to a list of the digest algorithms that
+will actually work with the current configuration, which is closer to
+what users probably expect with this headline.
+
+See also 30b2c3592e8511b60d44f93eb657a1ecb3662c08, which previously
+fixed the same problem in dsaparam and gendsa. See also the initial
+report in https://bugzilla.redhat.com/show_bug.cgi?id=2094956.
+
+Signed-off-by: Clemens Lang <cllang@redhat.com>
+
+Reviewed-by: Tomas Mraz <tomas@openssl.org>
+Reviewed-by: Dmitry Belyavskiy <beldmit@gmail.com>
+(Merged from https://github.com/openssl/openssl/pull/18717)
+
+(cherry picked from commit 653a7706781ebbe8a6a4b84d29b39d001c395ffe)
+---
+ apps/dgst.c                     | 20 ++++++++++++++++----
+ test/recipes/20-test_cli_fips.t | 14 +++++++++++++-
+ 2 files changed, 29 insertions(+), 5 deletions(-)
+
+diff --git a/apps/dgst.c b/apps/dgst.c
+index bd23b76996..77e16263d1 100644
+--- a/apps/dgst.c
++++ b/apps/dgst.c
+@@ -321,8 +321,10 @@ int dgst_main(int argc, char **argv)
+     }
+ 
+     if (hmac_key != NULL) {
+-        if (md == NULL)
++        if (md == NULL) {
+             md = (EVP_MD *)EVP_sha256();
++            digestname = SN_sha256;
++        }
+         sigkey = EVP_PKEY_new_raw_private_key(EVP_PKEY_HMAC, impl,
+                                               (unsigned char *)hmac_key,
+                                               strlen(hmac_key));
+@@ -340,9 +342,19 @@ int dgst_main(int argc, char **argv)
+             goto end;
+         }
+         if (do_verify)
+-            res = EVP_DigestVerifyInit(mctx, &pctx, md, impl, sigkey);
++            if (impl == NULL)
++                res = EVP_DigestVerifyInit_ex(mctx, &pctx, digestname,
++                                              app_get0_libctx(),
++                                              app_get0_propq(), sigkey, NULL);
++            else
++                res = EVP_DigestVerifyInit(mctx, &pctx, md, impl, sigkey);
+         else
+-            res = EVP_DigestSignInit(mctx, &pctx, md, impl, sigkey);
++            if (impl == NULL)
++                res = EVP_DigestSignInit_ex(mctx, &pctx, digestname,
++                                            app_get0_libctx(),
++                                            app_get0_propq(), sigkey, NULL);
++            else
++                res = EVP_DigestSignInit(mctx, &pctx, md, impl, sigkey);
+         if (res == 0) {
+             BIO_printf(bio_err, "Error setting context\n");
+             goto end;
+@@ -467,7 +479,7 @@ static void show_digests(const OBJ_NAME *name, void *arg)
+         return;
+ 
+     /* Filter out message digests that we cannot use */
+-    md = EVP_get_digestbyname(name->name);
++    md = EVP_MD_fetch(app_get0_libctx(), name->name, app_get0_propq());
+     if (md == NULL)
+         return;
+ 
+diff --git a/test/recipes/20-test_cli_fips.t b/test/recipes/20-test_cli_fips.t
+index ee78bd7c5f..6d3c5ba1bb 100644
+--- a/test/recipes/20-test_cli_fips.t
++++ b/test/recipes/20-test_cli_fips.t
+@@ -67,7 +67,7 @@ sub pubfrompriv {
+ 
+ }
+ 
+-my $tsignverify_count = 8;
++my $tsignverify_count = 9;
+ sub tsignverify {
+     my $prefix = shift;
+     my $fips_key = shift;
+@@ -148,6 +148,18 @@ sub tsignverify {
+                  $tbs_data])),
+        $testtext);
+ 
++    $testtext = $prefix.': '.
++        'Verify something with a non-FIPS key'.
++		' in FIPS mode but with a non-FIPS property query';
++    ok(run(app(['openssl', 'dgst',
++				'-provider', 'default',
++				'-propquery', '?fips!=yes',
++				'-sha256',
++                '-verify', $nonfips_pub_key,
++                '-signature', $sigfile,
++                $tbs_data])),
++       $testtext);
++
+     $testtext = $prefix.': '.
+         'Verify a valid signature against the wrong data with a non-FIPS key'.
+         ' (should fail)';
+-- 
+2.34.1
+

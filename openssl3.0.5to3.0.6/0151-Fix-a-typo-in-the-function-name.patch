@@ -1,0 +1,35 @@
+From 1ed89de84f6e7b346c34c88ce4589216611ee505 Mon Sep 17 00:00:00 2001
+From: Akshat Maheshwari <akshatmaheshwari1995@gmail.com>
+Date: Tue, 13 Sep 2022 12:33:21 +0530
+Subject: [PATCH 151/209] Fix a typo in the function name
+
+X509_STORE_load_locations_ex() calls X509_STORE_load_file_ex() and X509_STORE_load_path(), there's no such function name as X509_STORE_load_dir().
+
+CLA: trivial
+
+Reviewed-by: Shane Lontis <shane.lontis@oracle.com>
+Reviewed-by: Paul Dale <pauli@openssl.org>
+Reviewed-by: Tomas Mraz <tomas@openssl.org>
+(Merged from https://github.com/openssl/openssl/pull/19202)
+
+(cherry picked from commit edb271ee5d68f31260da37e9ad5ed2f9f4dd7274)
+---
+ doc/man3/X509_STORE_add_cert.pod | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/doc/man3/X509_STORE_add_cert.pod b/doc/man3/X509_STORE_add_cert.pod
+index f53a345621..419690d3c0 100644
+--- a/doc/man3/X509_STORE_add_cert.pod
++++ b/doc/man3/X509_STORE_add_cert.pod
+@@ -115,7 +115,7 @@ X509_STORE_load_store() is similar to X509_STORE_load_store_ex() but
+ uses NULL for the library context I<libctx> and property query I<propq>.
+ 
+ X509_STORE_load_locations_ex() combines
+-X509_STORE_load_file_ex() and X509_STORE_load_dir() for a given file
++X509_STORE_load_file_ex() and X509_STORE_load_path() for a given file
+ and/or directory path.
+ It is permitted to specify just a file, just a directory, or both
+ paths.
+-- 
+2.34.1
+

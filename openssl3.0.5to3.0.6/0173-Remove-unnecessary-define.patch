@@ -1,0 +1,31 @@
+From ff9b1fe302c2c5022f35ad3b78f05080ff4908da Mon Sep 17 00:00:00 2001
+From: Pauli <pauli@openssl.org>
+Date: Mon, 19 Sep 2022 10:48:07 +1000
+Subject: [PATCH 173/209] Remove unnecessary define
+
+Reviewed-by: Richard Levitte <levitte@openssl.org>
+Reviewed-by: Tomas Mraz <tomas@openssl.org>
+(Merged from https://github.com/openssl/openssl/pull/19237)
+
+(cherry picked from commit 1cef04091ab12bda0e1c6a5874e9d113c44bbdd8)
+---
+ test/build.info | 3 ---
+ 1 file changed, 3 deletions(-)
+
+diff --git a/test/build.info b/test/build.info
+index 197ca4ac3c..a18f1a78d0 100644
+--- a/test/build.info
++++ b/test/build.info
+@@ -185,9 +185,6 @@ IF[{- !$disabled{tests} -}]
+   SOURCE[evp_fetch_prov_test]=evp_fetch_prov_test.c
+   INCLUDE[evp_fetch_prov_test]=../include ../apps/include
+   DEPEND[evp_fetch_prov_test]=../libcrypto libtestutil.a
+-  IF[{- $disabled{fips} || !$target{dso_scheme} -}]
+-    DEFINE[evp_extra_test]=NO_FIPS_MODULE
+-  ENDIF
+ 
+   SOURCE[provfetchtest]=provfetchtest.c
+   INCLUDE[provfetchtest]=../include ../apps/include
+-- 
+2.34.1
+

@@ -1,0 +1,45 @@
+From 7adcdb2a5144d826e2e74c019aa80a9d7eb6bcda Mon Sep 17 00:00:00 2001
+From: "J.W. Jagersma" <jwjagersma@gmail.com>
+Date: Sun, 25 Sep 2022 19:04:31 +0200
+Subject: [PATCH 188/209] djgpp: Use usleep() for ossl_sleep()
+
+This part failed to compile due to a circular dependency between
+internal/e_os.h and internal/time.h, when ossl_sleep() falls back to a
+busy wait.  However, djgpp has a usleep function, so it can use the
+regular Unix version of ossl_sleep().
+
+It's not great though.  The resolution is only ~55ms, and it may break
+when a user program hooks the timer interrupt without periodically
+updating BIOS time.  A high-resolution alternative is uclock(), but
+that is generally less desirable since it reprograms the system timer.
+
+The circular dependency is still there and may still cause trouble for
+other platforms.
+
+CLA: trivial
+
+Reviewed-by: Richard Levitte <levitte@openssl.org>
+Reviewed-by: Tomas Mraz <tomas@openssl.org>
+(Merged from https://github.com/openssl/openssl/pull/19274)
+
+(cherry picked from commit 651255941c49a5089dfc011f2abd636433da8b82)
+---
+ e_os.h | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/e_os.h b/e_os.h
+index 9e2f14072f..db05b7f815 100644
+--- a/e_os.h
++++ b/e_os.h
+@@ -287,7 +287,7 @@ struct servent *getservbyname(const char *name, const char *proto);
+ /* end vxworks */
+ 
+ /* system-specific variants defining ossl_sleep() */
+-#ifdef OPENSSL_SYS_UNIX
++#if defined(OPENSSL_SYS_UNIX) || defined(__DJGPP__)
+ # include <unistd.h>
+ static ossl_inline void ossl_sleep(unsigned long millis)
+ {
+-- 
+2.34.1
+

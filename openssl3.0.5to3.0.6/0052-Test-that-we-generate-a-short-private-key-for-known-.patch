@@ -1,0 +1,44 @@
+From 5eac066bef0c23bb74255423d335e634e4deb8d5 Mon Sep 17 00:00:00 2001
+From: Tomas Mraz <tomas@openssl.org>
+Date: Wed, 13 Jul 2022 16:04:09 +0200
+Subject: [PATCH 052/209] Test that we generate a short private key for known
+ DH prime
+
+Reviewed-by: Paul Dale <pauli@openssl.org>
+Reviewed-by: Kurt Roeckx <kurt@roeckx.be>
+(Merged from https://github.com/openssl/openssl/pull/18793)
+---
+ test/evp_extra_test2.c | 10 ++++++++++
+ 1 file changed, 10 insertions(+)
+
+diff --git a/test/evp_extra_test2.c b/test/evp_extra_test2.c
+index 0021c44341..75072885c2 100644
+--- a/test/evp_extra_test2.c
++++ b/test/evp_extra_test2.c
+@@ -333,6 +333,10 @@ static int test_dh_tofrom_data_select(void)
+     OSSL_PARAM params[2];
+     EVP_PKEY *key = NULL;
+     EVP_PKEY_CTX *gctx = NULL;
++# ifndef OPENSSL_NO_DEPRECATED_3_0
++    const DH *dhkey;
++    const BIGNUM *privkey;
++# endif
+ 
+     params[0] = OSSL_PARAM_construct_utf8_string("group", "ffdhe2048", 0);
+     params[1] = OSSL_PARAM_construct_end();
+@@ -341,6 +345,12 @@ static int test_dh_tofrom_data_select(void)
+           && TEST_true(EVP_PKEY_CTX_set_params(gctx, params))
+           && TEST_int_gt(EVP_PKEY_generate(gctx, &key), 0)
+           && TEST_true(do_pkey_tofrom_data_select(key, "DHX"));
++# ifndef OPENSSL_NO_DEPRECATED_3_0
++    dhkey = EVP_PKEY_get0_DH(key);
++    ret = ret && TEST_ptr(dhkey);
++    ret = ret && TEST_ptr(privkey = DH_get0_priv_key(dhkey))
++              && TEST_int_le(BN_num_bits(privkey), 225);
++# endif
+     EVP_PKEY_free(key);
+     EVP_PKEY_CTX_free(gctx);
+     return ret;
+-- 
+2.34.1
+

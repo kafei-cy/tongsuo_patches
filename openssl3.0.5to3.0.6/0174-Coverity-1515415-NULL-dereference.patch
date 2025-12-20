@@ -1,0 +1,31 @@
+From 33796db4a5c3ea68ae80530dcbff60222c5a2008 Mon Sep 17 00:00:00 2001
+From: Pauli <pauli@openssl.org>
+Date: Mon, 19 Sep 2022 09:57:38 +1000
+Subject: [PATCH 174/209] Coverity 1515415: NULL dereference
+
+Reviewed-by: Hugo Landau <hlandau@openssl.org>
+Reviewed-by: Tomas Mraz <tomas@openssl.org>
+(Merged from https://github.com/openssl/openssl/pull/19236)
+
+(cherry picked from commit 82d46d14462491681f25d016508715e85c1dc4d1)
+---
+ test/helpers/ssltestlib.c | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/test/helpers/ssltestlib.c b/test/helpers/ssltestlib.c
+index 24df80e0e9..51740f3599 100644
+--- a/test/helpers/ssltestlib.c
++++ b/test/helpers/ssltestlib.c
+@@ -504,7 +504,8 @@ int mempacket_test_inject(BIO *bio, const char *in, int inl, int pktnum,
+     }
+ 
+     for (i = 0; i < sk_MEMPACKET_num(ctx->pkts); i++) {
+-        looppkt = sk_MEMPACKET_value(ctx->pkts, i);
++        if (!TEST_ptr(looppkt = sk_MEMPACKET_value(ctx->pkts, i)))
++            goto err;
+         /* Check if we found the right place to insert this packet */
+         if (looppkt->num > thispkt->num) {
+             if (sk_MEMPACKET_insert(ctx->pkts, thispkt, i) == 0)
+-- 
+2.34.1
+

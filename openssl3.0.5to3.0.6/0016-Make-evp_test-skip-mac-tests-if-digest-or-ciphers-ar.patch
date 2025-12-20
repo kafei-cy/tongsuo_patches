@@ -1,0 +1,71 @@
+From c4a7b4ce8990e71f1c881c9f9d24a851deddf0c7 Mon Sep 17 00:00:00 2001
+From: slontis <shane.lontis@oracle.com>
+Date: Thu, 7 Jul 2022 12:01:09 +1000
+Subject: [PATCH 016/209] Make evp_test skip mac tests if digest or ciphers are
+ disabled.
+
+Fixes test error in #18714
+This only happens currently during minimal builds.
+
+Reviewed-by: Tomas Mraz <tomas@openssl.org>
+Reviewed-by: Paul Dale <pauli@openssl.org>
+(Merged from https://github.com/openssl/openssl/pull/18737)
+
+(cherry picked from commit c8a016cac44d5402df3106f46c9725aa1b480e40)
+---
+ test/evp_test.c | 26 ++++++++++++++++++++------
+ 1 file changed, 20 insertions(+), 6 deletions(-)
+
+diff --git a/test/evp_test.c b/test/evp_test.c
+index a3ab460105..66011c9561 100644
+--- a/test/evp_test.c
++++ b/test/evp_test.c
+@@ -1424,6 +1424,8 @@ static int mac_test_run_mac(EVP_TEST *t)
+                   expected->mac_name, expected->alg);
+ 
+     if (expected->alg != NULL) {
++        int skip = 0;
++
+         /*
+          * The underlying algorithm may be a cipher or a digest.
+          * We don't know which it is, but we can ask the MAC what it
+@@ -1431,18 +1433,30 @@ static int mac_test_run_mac(EVP_TEST *t)
+          */
+         if (OSSL_PARAM_locate_const(defined_params,
+                                     OSSL_MAC_PARAM_CIPHER) != NULL) {
+-            params[params_n++] =
+-                OSSL_PARAM_construct_utf8_string(OSSL_MAC_PARAM_CIPHER,
+-                                                 expected->alg, 0);
++            if (is_cipher_disabled(expected->alg))
++                skip = 1;
++            else
++                params[params_n++] =
++                    OSSL_PARAM_construct_utf8_string(OSSL_MAC_PARAM_CIPHER,
++                                                     expected->alg, 0);
+         } else if (OSSL_PARAM_locate_const(defined_params,
+                                            OSSL_MAC_PARAM_DIGEST) != NULL) {
+-            params[params_n++] =
+-                OSSL_PARAM_construct_utf8_string(OSSL_MAC_PARAM_DIGEST,
+-                                                 expected->alg, 0);
++            if (is_digest_disabled(expected->alg))
++                skip = 1;
++            else
++                params[params_n++] =
++                    OSSL_PARAM_construct_utf8_string(OSSL_MAC_PARAM_DIGEST,
++                                                     expected->alg, 0);
+         } else {
+             t->err = "MAC_BAD_PARAMS";
+             goto err;
+         }
++        if (skip) {
++            TEST_info("skipping, algorithm '%s' is disabled", expected->alg);
++            t->skip = 1;
++            t->err = NULL;
++            goto err;
++        }
+     }
+     if (expected->custom != NULL)
+         params[params_n++] =
+-- 
+2.34.1
+

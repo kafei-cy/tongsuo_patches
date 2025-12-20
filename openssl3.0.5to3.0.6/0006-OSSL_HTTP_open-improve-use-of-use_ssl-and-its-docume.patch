@@ -1,0 +1,48 @@
+From 941a1ffc3577a98408aefe40163ce6ac3b0011a0 Mon Sep 17 00:00:00 2001
+From: "Dr. David von Oheimb" <David.von.Oheimb@siemens.com>
+Date: Tue, 28 Jun 2022 17:47:40 +0200
+Subject: [PATCH 006/209] OSSL_HTTP_open(): improve use of use_ssl and its
+ documentation
+
+Reviewed-by: Tomas Mraz <tomas@openssl.org>
+Reviewed-by: Paul Dale <pauli@openssl.org>
+Reviewed-by: Hugo Landau <hlandau@openssl.org>
+(Merged from https://github.com/openssl/openssl/pull/18674)
+
+(cherry picked from commit 35750cb9af007702dad92d62da57200fdf9ddaf4)
+---
+ crypto/http/http_client.c       | 2 +-
+ doc/man3/OSSL_HTTP_transfer.pod | 4 ++--
+ 2 files changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/crypto/http/http_client.c b/crypto/http/http_client.c
+index 2520d71f2f..48a2e12976 100644
+--- a/crypto/http/http_client.c
++++ b/crypto/http/http_client.c
+@@ -952,7 +952,7 @@ OSSL_HTTP_REQ_CTX *OSSL_HTTP_open(const char *server, const char *port,
+     if (bio_update_fn != NULL) {
+         BIO *orig_bio = cbio;
+ 
+-        cbio = (*bio_update_fn)(cbio, arg, 1 /* connect */, use_ssl);
++        cbio = (*bio_update_fn)(cbio, arg, 1 /* connect */, use_ssl != 0);
+         if (cbio == NULL) {
+             if (bio == NULL) /* cbio was not provided by caller */
+                 BIO_free_all(orig_bio);
+diff --git a/doc/man3/OSSL_HTTP_transfer.pod b/doc/man3/OSSL_HTTP_transfer.pod
+index 7e823db3ea..1a5a973d52 100644
+--- a/doc/man3/OSSL_HTTP_transfer.pod
++++ b/doc/man3/OSSL_HTTP_transfer.pod
+@@ -102,8 +102,8 @@ The callback function may modify the BIO provided in the I<bio> argument,
+ whereby it may make use of a custom defined argument I<arg>,
+ which may for instance point to an B<SSL_CTX> structure.
+ During connection establishment, just after calling BIO_do_connect_retry(), the
+-callback function is invoked with the I<connect> argument being 1 and the I<detail>
+-argument being 1 if HTTPS is requested, i.e., SSL/TLS should be enabled, else 0.
++callback function is invoked with the I<connect> argument being 1 and
++I<detail> being 1 if I<use_ssl> is nonzero (i.e., HTTPS is requested), else 0.
+ On disconnect I<connect> is 0 and I<detail> is 1 if no error occurred, else 0.
+ For instance, on connect the callback may push an SSL BIO to implement HTTPS;
+ after disconnect it may do some diagnostic output and pop and free the SSL BIO.
+-- 
+2.34.1
+

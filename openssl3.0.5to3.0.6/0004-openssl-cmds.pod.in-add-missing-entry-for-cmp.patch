@@ -1,0 +1,37 @@
+From 6615fd14de66f6b0315875daa7c3ce9718c365ca Mon Sep 17 00:00:00 2001
+From: "Dr. David von Oheimb" <David.von.Oheimb@siemens.com>
+Date: Fri, 24 Jun 2022 12:39:49 +0200
+Subject: [PATCH 004/209] openssl-cmds.pod.in: add missing entry for cmp
+
+Reviewed-by: Hugo Landau <hlandau@openssl.org>
+Reviewed-by: Tomas Mraz <tomas@openssl.org>
+(Merged from https://github.com/openssl/openssl/pull/18653)
+
+(cherry picked from commit 33478aedafaff1f414cabd67fb30970c41996f5c)
+---
+ doc/man1/openssl-cmds.pod.in | 2 ++
+ 1 file changed, 2 insertions(+)
+
+diff --git a/doc/man1/openssl-cmds.pod.in b/doc/man1/openssl-cmds.pod.in
+index a1097904df..4cfb7ce4ee 100644
+--- a/doc/man1/openssl-cmds.pod.in
++++ b/doc/man1/openssl-cmds.pod.in
+@@ -8,6 +8,7 @@
+ asn1parse,
+ ca,
+ ciphers,
++cmp,
+ cms,
+ crl,
+ crl2pkcs7,
+@@ -88,6 +89,7 @@ L<openssl(1)>,
+ L<openssl-asn1parse(1)>,
+ L<openssl-ca(1)>,
+ L<openssl-ciphers(1)>,
++L<openssl-cmp(1)>,
+ L<openssl-cms(1)>,
+ L<openssl-crl(1)>,
+ L<openssl-crl2pkcs7(1)>,
+-- 
+2.34.1
+

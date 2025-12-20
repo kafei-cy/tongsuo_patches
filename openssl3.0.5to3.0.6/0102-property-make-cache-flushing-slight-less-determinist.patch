@@ -1,0 +1,65 @@
+From d6e3a2c15929a793d15e034f81cca19e1808efdc Mon Sep 17 00:00:00 2001
+From: Pauli <pauli@openssl.org>
+Date: Fri, 29 Jul 2022 11:00:50 +1000
+Subject: [PATCH 102/209] property: make cache flushing slight less
+ deterministic
+
+If there is no timer available to seed the stochastic flushing, revert to a
+global seed that gets updated each flush.
+
+Reviewed-by: Tomas Mraz <tomas@openssl.org>
+Reviewed-by: Matt Caswell <matt@openssl.org>
+(Merged from https://github.com/openssl/openssl/pull/18906)
+
+(cherry picked from commit 56d4ff6cd7fc200943197dff65146a8864b7df98)
+---
+ crypto/property/property.c | 14 ++++++++++++--
+ 1 file changed, 12 insertions(+), 2 deletions(-)
+
+diff --git a/crypto/property/property.c b/crypto/property/property.c
+index dec0bdb45e..3469768ca6 100644
+--- a/crypto/property/property.c
++++ b/crypto/property/property.c
+@@ -15,6 +15,7 @@
+ #include "internal/core.h"
+ #include "internal/property.h"
+ #include "internal/provider.h"
++#include "internal/tsan_assist.h"
+ #include "crypto/ctype.h"
+ #include <openssl/lhash.h>
+ #include <openssl/rand.h>
+@@ -89,6 +90,7 @@ typedef struct {
+     LHASH_OF(QUERY) *cache;
+     size_t nelem;
+     uint32_t seed;
++    unsigned char using_global_seed;
+ } IMPL_CACHE_FLUSH;
+ 
+ DEFINE_SPARSE_ARRAY_OF(ALGORITHM);
+@@ -657,13 +659,21 @@ static void impl_cache_flush_one_alg(ossl_uintmax_t idx, ALGORITHM *alg,
+ static void ossl_method_cache_flush_some(OSSL_METHOD_STORE *store)
+ {
+     IMPL_CACHE_FLUSH state;
++    static TSAN_QUALIFIER uint32_t global_seed = 1;
+ 
+     state.nelem = 0;
+-    if ((state.seed = OPENSSL_rdtsc()) == 0)
+-        state.seed = 1;
++    state.using_global_seed = 0;
++    if ((state.seed = OPENSSL_rdtsc()) == 0) {
++        /* If there is no timer available, seed another way */
++        state.using_global_seed = 1;
++        state.seed = tsan_load(&global_seed);
++    }
+     store->cache_need_flush = 0;
+     ossl_sa_ALGORITHM_doall_arg(store->algs, &impl_cache_flush_one_alg, &state);
+     store->cache_nelem = state.nelem;
++    /* Without a timer, update the global seed */
++    if (state.using_global_seed)
++        tsan_add(&global_seed, state.seed);
+ }
+ 
+ int ossl_method_store_cache_get(OSSL_METHOD_STORE *store, OSSL_PROVIDER *prov,
+-- 
+2.34.1
+

@@ -1,0 +1,82 @@
+From 9184cfcf661ad9338f652b0de4d5f38e7747381c Mon Sep 17 00:00:00 2001
+From: Clemens Lang <cllang@redhat.com>
+Date: Fri, 1 Jul 2022 16:35:44 +0200
+Subject: [PATCH 106/209] TEST: Check property query support of apps/pkey
+
+Property query support works correctly for apps/pkey, but there does not
+seem to be a test for it yet, so add one.
+
+See also 30b2c3592e8511b60d44f93eb657a1ecb3662c08, which previously
+fixed a similar problem in dsaparam and gendsa. See also the initial
+report in https://bugzilla.redhat.com/show_bug.cgi?id=2094956.
+
+Signed-off-by: Clemens Lang <cllang@redhat.com>
+
+Reviewed-by: Tomas Mraz <tomas@openssl.org>
+Reviewed-by: Dmitry Belyavskiy <beldmit@gmail.com>
+(Merged from https://github.com/openssl/openssl/pull/18717)
+
+(cherry picked from commit 33b9bb45a4d463052aef763cc7c64c91384d4249)
+---
+ test/recipes/15-test_ec.t | 26 +++++++++++++++++++++++++-
+ test/testec-p112r1.pem    |  7 +++++++
+ 2 files changed, 32 insertions(+), 1 deletion(-)
+ create mode 100644 test/testec-p112r1.pem
+
+diff --git a/test/recipes/15-test_ec.t b/test/recipes/15-test_ec.t
+index acd1b3960d..354c360362 100644
+--- a/test/recipes/15-test_ec.t
++++ b/test/recipes/15-test_ec.t
+@@ -18,7 +18,9 @@ setup("test_ec");
+ 
+ plan skip_all => 'EC is not supported in this build' if disabled('ec');
+ 
+-plan tests => 14;
++plan tests => 15;
++
++my $no_fips = disabled('fips') || ($ENV{NO_FIPS} // 0);
+ 
+ require_ok(srctop_file('test','recipes','tconversion.pl'));
+ 
+@@ -85,3 +87,25 @@ subtest 'Ed448 conversions -- public key' => sub {
+                  -in => srctop_file("test", "tested448pub.pem"),
+                  -args => ["pkey", "-pubin", "-pubout"] );
+ };
++
++subtest 'Check loading of fips and non-fips keys' => sub {
++    plan skip_all => "FIPS is disabled"
++        if $no_fips;
++
++    plan tests => 2;
++
++    my $fipsconf = srctop_file("test", "fips-and-base.cnf");
++    $ENV{OPENSSL_CONF} = $fipsconf;
++
++    ok(!run(app(['openssl', 'pkey',
++                 '-check', '-in', srctop_file("test", "testec-p112r1.pem")])),
++        "Checking non-fips curve key fails in FIPS provider");
++
++    ok(run(app(['openssl', 'pkey',
++                '-provider', 'default',
++                '-propquery', '?fips!=yes',
++                '-check', '-in', srctop_file("test", "testec-p112r1.pem")])),
++        "Checking non-fips curve key succeeds with non-fips property query");
++
++    delete $ENV{OPENSSL_CONF};
++}
+diff --git a/test/testec-p112r1.pem b/test/testec-p112r1.pem
+new file mode 100644
+index 0000000000..c81398e7d7
+--- /dev/null
++++ b/test/testec-p112r1.pem
+@@ -0,0 +1,7 @@
++-----BEGIN EC PARAMETERS-----
++BgUrgQQABg==
++-----END EC PARAMETERS-----
++-----BEGIN EC PRIVATE KEY-----
++MD4CAQEEDqpz3/ZgfdnaauL3MgNsoAcGBSuBBAAGoSADHgAErmlghD+XSf6spLhs
++7CqP1x1K6h2kfELB84SYKg==
++-----END EC PRIVATE KEY-----
+-- 
+2.34.1
+

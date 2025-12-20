@@ -1,0 +1,177 @@
+From 61f8d46d49eeee87d44cfa74acfb2f81393b92dd Mon Sep 17 00:00:00 2001
+From: Matt Caswell <matt@openssl.org>
+Date: Fri, 12 Aug 2022 13:24:19 +0100
+Subject: [PATCH 184/209] If a ticket key callback returns 0 in TLSv1.3 don't
+ send a ticket
+
+If we can't construct the ticket don't send one. This requires a change
+to the TLS state machine to be able to a handle a construction function
+deciding not to send a message after all.
+
+Fixes #18977
+
+Reviewed-by: Tomas Mraz <tomas@openssl.org>
+Reviewed-by: Viktor Dukhovni <viktor@openssl.org>
+(Merged from https://github.com/openssl/openssl/pull/19249)
+---
+ ssl/statem/statem.c      | 22 +++++++++++---
+ ssl/statem/statem_srvr.c | 64 +++++++++++++++++++++++++++++-----------
+ 2 files changed, 64 insertions(+), 22 deletions(-)
+
+diff --git a/ssl/statem/statem.c b/ssl/statem/statem.c
+index 4c463974ea..a1f40fd29b 100644
+--- a/ssl/statem/statem.c
++++ b/ssl/statem/statem.c
+@@ -849,10 +849,24 @@ static SUB_STATE_RETURN write_state_machine(SSL *s)
+                 SSLfatal(s, SSL_AD_INTERNAL_ERROR, ERR_R_INTERNAL_ERROR);
+                 return SUB_STATE_ERROR;
+             }
+-            if (confunc != NULL && !confunc(s, &pkt)) {
+-                WPACKET_cleanup(&pkt);
+-                check_fatal(s);
+-                return SUB_STATE_ERROR;
++            if (confunc != NULL) {
++                int tmpret;
++
++                tmpret = confunc(s, &pkt);
++                if (tmpret <= 0) {
++                    WPACKET_cleanup(&pkt);
++                    check_fatal(s);
++                    return SUB_STATE_ERROR;
++                } else if (tmpret == 2) {
++                    /*
++                     * The construction function decided not to construct the
++                     * message after all and continue. Skip sending.
++                     */
++                    WPACKET_cleanup(&pkt);
++                    st->write_state = WRITE_STATE_POST_WORK;
++                    st->write_state_work = WORK_MORE_A;
++                    break;
++                } /* else success */
+             }
+             if (!ssl_close_construct_packet(s, &pkt, mt)
+                     || !WPACKET_finish(&pkt)) {
+diff --git a/ssl/statem/statem_srvr.c b/ssl/statem/statem_srvr.c
+index c62ccc628c..b6b5e79d00 100644
+--- a/ssl/statem/statem_srvr.c
++++ b/ssl/statem/statem_srvr.c
+@@ -3660,6 +3660,10 @@ static int create_ticket_prequel(SSL *s, WPACKET *pkt, uint32_t age_add,
+     return 1;
+ }
+ 
++/*
++ * Returns 1 on success, 0 to abort construction of the ticket (non-fatal), or
++ * -1 on fatal error
++ */
+ static int construct_stateless_ticket(SSL *s, WPACKET *pkt, uint32_t age_add,
+                                       unsigned char *tick_nonce)
+ {
+@@ -3674,7 +3678,7 @@ static int construct_stateless_ticket(SSL *s, WPACKET *pkt, uint32_t age_add,
+     SSL_CTX *tctx = s->session_ctx;
+     unsigned char iv[EVP_MAX_IV_LENGTH];
+     unsigned char key_name[TLSEXT_KEYNAME_LENGTH];
+-    int iv_len, ok = 0;
++    int iv_len, ok = -1;
+     size_t macoffset, macendoffset;
+ 
+     /* get session encoding length */
+@@ -3755,7 +3759,15 @@ static int construct_stateless_ticket(SSL *s, WPACKET *pkt, uint32_t age_add,
+ #endif
+ 
+         if (ret == 0) {
+-
++            /*
++             * In TLSv1.2 we construct a 0 length ticket. In TLSv1.3 a 0
++             * length ticket is not allowed so we abort construction of the
++             * ticket
++             */
++            if (SSL_IS_TLS13(s)) {
++                ok = 0;
++                goto err;
++            }
+             /* Put timeout and length */
+             if (!WPACKET_put_bytes_u32(pkt, 0)
+                     || !WPACKET_put_bytes_u16(pkt, 0)) {
+@@ -3868,6 +3880,20 @@ static int construct_stateful_ticket(SSL *s, WPACKET *pkt, uint32_t age_add,
+     return 1;
+ }
+ 
++static void tls_update_ticket_counts(SSL *s)
++{
++    /*
++     * Increment both |sent_tickets| and |next_ticket_nonce|. |sent_tickets|
++     * gets reset to 0 if we send more tickets following a post-handshake
++     * auth, but |next_ticket_nonce| does not.  If we're sending extra
++     * tickets, decrement the count of pending extra tickets.
++     */
++    s->sent_tickets++;
++    s->next_ticket_nonce++;
++    if (s->ext.extra_tickets_expected > 0)
++        s->ext.extra_tickets_expected--;
++}
++
+ int tls_construct_new_session_ticket(SSL *s, WPACKET *pkt)
+ {
+     SSL_CTX *tctx = s->session_ctx;
+@@ -3876,6 +3902,7 @@ int tls_construct_new_session_ticket(SSL *s, WPACKET *pkt)
+         unsigned char age_add_c[sizeof(uint32_t)];
+         uint32_t age_add;
+     } age_add_u;
++    int ret = 0;
+ 
+     age_add_u.age_add = 0;
+ 
+@@ -3973,10 +4000,20 @@ int tls_construct_new_session_ticket(SSL *s, WPACKET *pkt)
+             /* SSLfatal() already called */
+             goto err;
+         }
+-    } else if (!construct_stateless_ticket(s, pkt, age_add_u.age_add,
+-                                           tick_nonce)) {
+-        /* SSLfatal() already called */
+-        goto err;
++    } else {
++        int tmpret;
++
++        tmpret = construct_stateless_ticket(s, pkt, age_add_u.age_add,
++                                            tick_nonce);
++        if (tmpret != 1) {
++            if (tmpret == 0) {
++                ret = 2; /* Non-fatal. Abort construction but continue */
++                /* We count this as a success so update the counts anwyay */
++                tls_update_ticket_counts(s);
++            }
++            /* else SSLfatal() already called */
++            goto err;
++        }
+     }
+ 
+     if (SSL_IS_TLS13(s)) {
+@@ -3986,22 +4023,13 @@ int tls_construct_new_session_ticket(SSL *s, WPACKET *pkt)
+             /* SSLfatal() already called */
+             goto err;
+         }
+-        /*
+-         * Increment both |sent_tickets| and |next_ticket_nonce|. |sent_tickets|
+-         * gets reset to 0 if we send more tickets following a post-handshake
+-         * auth, but |next_ticket_nonce| does not.  If we're sending extra
+-         * tickets, decrement the count of pending extra tickets.
+-         */
+-        s->sent_tickets++;
+-        s->next_ticket_nonce++;
+-        if (s->ext.extra_tickets_expected > 0)
+-            s->ext.extra_tickets_expected--;
++        tls_update_ticket_counts(s);
+         ssl_update_cache(s, SSL_SESS_CACHE_SERVER);
+     }
+ 
+-    return 1;
++    ret = 1;
+  err:
+-    return 0;
++    return ret;
+ }
+ 
+ /*
+-- 
+2.34.1
+

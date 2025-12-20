@@ -1,0 +1,39 @@
+From ba65b5b9ae48e5e7f8cf04bd50e3107a0d150c77 Mon Sep 17 00:00:00 2001
+From: Richard Levitte <levitte@openssl.org>
+Date: Tue, 26 Jul 2022 19:38:02 +0200
+Subject: [PATCH 084/209] Fix quotes install_fips in
+ Configurations/windows-makefile.tmpl
+
+Directories and file names with spaces require quoting...  again
+
+Fixes #18880
+
+Reviewed-by: Tomas Mraz <tomas@openssl.org>
+Reviewed-by: Matt Caswell <matt@openssl.org>
+Reviewed-by: Paul Dale <pauli@openssl.org>
+Reviewed-by: Hugo Landau <hlandau@openssl.org>
+(Merged from https://github.com/openssl/openssl/pull/18881)
+
+(cherry picked from commit 709651c9022e7be7e69cf8a2f6edf2c8722a6a1e)
+---
+ Configurations/windows-makefile.tmpl | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/Configurations/windows-makefile.tmpl b/Configurations/windows-makefile.tmpl
+index 300b6f16ed..dcf83a516a 100644
+--- a/Configurations/windows-makefile.tmpl
++++ b/Configurations/windows-makefile.tmpl
+@@ -500,8 +500,8 @@ uninstall_docs: uninstall_html_docs
+ {- output_off() if $disabled{fips}; "" -}
+ install_fips: build_sw $(INSTALL_FIPSMODULECONF)
+ #	@[ -n "$(INSTALLTOP)" ] || (echo INSTALLTOP should not be empty; exit 1)
+-	@$(PERL) $(SRCDIR)\util\mkdir-p.pl $(MODULESDIR)
+-	@$(PERL) $(SRCDIR)\util\mkdir-p.pl $(OPENSSLDIR)
++	@"$(PERL)" "$(SRCDIR)\util\mkdir-p.pl" "$(MODULESDIR)"
++	@"$(PERL)" "$(SRCDIR)\util\mkdir-p.pl" "$(OPENSSLDIR)"
+ 	@$(ECHO) "*** Installing FIPS module"
+ 	@$(ECHO) "install $(INSTALL_FIPSMODULE) -> $(MODULESDIR)\$(FIPSMODULENAME)"
+ 	@"$(PERL)" "$(SRCDIR)\util\copy.pl" "$(INSTALL_FIPSMODULE)" "$(MODULESDIR)"
+-- 
+2.34.1
+

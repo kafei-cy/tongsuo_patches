@@ -1,0 +1,40 @@
+From 63b7c39aa2a3d5df58b7fe8d8e1fa811a502684a Mon Sep 17 00:00:00 2001
+From: Tomas Mraz <tomas@openssl.org>
+Date: Wed, 31 Aug 2022 08:50:42 +0200
+Subject: [PATCH 142/209] Document the return value of
+ OSSL_LIB_CTX_load_config()
+
+Reviewed-by: Paul Dale <pauli@openssl.org>
+Reviewed-by: Matt Caswell <matt@openssl.org>
+(Merged from https://github.com/openssl/openssl/pull/19101)
+
+(cherry picked from commit fc2be2d07acc0cfe954320c2491b8c5461cbef09)
+---
+ doc/man3/OSSL_LIB_CTX.pod | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)
+
+diff --git a/doc/man3/OSSL_LIB_CTX.pod b/doc/man3/OSSL_LIB_CTX.pod
+index 98a3896fe4..cf8bd8b067 100644
+--- a/doc/man3/OSSL_LIB_CTX.pod
++++ b/doc/man3/OSSL_LIB_CTX.pod
+@@ -83,7 +83,7 @@ B<OSSL_provider_init> function returns then the new provider is available in the
+ application's library context and will be similarly mirrored in the child
+ library context.
+ 
+-OSSL_LIB_CTX_load_config() loads a configuration file using the given C<ctx>.
++OSSL_LIB_CTX_load_config() loads a configuration file using the given I<ctx>.
+ This can be used to associate a library context with providers that are loaded
+ from a configuration.
+ 
+@@ -118,6 +118,8 @@ on error.
+ 
+ OSSL_LIB_CTX_free() doesn't return any value.
+ 
++OSSL_LIB_CTX_load_config() returns 1 on success, 0 on error.
++
+ =head1 HISTORY
+ 
+ All of the functions described on this page were added in OpenSSL 3.0.
+-- 
+2.34.1
+

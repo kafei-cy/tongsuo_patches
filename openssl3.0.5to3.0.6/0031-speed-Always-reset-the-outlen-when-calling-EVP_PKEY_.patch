@@ -1,0 +1,42 @@
+From c060c040367e4e2dc44b027d4e52163376f40777 Mon Sep 17 00:00:00 2001
+From: Tomas Mraz <tomas@openssl.org>
+Date: Mon, 11 Jul 2022 12:49:56 +0200
+Subject: [PATCH 031/209] speed: Always reset the outlen when calling
+ EVP_PKEY_derive
+
+Fixes #18768
+
+Reviewed-by: Paul Dale <pauli@openssl.org>
+Reviewed-by: Shane Lontis <shane.lontis@oracle.com>
+Reviewed-by: Hugo Landau <hlandau@openssl.org>
+(Merged from https://github.com/openssl/openssl/pull/18777)
+
+(cherry picked from commit ab8d56d05b773e499c86be874fd3f11f5950213c)
+---
+ apps/speed.c | 7 +++++--
+ 1 file changed, 5 insertions(+), 2 deletions(-)
+
+diff --git a/apps/speed.c b/apps/speed.c
+index 535e0f45c2..c8ad19a2bf 100644
+--- a/apps/speed.c
++++ b/apps/speed.c
+@@ -875,11 +875,14 @@ static int FFDH_derive_key_loop(void *args)
+     loopargs_t *tempargs = *(loopargs_t **) args;
+     EVP_PKEY_CTX *ffdh_ctx = tempargs->ffdh_ctx[testnum];
+     unsigned char *derived_secret = tempargs->secret_ff_a;
+-    size_t outlen = MAX_FFDH_SIZE;
+     int count;
+ 
+-    for (count = 0; COND(ffdh_c[testnum][0]); count++)
++    for (count = 0; COND(ffdh_c[testnum][0]); count++) {
++        /* outlen can be overwritten with a too small value (no padding used) */
++        size_t outlen = MAX_FFDH_SIZE;
++
+         EVP_PKEY_derive(ffdh_ctx, derived_secret, &outlen);
++    }
+     return count;
+ }
+ #endif /* OPENSSL_NO_DH */
+-- 
+2.34.1
+

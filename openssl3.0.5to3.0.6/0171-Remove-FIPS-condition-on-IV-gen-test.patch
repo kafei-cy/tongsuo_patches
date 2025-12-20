@@ -1,0 +1,44 @@
+From 5f3dcdf37e777191b4e859000fd1f9c64262f1b5 Mon Sep 17 00:00:00 2001
+From: Pauli <pauli@openssl.org>
+Date: Mon, 19 Sep 2022 10:31:12 +1000
+Subject: [PATCH 171/209] Remove FIPS condition on IV gen test.
+
+Reviewed-by: Richard Levitte <levitte@openssl.org>
+Reviewed-by: Tomas Mraz <tomas@openssl.org>
+(Merged from https://github.com/openssl/openssl/pull/19237)
+
+(cherry picked from commit 3fd255acb7b65a30afd1b23e17db2163fb9ffd8d)
+---
+ test/aesgcmtest.c | 4 ----
+ 1 file changed, 4 deletions(-)
+
+diff --git a/test/aesgcmtest.c b/test/aesgcmtest.c
+index 04cd91db98..cdb0cbd021 100644
+--- a/test/aesgcmtest.c
++++ b/test/aesgcmtest.c
+@@ -116,7 +116,6 @@ static int badkeylen_test(void)
+     return ret;
+ }
+ 
+-#ifdef FIPS_MODULE
+ static int ivgen_test(void)
+ {
+     unsigned char iv_gen[16];
+@@ -127,14 +126,11 @@ static int ivgen_test(void)
+     return do_encrypt(iv_gen, ct, &ctlen, tag, &taglen)
+            && do_decrypt(iv_gen, ct, ctlen, tag, taglen);
+ }
+-#endif /* FIPS_MODULE */
+ 
+ int setup_tests(void)
+ {
+     ADD_TEST(kat_test);
+     ADD_TEST(badkeylen_test);
+-#ifdef FIPS_MODULE
+     ADD_TEST(ivgen_test);
+-#endif /* FIPS_MODULE */
+     return 1;
+ }
+-- 
+2.34.1
+

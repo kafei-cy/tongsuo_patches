@@ -1,0 +1,62 @@
+From d3072f3f3ba3a6385bd41473483c9ee81443b684 Mon Sep 17 00:00:00 2001
+From: Pauli <pauli@openssl.org>
+Date: Mon, 15 Aug 2022 14:49:17 +1000
+Subject: [PATCH 123/209] Limit the size of various MAXCHUNK definitions
+
+The current code has issues when sizeof(long) <> sizeof(size_t).  The two
+types are assumed to be interchangeable and them being different will
+cause crashes and endless loops.
+
+This fix limits the maximum chunk size for many of the symmetric ciphers
+to 2^30 bytes.  This chunk size limits the amount of data that will
+be encrypted/decrypted in one lump.  The code internally handles block
+of data later than the chunk limit, so this will present no difference
+to the caller.  Any loss of efficiency due to limiting the chunking to
+1Gbyte rather than more should be insignificant.
+
+Fixes Coverity issues:
+    1508498, 1508500 - 1508505, 1508507 - 1508527, 1508529 - 1508533,
+    1508535 - 1508537, 1508539, 1508541 - 1508549, 1508551 - 1508569 &
+    1508571 - 1508582.
+
+Reviewed-by: Dmitry Belyavskiy <beldmit@gmail.com>
+Reviewed-by: Tomas Mraz <tomas@openssl.org>
+(Merged from https://github.com/openssl/openssl/pull/18997)
+
+(cherry picked from commit 709d4be78f64a8ba0707fb5682b90039e848dad4)
+---
+ include/crypto/evp.h                                  | 2 +-
+ providers/implementations/include/prov/ciphercommon.h | 4 ++--
+ 2 files changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/include/crypto/evp.h b/include/crypto/evp.h
+index eeac4ee9f1..e571c546c6 100644
+--- a/include/crypto/evp.h
++++ b/include/crypto/evp.h
+@@ -365,7 +365,7 @@ static int cname##_ecb_cipher(EVP_CIPHER_CTX *ctx, unsigned char *out, const uns
+         return 1;\
+ }
+ 
+-#define EVP_MAXCHUNK ((size_t)1<<(sizeof(long)*8-2))
++#define EVP_MAXCHUNK ((size_t)1 << 30)
+ 
+ #define BLOCK_CIPHER_func_ofb(cname, cprefix, cbits, kstruct, ksched) \
+     static int cname##_ofb_cipher(EVP_CIPHER_CTX *ctx, unsigned char *out, const unsigned char *in, size_t inl) \
+diff --git a/providers/implementations/include/prov/ciphercommon.h b/providers/implementations/include/prov/ciphercommon.h
+index 91c4c914be..30a59e5572 100644
+--- a/providers/implementations/include/prov/ciphercommon.h
++++ b/providers/implementations/include/prov/ciphercommon.h
+@@ -14,8 +14,8 @@
+ #include "internal/cryptlib.h"
+ #include "crypto/modes.h"
+ 
+-#define MAXCHUNK    ((size_t)1 << (sizeof(long) * 8 - 2))
+-#define MAXBITCHUNK ((size_t)1 << (sizeof(size_t) * 8 - 4))
++# define MAXCHUNK    ((size_t)1 << 30)
++# define MAXBITCHUNK ((size_t)1 << (sizeof(size_t) * 8 - 4))
+ 
+ #define GENERIC_BLOCK_SIZE 16
+ #define IV_STATE_UNINITIALISED 0  /* initial state is not initialized */
+-- 
+2.34.1
+

@@ -1,0 +1,30 @@
+From ae9eaf15506dc04c92bebf9b08d14956784dfbe4 Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?Tobias=20Nie=C3=9Fen?= <tniessen@tnie.de>
+Date: Sat, 20 Aug 2022 18:56:21 +0200
+Subject: [PATCH 130/209] Fix typo in migration guide
+
+Reviewed-by: Matt Caswell <matt@openssl.org>
+Reviewed-by: Paul Dale <pauli@openssl.org>
+(Merged from https://github.com/openssl/openssl/pull/19032)
+
+(cherry picked from commit 4c10099086dd75d583317056fb5ce0f88825bf0c)
+---
+ doc/man7/migration_guide.pod | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/doc/man7/migration_guide.pod b/doc/man7/migration_guide.pod
+index a45a15d5d2..c2d885d492 100644
+--- a/doc/man7/migration_guide.pod
++++ b/doc/man7/migration_guide.pod
+@@ -1194,7 +1194,7 @@ Use the respective non-deprecated _ex() functions.
+ 
+ BN_is_prime_ex(), BN_is_prime_fasttest_ex()
+ 
+-Use L<BN_check_prime(3)> which that avoids possible misuse and always uses at least
++Use L<BN_check_prime(3)> which avoids possible misuse and always uses at least
+ 64 rounds of the Miller-Rabin primality test.
+ 
+ =item *
+-- 
+2.34.1
+

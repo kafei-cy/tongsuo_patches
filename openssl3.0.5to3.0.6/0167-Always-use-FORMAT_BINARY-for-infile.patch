@@ -1,0 +1,34 @@
+From 70f1b6aaa5de06a317c366b17edcbff890f062b2 Mon Sep 17 00:00:00 2001
+From: Patrik Sevallius <patrik.sevallius@assaabloy.com>
+Date: Sun, 18 Sep 2022 12:26:02 +0200
+Subject: [PATCH 167/209] Always use FORMAT_BINARY for infile
+
+CLA: trivial
+
+Reviewed-by: Richard Levitte <levitte@openssl.org>
+Reviewed-by: Tomas Mraz <tomas@openssl.org>
+Reviewed-by: Hugo Landau <hlandau@openssl.org>
+(Merged from https://github.com/openssl/openssl/pull/19234)
+
+(cherry picked from commit 4689fe1bfd390db591ad5ab5479f06b52ac6f337)
+---
+ apps/mac.c | 3 ---
+ 1 file changed, 3 deletions(-)
+
+diff --git a/apps/mac.c b/apps/mac.c
+index 5f80ca22c7..b66a69fe00 100644
+--- a/apps/mac.c
++++ b/apps/mac.c
+@@ -170,9 +170,6 @@ opthelp:
+             goto err;
+     }
+ 
+-    /* Use text mode for stdin */
+-    if (infile == NULL || strcmp(infile, "-") == 0)
+-        inform = FORMAT_TEXT;
+     in = bio_open_default(infile, 'r', inform);
+     if (in == NULL)
+         goto err;
+-- 
+2.34.1
+

@@ -1,0 +1,48 @@
+From 613fe16a90203aaa5ace2d95e498e2170e52d125 Mon Sep 17 00:00:00 2001
+From: Tomas Mraz <tomas@openssl.org>
+Date: Wed, 14 Sep 2022 10:41:04 +0200
+Subject: [PATCH 165/209] Fix detection of ktls support in cross-compile
+ environment on Linux
+
+Fixes #19212
+
+Reviewed-by: Matt Caswell <matt@openssl.org>
+Reviewed-by: Hugo Landau <hlandau@openssl.org>
+(Merged from https://github.com/openssl/openssl/pull/19213)
+
+(cherry picked from commit 9b25f52a4425d03fee1364d3531331d5d37ef742)
+---
+ Configure | 13 +++----------
+ 1 file changed, 3 insertions(+), 10 deletions(-)
+
+diff --git a/Configure b/Configure
+index 8caf5ae2fe..a558e5ab1a 100755
+--- a/Configure
++++ b/Configure
+@@ -1714,20 +1714,13 @@ unless ($disabled{devcryptoeng}) {
+ 
+ unless ($disabled{ktls}) {
+     $config{ktls}="";
++    my $cc = $config{CROSS_COMPILE}.$config{CC};
+     if ($target =~ m/^linux/) {
+-        my $usr = "/usr/$config{cross_compile_prefix}";
+-        chop($usr);
+-        if ($config{cross_compile_prefix} eq "") {
+-            $usr = "/usr";
+-        }
+-        my $minver = (4 << 16) + (13 << 8) + 0;
+-        my @verstr = split(" ",`cat $usr/include/linux/version.h | grep LINUX_VERSION_CODE`);
+-
+-        if ($verstr[2] < $minver) {
++        system("printf '#include <sys/types.h>\n#include <linux/tls.h>' | $cc -E - >/dev/null 2>&1");
++        if ($? != 0) {
+             disable('too-old-kernel', 'ktls');
+         }
+     } elsif ($target =~ m/^BSD/) {
+-        my $cc = $config{CROSS_COMPILE}.$config{CC};
+         system("printf '#include <sys/types.h>\n#include <sys/ktls.h>' | $cc -E - >/dev/null 2>&1");
+         if ($? != 0) {
+             disable('too-old-freebsd', 'ktls');
+-- 
+2.34.1
+

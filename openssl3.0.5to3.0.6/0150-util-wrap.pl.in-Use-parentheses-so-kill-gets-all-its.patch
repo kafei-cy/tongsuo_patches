@@ -1,0 +1,44 @@
+From d83c465754ab4bfeb33718ad5ac851388079daba Mon Sep 17 00:00:00 2001
+From: Richard Levitte <levitte@openssl.org>
+Date: Wed, 14 Sep 2022 07:07:41 +0200
+Subject: [PATCH 150/209] util/wrap.pl.in: Use parentheses so `kill` gets all
+ its arguments
+
+In perl, this may be ambiguous:
+
+    fn (expr1), expr2
+
+Is the comma (which may be `=>` just as well in this case) a separator
+between arguments to `fn`, or is it the comma operator, separating the
+expressions `fn(expr1)` and `expr2`?  It appears that in this particular
+case, perl takes the existing parentheses to mean the latter.  When the
+former was intended, extra parentheses are required.
+
+Fixes #19209
+
+Reviewed-by: Dmitry Belyavskiy <beldmit@gmail.com>
+Reviewed-by: Paul Dale <pauli@openssl.org>
+Reviewed-by: Tomas Mraz <tomas@openssl.org>
+(Merged from https://github.com/openssl/openssl/pull/19211)
+
+(cherry picked from commit ef6d6e452dc57ef4a55d7a6ec0693be650009bb5)
+---
+ util/wrap.pl.in | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/util/wrap.pl.in b/util/wrap.pl.in
+index de4692f319..5126513d4c 100644
+--- a/util/wrap.pl.in
++++ b/util/wrap.pl.in
+@@ -69,7 +69,7 @@ die "wrap.pl: Failed to execute '", join(' ', @cmd), "': $!\n"
+     if $waitcode == -1;
+ 
+ # When the subprocess aborted on a signal, we simply raise the same signal.
+-kill ($? & 255) => $$ if ($? & 255) != 0;
++kill(($? & 255) => $$) if ($? & 255) != 0;
+ 
+ # If that didn't stop this script, mimic what Unix shells do, by
+ # converting the signal code to an exit code by setting the high bit.
+-- 
+2.34.1
+

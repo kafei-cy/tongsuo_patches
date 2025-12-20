@@ -1,0 +1,122 @@
+From 9f4cea9559c853bcda29f8b30d4c634574099e16 Mon Sep 17 00:00:00 2001
+From: Daniel Fiala <daniel@openssl.org>
+Date: Mon, 22 Aug 2022 08:41:36 +0200
+Subject: [PATCH 159/209] Add documentation and test for EVP_PBE_alg_add
+
+Fixes openssl#18687
+
+Reviewed-by: Paul Dale <pauli@openssl.org>
+Reviewed-by: Tomas Mraz <tomas@openssl.org>
+(Merged from https://github.com/openssl/openssl/pull/19157)
+
+(cherry picked from commit 181167b6d0e5cd896847f7538adf28878b81b0b2)
+---
+ doc/man3/EVP_PBE_CipherInit.pod | 14 +++++++++++++-
+ test/evp_extra_test2.c          | 31 +++++++++++++++++++++++++++++++
+ util/missingcrypto.txt          |  2 --
+ 3 files changed, 44 insertions(+), 3 deletions(-)
+
+diff --git a/doc/man3/EVP_PBE_CipherInit.pod b/doc/man3/EVP_PBE_CipherInit.pod
+index 8f2a53397e..c3b551e602 100644
+--- a/doc/man3/EVP_PBE_CipherInit.pod
++++ b/doc/man3/EVP_PBE_CipherInit.pod
+@@ -3,7 +3,8 @@
+ =head1 NAME
+ 
+ EVP_PBE_CipherInit, EVP_PBE_CipherInit_ex,
+-EVP_PBE_find, EVP_PBE_find_ex - Password based encryption routines
++EVP_PBE_find, EVP_PBE_find_ex,
++EVP_PBE_alg_add_type, EVP_PBE_alg_add - Password based encryption routines
+ 
+ =head1 SYNOPSIS
+ 
+@@ -20,6 +21,11 @@ EVP_PBE_find, EVP_PBE_find_ex - Password based encryption routines
+  int EVP_PBE_find_ex(int type, int pbe_nid, int *pcnid, int *pmnid,
+                      EVP_PBE_KEYGEN **pkeygen, EVP_PBE_KEYGEN_EX **keygen_ex);
+ 
++ int EVP_PBE_alg_add_type(int pbe_type, int pbe_nid, int cipher_nid,
++                          int md_nid, EVP_PBE_KEYGEN *keygen);
++ int EVP_PBE_alg_add(int nid, const EVP_CIPHER *cipher, const EVP_MD *md,
++                     EVP_PBE_KEYGEN *keygen);
++
+ =head1 DESCRIPTION
+ 
+ =head2 PBE operations
+@@ -66,6 +72,12 @@ context and property query.
+ If a NULL is supplied for any of I<pcnid>, I<pmnid>, I<pkeygen> or I<pkeygen_ex>
+ then this parameter is not returned.
+ 
++=head2 PBE algorithm add
++
++EVP_PBE_alg_add_type() and EVP_PBE_alg_add() add an algorithm to the list
++of known algorithms. Their parameters have the same meaning as for
++EVP_PBE_find() and EVP_PBE_find_ex() functions.
++
+ =head1 NOTES
+ 
+ The arguments I<pbe_obj> and I<param> to EVP_PBE_CipherInit() and EVP_PBE_CipherInit_ex()
+diff --git a/test/evp_extra_test2.c b/test/evp_extra_test2.c
+index a17afc5ff3..ea4e538aaa 100644
+--- a/test/evp_extra_test2.c
++++ b/test/evp_extra_test2.c
+@@ -1058,6 +1058,34 @@ static int test_evp_md_ctx_copy(void)
+     return ret;
+ }
+ 
++#if !defined OPENSSL_NO_DES && !defined OPENSSL_NO_MD5
++static int test_evp_pbe_alg_add(void)
++{
++    int ret = 0;
++    int cipher_nid = 0, md_nid = 0;
++    EVP_PBE_KEYGEN_EX *keygen_ex = NULL;
++    EVP_PBE_KEYGEN *keygen = NULL;
++
++    if (!TEST_true(EVP_PBE_alg_add(NID_pbeWithMD5AndDES_CBC, EVP_des_cbc(), EVP_md5(),
++                                   PKCS5_PBE_keyivgen)))
++        goto err;
++
++    if (!TEST_true(EVP_PBE_find_ex(EVP_PBE_TYPE_OUTER, NID_pbeWithMD5AndDES_CBC,
++                                   &cipher_nid, &md_nid, &keygen, &keygen_ex)))
++        goto err;
++
++    if (!TEST_true(keygen != NULL))
++        goto err;
++    if (!TEST_true(keygen_ex == NULL))
++        goto err;
++
++    ret = 1;
++
++err:
++    return ret;
++}
++#endif
++
+ int setup_tests(void)
+ {
+     if (!test_get_libctx(&mainctx, &nullprov, NULL, NULL, NULL)) {
+@@ -1094,6 +1122,9 @@ int setup_tests(void)
+     ADD_TEST(test_rsa_pss_sign);
+     ADD_TEST(test_evp_md_ctx_copy);
+     ADD_ALL_TESTS(test_provider_unload_effective, 2);
++#if !defined OPENSSL_NO_DES && !defined OPENSSL_NO_MD5
++    ADD_TEST(test_evp_pbe_alg_add);
++#endif
+     return 1;
+ }
+ 
+diff --git a/util/missingcrypto.txt b/util/missingcrypto.txt
+index 8cf75a6a5a..94ccafeec2 100644
+--- a/util/missingcrypto.txt
++++ b/util/missingcrypto.txt
+@@ -635,8 +635,6 @@ EVP_CIPHER_impl_ctx_size(3)
+ EVP_CIPHER_set_asn1_iv(3)
+ EVP_MD_do_all(3)
+ EVP_MD_do_all_sorted(3)
+-EVP_PBE_alg_add(3)
+-EVP_PBE_alg_add_type(3)
+ EVP_PBE_cleanup(3)
+ EVP_PBE_get(3)
+ EVP_PKEY_CTX_get0_peerkey(3)
+-- 
+2.34.1
+

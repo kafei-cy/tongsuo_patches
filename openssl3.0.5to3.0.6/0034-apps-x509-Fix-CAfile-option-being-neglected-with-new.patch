@@ -1,0 +1,32 @@
+From fcdd41fea3ed56660ce03cec7f07217c99d90d31 Mon Sep 17 00:00:00 2001
+From: "Dr. David von Oheimb" <David.von.Oheimb@siemens.com>
+Date: Fri, 20 May 2022 06:23:54 +0200
+Subject: [PATCH 034/209] apps/x509: Fix -CAfile option being neglected with
+ -new or -in
+
+Reviewed-by: Tomas Mraz <tomas@openssl.org>
+Reviewed-by: Paul Dale <pauli@openssl.org>
+Reviewed-by: Hugo Landau <hlandau@openssl.org>
+(Merged from https://github.com/openssl/openssl/pull/18373)
+
+(cherry picked from commit 10c7887330bb6ca136cd16fe081639f4462a072e)
+---
+ apps/x509.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/apps/x509.c b/apps/x509.c
+index 2b9a0b6cb4..dca33f1e6a 100644
+--- a/apps/x509.c
++++ b/apps/x509.c
+@@ -725,7 +725,7 @@ int x509_main(int argc, char **argv)
+         }
+         if ((x = X509_new_ex(app_get0_libctx(), app_get0_propq())) == NULL)
+             goto end;
+-        if (sno == NULL) {
++        if (CAfile == NULL && sno == NULL) {
+             sno = ASN1_INTEGER_new();
+             if (sno == NULL || !rand_serial(NULL, sno))
+                 goto end;
+-- 
+2.34.1
+

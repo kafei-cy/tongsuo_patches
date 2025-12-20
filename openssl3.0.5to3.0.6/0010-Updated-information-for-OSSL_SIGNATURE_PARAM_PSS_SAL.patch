@@ -1,0 +1,45 @@
+From 1dc6d1db42e2c387ef5383482b87d7a4631b92a5 Mon Sep 17 00:00:00 2001
+From: Allan <allanchang96@gmail.com>
+Date: Wed, 6 Jul 2022 14:26:16 -0700
+Subject: [PATCH 010/209] Updated information for
+ OSSL_SIGNATURE_PARAM_PSS_SALTLEN Fixes #18066
+
+Reviewed-by: Shane Lontis <shane.lontis@oracle.com>
+Reviewed-by: Paul Dale <pauli@openssl.org>
+(Merged from https://github.com/openssl/openssl/pull/18736)
+
+(cherry picked from commit d104c6ff7499b0638c82557ce94e284b00f74627)
+---
+ doc/man7/EVP_SIGNATURE-RSA.pod | 8 +++++---
+ 1 file changed, 5 insertions(+), 3 deletions(-)
+
+diff --git a/doc/man7/EVP_SIGNATURE-RSA.pod b/doc/man7/EVP_SIGNATURE-RSA.pod
+index 06ca036f0c..440e1c634f 100644
+--- a/doc/man7/EVP_SIGNATURE-RSA.pod
++++ b/doc/man7/EVP_SIGNATURE-RSA.pod
+@@ -49,10 +49,10 @@ The digest algorithm name to use for the maskGenAlgorithm used by "pss" mode.
+ Sets the name of the property query associated with the "mgf1-digest" algorithm.
+ NULL is used if this optional value is not set.
+ 
+-=item "pss-saltlen" (B<OSSL_SIGNATURE_PARAM_PSS_SALTLEN>) <UTF8 string>
++=item "saltlen" (B<OSSL_SIGNATURE_PARAM_PSS_SALTLEN>) <integer> or <UTF8 string>
+ 
+-Set or get the "pss" mode minimum salt length. The value can either be a string
+-value representing a number or one of the following:
++The "pss" mode minimum salt length. The value can either be an integer,
++a string value representing a number or one of the following string values:
+ 
+ =over 4
+ 
+@@ -87,6 +87,8 @@ This common parameter is described in L<provider-signature(7)>.
+ 
+ =item "mgf1-digest" (B<OSSL_SIGNATURE_PARAM_MGF1_DIGEST>) <UTF8 string>
+ 
++=item "saltlen" (B<OSSL_SIGNATURE_PARAM_PSS_SALTLEN>) <integer> or <UTF8 string>
++
+ These parameters are as described above.
+ 
+ =back
+-- 
+2.34.1
+

@@ -1,0 +1,48 @@
+From b3f53a2f6fa6ed2ccab0423aadc753fbb3d70878 Mon Sep 17 00:00:00 2001
+From: Sebastian Andrzej Siewior <sebastian@breakpoint.cc>
+Date: Mon, 1 Aug 2022 22:08:27 +0200
+Subject: [PATCH 100/209] test/evp_test: Test if EVP_DigestSign() set
+ signature's length.
+
+Increase the signature's length, that is passed to EVP_DigestSign(). The
+implementation should set this parameter back to the actual length, that
+has been written.
+
+This (oneshot_digestsign_test_run()) fails for the ed25519/ ed448
+implementation of s390 prio the fix. The change in digestsign_test_run()
+follows the same pattern and is for collecting bonus points.
+
+Signed-off-by: Sebastian Andrzej Siewior <sebastian@breakpoint.cc>
+
+Reviewed-by: Matt Caswell <matt@openssl.org>
+Reviewed-by: Todd Short <todd.short@me.com>
+(Merged from https://github.com/openssl/openssl/pull/18928)
+
+(cherry picked from commit fc5888ccb60f33b366972299f30b976c4dc12162)
+---
+ test/evp_test.c | 2 ++
+ 1 file changed, 2 insertions(+)
+
+diff --git a/test/evp_test.c b/test/evp_test.c
+index 66011c9561..ce4c66ddcc 100644
+--- a/test/evp_test.c
++++ b/test/evp_test.c
+@@ -3299,6 +3299,7 @@ static int digestsign_test_run(EVP_TEST *t)
+         t->err = "MALLOC_FAILURE";
+         goto err;
+     }
++    got_len *= 2;
+     if (!EVP_DigestSignFinal(expected->ctx, got, &got_len)) {
+         t->err = "DIGESTSIGNFINAL_ERROR";
+         goto err;
+@@ -3376,6 +3377,7 @@ static int oneshot_digestsign_test_run(EVP_TEST *t)
+         t->err = "MALLOC_FAILURE";
+         goto err;
+     }
++    got_len *= 2;
+     if (!EVP_DigestSign(expected->ctx, got, &got_len,
+                         expected->osin, expected->osin_len)) {
+         t->err = "DIGESTSIGN_ERROR";
+-- 
+2.34.1
+

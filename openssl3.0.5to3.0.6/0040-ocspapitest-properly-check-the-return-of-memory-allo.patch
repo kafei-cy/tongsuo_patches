@@ -1,0 +1,35 @@
+From 287947928e54565baa2a46f37af55e18848c3227 Mon Sep 17 00:00:00 2001
+From: xkernel <xkernel.wang@foxmail.com>
+Date: Mon, 11 Jul 2022 15:12:00 +0800
+Subject: [PATCH 040/209] ocspapitest: properly check the return of
+ memory-allocating functions
+
+Reviewed-by: Paul Dale <pauli@openssl.org>
+Reviewed-by: Kurt Roeckx <kurt@roeckx.be>
+Reviewed-by: Tomas Mraz <tomas@openssl.org>
+(Merged from https://github.com/openssl/openssl/pull/18774)
+
+(cherry picked from commit ea809510f69e5aebc2ab95aa7530e01060e8a960)
+---
+ test/ocspapitest.c | 5 ++++-
+ 1 file changed, 4 insertions(+), 1 deletion(-)
+
+diff --git a/test/ocspapitest.c b/test/ocspapitest.c
+index 9e8c306259..7142f50831 100644
+--- a/test/ocspapitest.c
++++ b/test/ocspapitest.c
+@@ -78,7 +78,10 @@ static OCSP_BASICRESP *make_dummy_resp(void)
+     ASN1_BIT_STRING *key = ASN1_BIT_STRING_new();
+     ASN1_INTEGER *serial = ASN1_INTEGER_new();
+ 
+-    if (!X509_NAME_add_entry_by_NID(name, NID_commonName, MBSTRING_ASC,
++    if (!TEST_ptr(name)
++        || !TEST_ptr(key)
++        || !TEST_ptr(serial)
++        || !X509_NAME_add_entry_by_NID(name, NID_commonName, MBSTRING_ASC,
+                                    namestr, -1, -1, 1)
+         || !ASN1_BIT_STRING_set(key, keybytes, sizeof(keybytes))
+         || !ASN1_INTEGER_set_uint64(serial, (uint64_t)1))
+-- 
+2.34.1
+

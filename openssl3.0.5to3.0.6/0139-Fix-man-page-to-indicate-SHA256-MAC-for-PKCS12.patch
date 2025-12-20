@@ -1,0 +1,33 @@
+From 05388908ddd34295b87dc8f396897b9620e0a6c8 Mon Sep 17 00:00:00 2001
+From: Stefanos Harhalakis <v13@v13.gr>
+Date: Sat, 27 Aug 2022 18:36:03 +0100
+Subject: [PATCH 139/209] Fix man page to indicate SHA256 MAC for PKCS12
+
+CLA: trivial
+
+Reviewed-by: Dmitry Belyavskiy <beldmit@gmail.com>
+Reviewed-by: Paul Dale <pauli@openssl.org>
+Reviewed-by: Tomas Mraz <tomas@openssl.org>
+(Merged from https://github.com/openssl/openssl/pull/19079)
+
+(cherry picked from commit d9aca2dd9b56dbfa6a0566cc3ad8b7c713ac61b2)
+---
+ doc/man1/openssl-pkcs12.pod.in | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/doc/man1/openssl-pkcs12.pod.in b/doc/man1/openssl-pkcs12.pod.in
+index 92503dc914..69ed46d76f 100644
+--- a/doc/man1/openssl-pkcs12.pod.in
++++ b/doc/man1/openssl-pkcs12.pod.in
+@@ -341,7 +341,7 @@ then both, the private key and the certificates are encrypted using triple DES.
+ 
+ =item B<-macalg> I<digest>
+ 
+-Specify the MAC digest algorithm. If not included SHA1 will be used.
++Specify the MAC digest algorithm. If not included SHA256 will be used.
+ 
+ =item B<-iter> I<count>
+ 
+-- 
+2.34.1
+

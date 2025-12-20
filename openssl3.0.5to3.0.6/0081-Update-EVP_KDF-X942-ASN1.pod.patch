@@ -1,0 +1,44 @@
+From 68061255db06623e7332ac4dd1b2765a7d173a31 Mon Sep 17 00:00:00 2001
+From: Joachim Vandersmissen <git@jvdsn.com>
+Date: Tue, 26 Jul 2022 12:33:43 +0000
+Subject: [PATCH 081/209] Update EVP_KDF-X942-ASN1.pod
+
+Replaced OSSL_KDF_PARAM_KEY with OSSL_KDF_PARAM_SECRET as that seems to be the intended value from the code (OSSL_KDF_PARAM_KEY is also supported but looks like a fallback).
+Fixed name for OSSL_KDF_PARAM_X942_USE_KEYBITS.
+
+CLA: trivial
+
+Reviewed-by: Shane Lontis <shane.lontis@oracle.com>
+Reviewed-by: Paul Dale <pauli@openssl.org>
+(Merged from https://github.com/openssl/openssl/pull/18878)
+
+(cherry picked from commit 08c00377cb82f7eefcf7433606e687f348b9e7a0)
+---
+ doc/man7/EVP_KDF-X942-ASN1.pod | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/doc/man7/EVP_KDF-X942-ASN1.pod b/doc/man7/EVP_KDF-X942-ASN1.pod
+index c01ec466fa..58f0d2b15e 100644
+--- a/doc/man7/EVP_KDF-X942-ASN1.pod
++++ b/doc/man7/EVP_KDF-X942-ASN1.pod
+@@ -30,7 +30,7 @@ The supported parameters are:
+ 
+ These parameters work as described in L<EVP_KDF(3)/PARAMETERS>.
+ 
+-=item "key" (B<OSSL_KDF_PARAM_KEY>) <octet string>
++=item "secret" (B<OSSL_KDF_PARAM_SECRET>) <octet string>
+ 
+ The shared secret used for key derivation.  This parameter sets the secret.
+ 
+@@ -60,7 +60,7 @@ An optional octet string containing public info contributed by the responder.
+ An optional octet string containing some additional, mutually-known public
+ information. Setting this value also sets "use-keybits" to 0.
+ 
+-=item "use-keybits" (B<OSSL_KDF_PARAM_X942_SUPP_PRIVINFO>) <integer>
++=item "use-keybits" (B<OSSL_KDF_PARAM_X942_USE_KEYBITS>) <integer>
+ 
+ The default value of 1 will use the KEK key length (in bits) as the
+ "supp-pubinfo". A value of 0 disables setting the "supp-pubinfo".
+-- 
+2.34.1
+

@@ -1,0 +1,36 @@
+From ed634b1ea4e1826916dee97674fd09b5446139cb Mon Sep 17 00:00:00 2001
+From: "J.W. Jagersma" <jwjagersma@gmail.com>
+Date: Sun, 25 Sep 2022 18:58:13 +0200
+Subject: [PATCH 187/209] djgpp: Inherit config from BASE_unix
+
+Build failed on djgpp due to missing config vars 'AR' and 'ARFLAGS'.
+Additionally, '-lz' was not added to 'lflags' when zlib support was
+enabled.  Inheriting configuration variables from BASE_unix solves both
+these issues.
+
+CLA: trivial
+
+Reviewed-by: Richard Levitte <levitte@openssl.org>
+Reviewed-by: Tomas Mraz <tomas@openssl.org>
+(Merged from https://github.com/openssl/openssl/pull/19274)
+
+(cherry picked from commit 29d82bd95b6ef3428c7e776221612a083994219d)
+---
+ Configurations/50-djgpp.conf | 1 +
+ 1 file changed, 1 insertion(+)
+
+diff --git a/Configurations/50-djgpp.conf b/Configurations/50-djgpp.conf
+index 16888924d6..fbe4911c42 100644
+--- a/Configurations/50-djgpp.conf
++++ b/Configurations/50-djgpp.conf
+@@ -4,6 +4,7 @@
+ 
+ my %targets = (
+     "DJGPP" => {
++        inherit_from     => [ "BASE_unix" ],
+         CC               => "gcc",
+         CFLAGS           => "-fomit-frame-pointer -O2 -Wall",
+         cflags           => "-I/dev/env/WATT_ROOT/inc -DTERMIOS -DL_ENDIAN",
+-- 
+2.34.1
+

@@ -1,0 +1,42 @@
+From 15e2254432499ef611cc28be219e5e972427d0bd Mon Sep 17 00:00:00 2001
+From: "Dr. David von Oheimb" <David.von.Oheimb@siemens.com>
+Date: Fri, 8 Jul 2022 21:49:28 +0200
+Subject: [PATCH 025/209] test/certs/setup.sh: add missing comment on CA cert
+ variant without basic constraints
+
+Reviewed-by: Viktor Dukhovni <viktor@openssl.org>
+Reviewed-by: Tomas Mraz <tomas@openssl.org>
+Reviewed-by: Paul Dale <pauli@openssl.org>
+Reviewed-by: David von Oheimb <david.von.oheimb@siemens.com>
+(Merged from https://github.com/openssl/openssl/pull/18758)
+
+(cherry picked from commit a148a9b4f49b0c456d45a39c0d63a52405aa5ea9)
+---
+ test/certs/setup.sh | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/test/certs/setup.sh b/test/certs/setup.sh
+index 21f9355b8b..b9766aab20 100755
+--- a/test/certs/setup.sh
++++ b/test/certs/setup.sh
+@@ -10,7 +10,7 @@ DAYS=-1 ./mkcert.sh genroot "Root CA" root-key root-expired
+ # cross root and root cross cert
+ ./mkcert.sh genroot "Cross Root" cross-key cross-root
+ ./mkcert.sh genca "Root CA" root-key root-cross-cert cross-key cross-root
+-# trust variants: +serverAuth -serverAuth +clientAuth -clientAuth,
++# trust variants: +serverAuth -serverAuth +clientAuth -clientAuth
+ openssl x509 -in root-cert.pem -trustout \
+     -addtrust serverAuth -out root+serverAuth.pem
+ openssl x509 -in root-cert.pem -trustout \
+@@ -79,7 +79,7 @@ openssl x509 -in sroot-cert.pem -trustout \
+ 
+ # Primary intermediate ca: ca-cert
+ ./mkcert.sh genca "CA" ca-key ca-cert root-key root-cert
+-# ca variants: CA:false, key2, DN2, issuer2, expired
++# ca variants: CA:false, no bc, key2, DN2, issuer2, expired
+ ./mkcert.sh genee "CA" ca-key ca-nonca root-key root-cert
+ ./mkcert.sh gen_nonbc_ca "CA" ca-key ca-nonbc root-key root-cert
+ ./mkcert.sh genca "CA" ca-key2 ca-cert2 root-key root-cert
+-- 
+2.34.1
+

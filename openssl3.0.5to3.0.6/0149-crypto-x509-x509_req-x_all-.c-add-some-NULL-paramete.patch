@@ -1,0 +1,277 @@
+From 684ba5c9422a9d111a6d971b7681814efd13a97b Mon Sep 17 00:00:00 2001
+From: "Dr. David von Oheimb" <dev@ddvo.net>
+Date: Mon, 29 Aug 2022 13:59:02 +0200
+Subject: [PATCH 149/209] crypto/x509/{x509_req,x_all}.c: add some NULL
+ parameter checks, improve coding style
+
+Reviewed-by: Tomas Mraz <tomas@openssl.org>
+Reviewed-by: Hugo Landau <hlandau@openssl.org>
+(Merged from https://github.com/openssl/openssl/pull/19090)
+
+(cherry picked from commit 8e39049d38ebe8b8398d6c4aa8a6f7cef9712132)
+---
+ crypto/x509/x509_req.c | 36 ++++++++++++++++++++++++----
+ crypto/x509/x_all.c    | 54 ++++++++++++++++++++++++++++++------------
+ 2 files changed, 71 insertions(+), 19 deletions(-)
+
+diff --git a/crypto/x509/x509_req.c b/crypto/x509/x509_req.c
+index f393d19c4c..ad48f34a30 100644
+--- a/crypto/x509/x509_req.c
++++ b/crypto/x509/x509_req.c
+@@ -116,6 +116,7 @@ static int *ext_nids = ext_nid_list;
+ int X509_REQ_extension_nid(int req_nid)
+ {
+     int i, nid;
++
+     for (i = 0;; i++) {
+         nid = ext_nids[i];
+         if (nid == NID_undef)
+@@ -142,7 +143,7 @@ STACK_OF(X509_EXTENSION) *X509_REQ_get_extensions(X509_REQ *req)
+     int idx, *pnid;
+     const unsigned char *p;
+ 
+-    if ((req == NULL) || !ext_nids)
++    if (req == NULL || !ext_nids)
+         return NULL;
+     for (pnid = ext_nids; *pnid != NID_undef; pnid++) {
+         idx = X509_REQ_get_attr_by_NID(req, *pnid, -1);
+@@ -214,8 +215,13 @@ X509_ATTRIBUTE *X509_REQ_get_attr(const X509_REQ *req, int loc)
+ 
+ X509_ATTRIBUTE *X509_REQ_delete_attr(X509_REQ *req, int loc)
+ {
+-    X509_ATTRIBUTE *attr = X509at_delete_attr(req->req_info.attributes, loc);
++    X509_ATTRIBUTE *attr;
+ 
++    if (req == NULL) {
++        ERR_raise(ERR_LIB_X509, ERR_R_PASSED_NULL_PARAMETER);
++        return 0;
++    }
++    attr = X509at_delete_attr(req->req_info.attributes, loc);
+     if (attr != NULL)
+         req->req_info.enc.modified = 1;
+     return attr;
+@@ -223,6 +229,10 @@ X509_ATTRIBUTE *X509_REQ_delete_attr(X509_REQ *req, int loc)
+ 
+ int X509_REQ_add1_attr(X509_REQ *req, X509_ATTRIBUTE *attr)
+ {
++    if (req == NULL) {
++        ERR_raise(ERR_LIB_X509, ERR_R_PASSED_NULL_PARAMETER);
++        return 0;
++    }
+     if (!X509at_add1_attr(&req->req_info.attributes, attr))
+         return 0;
+     req->req_info.enc.modified = 1;
+@@ -233,6 +243,10 @@ int X509_REQ_add1_attr_by_OBJ(X509_REQ *req,
+                               const ASN1_OBJECT *obj, int type,
+                               const unsigned char *bytes, int len)
+ {
++    if (req == NULL) {
++        ERR_raise(ERR_LIB_X509, ERR_R_PASSED_NULL_PARAMETER);
++        return 0;
++    }
+     if (!X509at_add1_attr_by_OBJ(&req->req_info.attributes, obj,
+                                  type, bytes, len))
+         return 0;
+@@ -244,6 +258,10 @@ int X509_REQ_add1_attr_by_NID(X509_REQ *req,
+                               int nid, int type,
+                               const unsigned char *bytes, int len)
+ {
++    if (req == NULL) {
++        ERR_raise(ERR_LIB_X509, ERR_R_PASSED_NULL_PARAMETER);
++        return 0;
++    }
+     if (!X509at_add1_attr_by_NID(&req->req_info.attributes, nid,
+                                  type, bytes, len))
+         return 0;
+@@ -255,6 +273,10 @@ int X509_REQ_add1_attr_by_txt(X509_REQ *req,
+                               const char *attrname, int type,
+                               const unsigned char *bytes, int len)
+ {
++    if (req == NULL) {
++        ERR_raise(ERR_LIB_X509, ERR_R_PASSED_NULL_PARAMETER);
++        return 0;
++    }
+     if (!X509at_add1_attr_by_txt(&req->req_info.attributes, attrname,
+                                  type, bytes, len))
+         return 0;
+@@ -284,7 +306,7 @@ void X509_REQ_get0_signature(const X509_REQ *req, const ASN1_BIT_STRING **psig,
+ void X509_REQ_set0_signature(X509_REQ *req, ASN1_BIT_STRING *psig)
+ {
+     if (req->signature)
+-           ASN1_BIT_STRING_free(req->signature);
++        ASN1_BIT_STRING_free(req->signature);
+     req->signature = psig;
+ }
+ 
+@@ -300,6 +322,12 @@ int X509_REQ_get_signature_nid(const X509_REQ *req)
+ 
+ int i2d_re_X509_REQ_tbs(X509_REQ *req, unsigned char **pp)
+ {
++    if (req == NULL) {
++        ERR_raise(ERR_LIB_X509, ERR_R_PASSED_NULL_PARAMETER);
++        return 0;
++    }
++    if (!i2d_X509_REQ_INFO(&req->req_info, pp))
++        return 0;
+     req->req_info.enc.modified = 1;
+-    return i2d_X509_REQ_INFO(&req->req_info, pp);
++    return 1;
+ }
+diff --git a/crypto/x509/x_all.c b/crypto/x509/x_all.c
+index e1c51f904f..a8d36f1e59 100644
+--- a/crypto/x509/x_all.c
++++ b/crypto/x509/x_all.c
+@@ -30,7 +30,7 @@
+ 
+ int X509_verify(X509 *a, EVP_PKEY *r)
+ {
+-    if (X509_ALGOR_cmp(&a->sig_alg, &a->cert_info.signature))
++    if (X509_ALGOR_cmp(&a->sig_alg, &a->cert_info.signature) != 0)
+         return 0;
+ 
+     return ASN1_item_verify_ex(ASN1_ITEM_rptr(X509_CINF), &a->sig_alg,
+@@ -59,8 +59,12 @@ int NETSCAPE_SPKI_verify(NETSCAPE_SPKI *a, EVP_PKEY *r)
+ 
+ int X509_sign(X509 *x, EVP_PKEY *pkey, const EVP_MD *md)
+ {
+-    int ret = 0;
++    int ret;
+ 
++    if (x == NULL) {
++        ERR_raise(ERR_LIB_X509, ERR_R_PASSED_NULL_PARAMETER);
++        return 0;
++    }
+     ret = ASN1_item_sign_ex(ASN1_ITEM_rptr(X509_CINF), &x->cert_info.signature,
+                             &x->sig_alg, &x->signature, &x->cert_info, NULL,
+                             pkey, md, x->libctx, x->propq);
+@@ -71,8 +75,12 @@ int X509_sign(X509 *x, EVP_PKEY *pkey, const EVP_MD *md)
+ 
+ int X509_sign_ctx(X509 *x, EVP_MD_CTX *ctx)
+ {
+-    int ret = 0;
++    int ret;
+ 
++    if (x == NULL) {
++        ERR_raise(ERR_LIB_X509, ERR_R_PASSED_NULL_PARAMETER);
++        return 0;
++    }
+     ret = ASN1_item_sign_ctx(ASN1_ITEM_rptr(X509_CINF),
+                              &x->cert_info.signature,
+                              &x->sig_alg, &x->signature, &x->cert_info, ctx);
+@@ -85,7 +93,7 @@ static ASN1_VALUE *simple_get_asn1(const char *url, BIO *bio, BIO *rbio,
+                                    int timeout, const ASN1_ITEM *it)
+ {
+     BIO *mem = OSSL_HTTP_get(url, NULL /* proxy */, NULL /* no_proxy */,
+-                             bio, rbio, NULL /* cb */ , NULL /* arg */,
++                             bio, rbio, NULL /* cb */, NULL /* arg */,
+                              1024 /* buf_size */, NULL /* headers */,
+                              NULL /* expected_ct */, 1 /* expect_asn1 */,
+                              OSSL_HTTP_DEFAULT_MAX_RESP_LEN, timeout);
+@@ -103,8 +111,12 @@ X509 *X509_load_http(const char *url, BIO *bio, BIO *rbio, int timeout)
+ 
+ int X509_REQ_sign(X509_REQ *x, EVP_PKEY *pkey, const EVP_MD *md)
+ {
+-    int ret = 0;
++    int ret;
+ 
++    if (x == NULL) {
++        ERR_raise(ERR_LIB_X509, ERR_R_PASSED_NULL_PARAMETER);
++        return 0;
++    }
+     ret = ASN1_item_sign_ex(ASN1_ITEM_rptr(X509_REQ_INFO), &x->sig_alg, NULL,
+                             x->signature, &x->req_info, NULL,
+                             pkey, md, x->libctx, x->propq);
+@@ -115,8 +127,12 @@ int X509_REQ_sign(X509_REQ *x, EVP_PKEY *pkey, const EVP_MD *md)
+ 
+ int X509_REQ_sign_ctx(X509_REQ *x, EVP_MD_CTX *ctx)
+ {
+-    int ret = 0;
++    int ret;
+ 
++    if (x == NULL) {
++        ERR_raise(ERR_LIB_X509, ERR_R_PASSED_NULL_PARAMETER);
++        return 0;
++    }
+     ret = ASN1_item_sign_ctx(ASN1_ITEM_rptr(X509_REQ_INFO),
+                              &x->sig_alg, NULL, x->signature, &x->req_info,
+                              ctx);
+@@ -127,8 +143,12 @@ int X509_REQ_sign_ctx(X509_REQ *x, EVP_MD_CTX *ctx)
+ 
+ int X509_CRL_sign(X509_CRL *x, EVP_PKEY *pkey, const EVP_MD *md)
+ {
+-    int ret = 0;
++    int ret;
+ 
++    if (x == NULL) {
++        ERR_raise(ERR_LIB_X509, ERR_R_PASSED_NULL_PARAMETER);
++        return 0;
++    }
+     ret = ASN1_item_sign_ex(ASN1_ITEM_rptr(X509_CRL_INFO), &x->crl.sig_alg,
+                             &x->sig_alg, &x->signature, &x->crl, NULL,
+                             pkey, md, x->libctx, x->propq);
+@@ -139,8 +159,12 @@ int X509_CRL_sign(X509_CRL *x, EVP_PKEY *pkey, const EVP_MD *md)
+ 
+ int X509_CRL_sign_ctx(X509_CRL *x, EVP_MD_CTX *ctx)
+ {
+-    int ret = 0;
++    int ret;
+ 
++    if (x == NULL) {
++        ERR_raise(ERR_LIB_X509, ERR_R_PASSED_NULL_PARAMETER);
++        return 0;
++    }
+     ret = ASN1_item_sign_ctx(ASN1_ITEM_rptr(X509_CRL_INFO),
+                              &x->crl.sig_alg, &x->sig_alg, &x->signature,
+                              &x->crl, ctx);
+@@ -157,7 +181,8 @@ X509_CRL *X509_CRL_load_http(const char *url, BIO *bio, BIO *rbio, int timeout)
+ 
+ int NETSCAPE_SPKI_sign(NETSCAPE_SPKI *x, EVP_PKEY *pkey, const EVP_MD *md)
+ {
+-    return ASN1_item_sign_ex(ASN1_ITEM_rptr(NETSCAPE_SPKAC), &x->sig_algor, NULL,
++    return
++        ASN1_item_sign_ex(ASN1_ITEM_rptr(NETSCAPE_SPKAC), &x->sig_algor, NULL,
+                           x->signature, x->spkac, NULL, pkey, md, NULL, NULL);
+ }
+ 
+@@ -240,7 +265,6 @@ PKCS7 *d2i_PKCS7_bio(BIO *bp, PKCS7 **p7)
+         propq = (*p7)->ctx.propq;
+     }
+ 
+-
+     ret = ASN1_item_d2i_bio_ex(ASN1_ITEM_rptr(PKCS7), bp, p7, libctx, propq);
+     if (ret != NULL)
+         ossl_pkcs7_resolve_libctx(ret);
+@@ -437,9 +461,9 @@ int i2d_ECPrivateKey_bio(BIO *bp, const EC_KEY *eckey)
+ int X509_pubkey_digest(const X509 *data, const EVP_MD *type,
+                        unsigned char *md, unsigned int *len)
+ {
+-    ASN1_BIT_STRING *key;
+-    key = X509_get0_pubkey_bitstr(data);
+-    if (!key)
++    ASN1_BIT_STRING *key = X509_get0_pubkey_bitstr(data);
++
++    if (key == NULL)
+         return 0;
+     return EVP_Digest(key->data, key->length, md, len, type, NULL);
+ }
+@@ -495,7 +519,7 @@ ASN1_OCTET_STRING *X509_digest_sig(const X509 *cert,
+                 || !ossl_rsa_pss_get_param_unverified(pss, &mmd, &mgf1md,
+                                                       &saltlen,
+                                                       &trailerfield)
+-                ||  mmd == NULL) {
++                || mmd == NULL) {
+                 RSA_PSS_PARAMS_free(pss);
+                 ERR_raise(ERR_LIB_X509, X509_R_UNSUPPORTED_ALGORITHM);
+                 return NULL;
+@@ -538,7 +562,7 @@ ASN1_OCTET_STRING *X509_digest_sig(const X509 *cert,
+     if (!X509_digest(cert, md, hash, &len)
+             || (new = ASN1_OCTET_STRING_new()) == NULL)
+         goto err;
+-    if ((ASN1_OCTET_STRING_set(new, hash, len))) {
++    if (ASN1_OCTET_STRING_set(new, hash, len)) {
+         if (md_used != NULL)
+             *md_used = md;
+         else
+-- 
+2.34.1
+

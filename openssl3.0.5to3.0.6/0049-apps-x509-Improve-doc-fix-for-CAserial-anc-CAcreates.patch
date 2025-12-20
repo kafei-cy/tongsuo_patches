@@ -1,0 +1,51 @@
+From b89a5b8df909cb3c10b2efe72dc32755e66771b6 Mon Sep 17 00:00:00 2001
+From: "Dr. David von Oheimb" <David.von.Oheimb@siemens.com>
+Date: Thu, 14 Jul 2022 15:12:55 +0200
+Subject: [PATCH 049/209] apps/x509: Improve doc fix for -CAserial anc
+ -CAcreateserial
+
+This follows up on https://github.com/openssl/openssl/pull/18373
+
+Reviewed-by: Hugo Landau <hlandau@openssl.org>
+Reviewed-by: Tomas Mraz <tomas@openssl.org>
+Reviewed-by: David von Oheimb <david.von.oheimb@siemens.com>
+(Merged from https://github.com/openssl/openssl/pull/18804)
+
+(cherry picked from commit 7a16f179ab0bc2c474a754c0ad7e35b40534a38e)
+---
+ doc/man1/openssl-x509.pod.in | 12 +++++++-----
+ 1 file changed, 7 insertions(+), 5 deletions(-)
+
+diff --git a/doc/man1/openssl-x509.pod.in b/doc/man1/openssl-x509.pod.in
+index ef4ebfd649..d05f380bde 100644
+--- a/doc/man1/openssl-x509.pod.in
++++ b/doc/man1/openssl-x509.pod.in
+@@ -496,8 +496,9 @@ See L<openssl-format-options(1)> for details.
+ 
+ Sets the CA serial number file to use.
+ 
+-When creating a certificate with this option, the certificate serial number
+-is stored in the given file. This file consists of one line containing
++When creating a certificate with this option and with the B<-CA> option,
++the certificate serial number is stored in the given file.
++This file consists of one line containing
+ an even number of hex digits with the serial number used last time.
+ After reading this number, it is incremented and used, and the file is updated.
+ 
+@@ -512,9 +513,10 @@ a random number is generated; this is the recommended practice.
+ 
+ =item B<-CAcreateserial>
+ 
+-With this option the CA serial number file is created if it does not exist.
+-A random number is generated, used for the certificate, and saved into the
+-serial number file in that case.
++With this option and the B<-CA> option
++the CA serial number file is created if it does not exist.
++A random number is generated, used for the certificate,
++and saved into the serial number file determined as described above.
+ 
+ =back
+ 
+-- 
+2.34.1
+

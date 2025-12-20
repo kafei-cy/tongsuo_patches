@@ -1,0 +1,30 @@
+From ea66c8d85a7104b9da9169e4130bd739215ea12d Mon Sep 17 00:00:00 2001
+From: Pauli <pauli@openssl.org>
+Date: Mon, 25 Jul 2022 13:01:00 +1000
+Subject: [PATCH 074/209] Fix error in LHASH documentation
+
+Reviewed-by: Hugo Landau <hlandau@openssl.org>
+Reviewed-by: Shane Lontis <shane.lontis@oracle.com>
+(Merged from https://github.com/openssl/openssl/pull/18859)
+
+(cherry picked from commit 316fad64c1e541a530910a13160d48b7545ac1e0)
+---
+ doc/man3/OPENSSL_LH_COMPFUNC.pod | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/doc/man3/OPENSSL_LH_COMPFUNC.pod b/doc/man3/OPENSSL_LH_COMPFUNC.pod
+index 82beda458b..b4c21dba22 100644
+--- a/doc/man3/OPENSSL_LH_COMPFUNC.pod
++++ b/doc/man3/OPENSSL_LH_COMPFUNC.pod
+@@ -28,7 +28,7 @@ OPENSSL_LH_doall, OPENSSL_LH_doall_arg, OPENSSL_LH_error
+ 
+  TYPE *lh_TYPE_insert(LHASH_OF(TYPE) *table, TYPE *data);
+  TYPE *lh_TYPE_delete(LHASH_OF(TYPE) *table, TYPE *data);
+- TYPE *lh_retrieve(LHASH_OF(TYPE) *table, TYPE *data);
++ TYPE *lh_TYPE_retrieve(LHASH_OF(TYPE) *table, TYPE *data);
+ 
+  void lh_TYPE_doall(LHASH_OF(TYPE) *table, OPENSSL_LH_DOALL_FUNC func);
+  void lh_TYPE_doall_arg(LHASH_OF(TYPE) *table, OPENSSL_LH_DOALL_FUNCARG func,
+-- 
+2.34.1
+

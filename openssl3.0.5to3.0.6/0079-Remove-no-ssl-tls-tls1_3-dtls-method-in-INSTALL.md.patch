@@ -1,0 +1,35 @@
+From 083fa48750cf766eaf974df4b9a9122575332247 Mon Sep 17 00:00:00 2001
+From: Slanterns <slanterns.w@gmail.com>
+Date: Tue, 26 Jul 2022 07:15:40 +0800
+Subject: [PATCH 079/209] Remove `no-{ssl|tls|tls1_3|dtls}-method` in
+ INSTALL.md
+
+CLA: trivial
+
+Actually there is no option called `no-{ssl|tls|tls1_3|dtls}-method`.
+
+Reviewed-by: Hugo Landau <hlandau@openssl.org>
+Reviewed-by: Richard Levitte <levitte@openssl.org>
+(Merged from https://github.com/openssl/openssl/pull/18872)
+
+(cherry picked from commit 5f18dc7facc9bd477173ae97a1bd84f21758da58)
+---
+ INSTALL.md | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/INSTALL.md b/INSTALL.md
+index 5d53cef1aa..15b967d685 100644
+--- a/INSTALL.md
++++ b/INSTALL.md
+@@ -974,7 +974,7 @@ the individual protocol versions.
+ 
+ ### no-{protocol}-method
+ 
+-    no-{ssl|ssl3|tls|tls1|tls1_1|tls1_2|tls1_3|dtls|dtls1|dtls1_2}-method
++    no-{ssl3|tls1|tls1_1|tls1_2|dtls1|dtls1_2}-method
+ 
+ Analogous to `no-{protocol}` but in addition do not build the methods for
+ applications to explicitly select individual protocol versions.  Note that there
+-- 
+2.34.1
+

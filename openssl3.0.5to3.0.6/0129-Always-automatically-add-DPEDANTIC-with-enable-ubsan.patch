@@ -1,0 +1,85 @@
+From 53d1eeef0f6794f38267114acb270b9059bc2c17 Mon Sep 17 00:00:00 2001
+From: Tomas Mraz <tomas@openssl.org>
+Date: Fri, 19 Aug 2022 15:48:34 +0200
+Subject: [PATCH 129/209] Always automatically add -DPEDANTIC with enable-ubsan
+
+To avoid reports like: #19028
+
+Reviewed-by: Matt Caswell <matt@openssl.org>
+Reviewed-by: Paul Dale <pauli@openssl.org>
+(Merged from https://github.com/openssl/openssl/pull/19029)
+
+(cherry picked from commit 83529f07ca66ec288f1c506a673569b9d8de8368)
+---
+ .github/workflows/ci.yml                | 2 +-
+ .github/workflows/fuzz-checker.yml      | 4 ++--
+ .github/workflows/run-checker-merge.yml | 2 +-
+ Configure                               | 4 +---
+ 4 files changed, 5 insertions(+), 7 deletions(-)
+
+diff --git a/.github/workflows/ci.yml b/.github/workflows/ci.yml
+index 533f3bbec6..29a502a8d7 100644
+--- a/.github/workflows/ci.yml
++++ b/.github/workflows/ci.yml
+@@ -144,7 +144,7 @@ jobs:
+     steps:
+     - uses: actions/checkout@v2
+     - name: config
+-      run: ./config --banner=Configured --debug enable-asan enable-ubsan enable-rc5 enable-md2 enable-ec_nistp_64_gcc_128 enable-fips -DFUZZING_BUILD_MODE_UNSAFE_FOR_PRODUCTION -DPEDANTIC && perl configdata.pm --dump
++      run: ./config --banner=Configured --debug enable-asan enable-ubsan enable-rc5 enable-md2 enable-ec_nistp_64_gcc_128 enable-fips -DFUZZING_BUILD_MODE_UNSAFE_FOR_PRODUCTION && perl configdata.pm --dump
+     - name: make
+       run: make -s -j4
+     - name: make test
+diff --git a/.github/workflows/fuzz-checker.yml b/.github/workflows/fuzz-checker.yml
+index 9e5627fd03..2347ebae41 100644
+--- a/.github/workflows/fuzz-checker.yml
++++ b/.github/workflows/fuzz-checker.yml
+@@ -25,7 +25,7 @@ jobs:
+             cc: afl-clang-fast
+           }, {
+             name: libFuzzer,
+-            config: enable-fuzz-libfuzzer -DPEDANTIC enable-asan enable-ubsan,
++            config: enable-fuzz-libfuzzer enable-asan enable-ubsan,
+             libs: --with-fuzzer-lib=/usr/lib/llvm-12/lib/libFuzzer.a --with-fuzzer-include=/usr/lib/llvm-12/build/lib/clang/12.0.0/include/fuzzer,
+             install: libfuzzer-12-dev,
+             cc: clang-12,
+@@ -33,7 +33,7 @@ jobs:
+             tests: -test_memleak
+           }, {
+             name: libFuzzer+,
+-            config: enable-fuzz-libfuzzer -DPEDANTIC enable-asan enable-ubsan -fsanitize-coverage=trace-cmp -DFUZZING_BUILD_MODE_UNSAFE_FOR_PRODUCTION,
++            config: enable-fuzz-libfuzzer enable-asan enable-ubsan -fsanitize-coverage=trace-cmp -DFUZZING_BUILD_MODE_UNSAFE_FOR_PRODUCTION,
+             libs: --with-fuzzer-lib=/usr/lib/llvm-12/lib/libFuzzer.a --with-fuzzer-include=/usr/lib/llvm-12/build/lib/clang/12.0.0/include/fuzzer,
+             extra: enable-fips enable-ec_nistp_64_gcc_128 -fno-sanitize=alignment enable-tls1_3 enable-weak-ssl-ciphers enable-rc5 enable-md2 enable-ssl3 enable-ssl3-method enable-nextprotoneg,
+             install: libfuzzer-12-dev,
+diff --git a/.github/workflows/run-checker-merge.yml b/.github/workflows/run-checker-merge.yml
+index dcc9d0d15f..82f3b29b0e 100644
+--- a/.github/workflows/run-checker-merge.yml
++++ b/.github/workflows/run-checker-merge.yml
+@@ -25,7 +25,7 @@ jobs:
+           no-engine no-shared,
+           no-err,
+           no-filenames,
+-          enable-ubsan no-asm -DPEDANTIC -DOPENSSL_SMALL_FOOTPRINT -fno-sanitize=alignment,
++          enable-ubsan no-asm -DOPENSSL_SMALL_FOOTPRINT -fno-sanitize=alignment,
+           no-unit-test,
+           enable-weak-ssl-ciphers,
+           enable-zlib,
+diff --git a/Configure b/Configure
+index 379f668177..8caf5ae2fe 100755
+--- a/Configure
++++ b/Configure
+@@ -1502,9 +1502,7 @@ unless ($disabled{asan} || defined $detected_sanitizers{asan}) {
+ }
+ 
+ unless ($disabled{ubsan} || defined $detected_sanitizers{ubsan}) {
+-    # -DPEDANTIC or -fnosanitize=alignment may also be required on some
+-    # platforms.
+-    push @{$config{cflags}}, "-fsanitize=undefined", "-fno-sanitize-recover=all";
++    push @{$config{cflags}}, "-fsanitize=undefined", "-fno-sanitize-recover=all", "-DPEDANTIC";
+ }
+ 
+ unless ($disabled{msan} || defined $detected_sanitizers{msan}) {
+-- 
+2.34.1
+

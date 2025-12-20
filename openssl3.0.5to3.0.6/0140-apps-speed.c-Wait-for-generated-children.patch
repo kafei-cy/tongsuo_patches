@@ -1,0 +1,66 @@
+From 70d9e64b634673257ab64561e1c04ee8d1d4a24a Mon Sep 17 00:00:00 2001
+From: Juergen Christ <jchrist@linux.ibm.com>
+Date: Mon, 29 Aug 2022 16:54:02 +0200
+Subject: [PATCH 140/209] apps/speed.c: Wait for generated children
+
+In multi-mode, speed fork()s off several children but does not wait for them.
+On Linux, this leads to wrong accounting information of getrusage used by
+tools to extract running time and page faults.
+
+Wait for every children and check the return code and termination signal.
+
+Signed-off-by: Juergen Christ <jchrist@linux.ibm.com>
+
+Reviewed-by: Paul Dale <pauli@openssl.org>
+Reviewed-by: Tomas Mraz <tomas@openssl.org>
+(Merged from https://github.com/openssl/openssl/pull/19093)
+
+(cherry picked from commit 56233ba8574c01b3912cf662335fedaabc7faec2)
+---
+ apps/speed.c | 16 ++++++++++++++++
+ 1 file changed, 16 insertions(+)
+
+diff --git a/apps/speed.c b/apps/speed.c
+index b8824bdb8c..d180a41f36 100644
+--- a/apps/speed.c
++++ b/apps/speed.c
+@@ -67,6 +67,7 @@
+ #  define HAVE_FORK 0
+ # else
+ #  define HAVE_FORK 1
++#  include <sys/wait.h>
+ # endif
+ #endif
+ 
+@@ -3419,6 +3420,7 @@ static int do_multi(int multi, int size_num)
+     int n;
+     int fd[2];
+     int *fds;
++    int status;
+     static char sep[] = ":";
+ 
+     fds = app_malloc(sizeof(*fds) * multi, "fd buffer for do_multi");
+@@ -3577,6 +3579,20 @@ static int do_multi(int multi, int size_num)
+         fclose(f);
+     }
+     OPENSSL_free(fds);
++    for (n = 0; n < multi; ++n) {
++        while (wait(&status) == -1)
++            if (errno != EINTR) {
++                BIO_printf(bio_err, "Waitng for child failed with 0x%x\n",
++                           errno);
++                return 1;
++            }
++        if (WIFEXITED(status) && WEXITSTATUS(status)) {
++            BIO_printf(bio_err, "Child exited with %d\n", WEXITSTATUS(status));
++        } else if (WIFSIGNALED(status)) {
++            BIO_printf(bio_err, "Child terminated by signal %d\n",
++                       WTERMSIG(status));
++        }
++    }
+     return 1;
+ }
+ #endif
+-- 
+2.34.1
+

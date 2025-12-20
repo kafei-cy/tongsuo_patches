@@ -1,0 +1,75 @@
+From 4e75ba97a2edaaf4aa7d2a34b74e4d59a2ae1c2c Mon Sep 17 00:00:00 2001
+From: Todd Short <tshort@akamai.com>
+Date: Mon, 22 Aug 2022 14:12:50 -0400
+Subject: [PATCH 128/209] Fix doc-nits
+
+PR #19031 updated options that that were listed as commands, these
+options were already in openssl-list.pod.in, so they are redundant
+in openssl.pod.
+
+Reviewed-by: Matt Caswell <matt@openssl.org>
+Reviewed-by: Richard Levitte <levitte@openssl.org>
+Reviewed-by: Paul Dale <pauli@openssl.org>
+(Merged from https://github.com/openssl/openssl/pull/19044)
+
+(cherry picked from commit a148f864a86ba5f6999825dad9a98280bd054cbc)
+---
+ doc/man1/openssl.pod | 28 +++-------------------------
+ 1 file changed, 3 insertions(+), 25 deletions(-)
+
+diff --git a/doc/man1/openssl.pod b/doc/man1/openssl.pod
+index 8ce8e04f81..d673d49cc9 100644
+--- a/doc/man1/openssl.pod
++++ b/doc/man1/openssl.pod
+@@ -11,16 +11,6 @@ I<command>
+ [ I<options> ... ]
+ [ I<parameters> ... ]
+ 
+-B<openssl>
+-B<list>
+-B<-standard-commands> |
+-B<-digest-commands> |
+-B<-cipher-commands> |
+-B<-cipher-algorithms> |
+-B<-digest-algorithms> |
+-B<-mac-algorithms> |
+-B<-public-key-algorithms>
+-
+ B<openssl> B<no->I<XXX> [ I<options> ]
+ 
+ =head1 DESCRIPTION
+@@ -50,21 +40,8 @@ Each command can have many options and argument parameters, shown above as
+ I<options> and I<parameters>.
+ 
+ Detailed documentation and use cases for most standard subcommands are available
+-(e.g., L<openssl-x509(1)>).
+-
+-The list options B<-standard-commands>, B<-digest-commands>,
+-and B<-cipher-commands> output a list (one entry per line) of the names
+-of all standard commands, message digest commands, or cipher commands,
+-respectively, that are available.
+-
+-The list parameters B<-cipher-algorithms>, B<-digest-algorithms>,
+-and B<-mac-algorithms> list all cipher, message digest, and message
+-authentication code names, one entry per line. Aliases are listed as:
+-
+- from => to
+-
+-The list parameter B<-public-key-algorithms> lists all supported public
+-key algorithms.
++(e.g., L<openssl-x509(1)>). The subcommand L<openssl-list(1)> may be used to list
++subcommands.
+ 
+ The command B<no->I<XXX> tests whether a command of the
+ specified name is available.  If no command named I<XXX> exists, it
+@@ -799,6 +776,7 @@ L<openssl-gendsa(1)>,
+ L<openssl-genpkey(1)>,
+ L<openssl-genrsa(1)>,
+ L<openssl-kdf(1)>,
++L<openssl-list(1)>,
+ L<openssl-mac(1)>,
+ L<openssl-nseq(1)>,
+ L<openssl-ocsp(1)>,
+-- 
+2.34.1
+

@@ -1,0 +1,30 @@
+From b15764e515da395e4d7fed1df7f01255834c1769 Mon Sep 17 00:00:00 2001
+From: Pauli <pauli@openssl.org>
+Date: Wed, 24 Aug 2022 11:40:13 +1000
+Subject: [PATCH 137/209] Add missing ')' to command help
+
+Reviewed-by: Tomas Mraz <tomas@openssl.org>
+Reviewed-by: Matt Caswell <matt@openssl.org>
+(Merged from https://github.com/openssl/openssl/pull/19049)
+
+(cherry picked from commit 3c1f8fb13e064ad7f42e9b65c601c68e1aa79f7d)
+---
+ apps/rsa.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/apps/rsa.c b/apps/rsa.c
+index 4cc45c5533..0da342c38f 100644
+--- a/apps/rsa.c
++++ b/apps/rsa.c
+@@ -61,7 +61,7 @@ const OPTIONS rsa_options[] = {
+ 
+     OPT_SECTION("Input"),
+     {"in", OPT_IN, 's', "Input file"},
+-    {"inform", OPT_INFORM, 'f', "Input format (DER/PEM/P12/ENGINE"},
++    {"inform", OPT_INFORM, 'f', "Input format (DER/PEM/P12/ENGINE)"},
+     {"pubin", OPT_PUBIN, '-', "Expect a public key in input file"},
+     {"RSAPublicKey_in", OPT_RSAPUBKEY_IN, '-', "Input is an RSAPublicKey"},
+     {"passin", OPT_PASSIN, 's', "Input file pass phrase source"},
+-- 
+2.34.1
+

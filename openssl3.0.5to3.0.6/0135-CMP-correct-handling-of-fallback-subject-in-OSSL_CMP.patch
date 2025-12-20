@@ -1,0 +1,148 @@
+From 784126f117eb31d0296f839db1f426385312845a Mon Sep 17 00:00:00 2001
+From: "Dr. David von Oheimb" <David.von.Oheimb@siemens.com>
+Date: Mon, 1 Aug 2022 20:34:19 +0200
+Subject: [PATCH 135/209] CMP: correct handling of fallback subject in
+ OSSL_CMP_CTX_setup_CRM() and its doc
+
+Reviewed-by: Tomas Mraz <tomas@openssl.org>
+Reviewed-by: Matt Caswell <matt@openssl.org>
+Reviewed-by: David von Oheimb <david.von.oheimb@siemens.com>
+(Merged from https://github.com/openssl/openssl/pull/18929)
+
+(cherry picked from commit 7af110f9f5fb9b039cc09b63768a0b989a7bf5ad)
+---
+ crypto/cmp/cmp_msg.c                  | 15 +++++++--------
+ doc/man1/openssl-cmp.pod.in           | 13 +++++++------
+ doc/man3/OSSL_CMP_MSG_get0_header.pod | 21 +++++++++++++++------
+ 3 files changed, 29 insertions(+), 20 deletions(-)
+
+diff --git a/crypto/cmp/cmp_msg.c b/crypto/cmp/cmp_msg.c
+index 2da95248ad..9890fc3dcb 100644
+--- a/crypto/cmp/cmp_msg.c
++++ b/crypto/cmp/cmp_msg.c
+@@ -253,16 +253,16 @@ OSSL_CMP_MSG *ossl_cmp_msg_create(OSSL_CMP_CTX *ctx, int bodytype)
+     (sk_GENERAL_NAME_num((ctx)->subjectAltNames) > 0 \
+          || OSSL_CMP_CTX_reqExtensions_have_SAN(ctx) == 1)
+ 
+-static const X509_NAME *determine_subj(OSSL_CMP_CTX *ctx,
+-                                       const X509_NAME *ref_subj,
+-                                       int for_KUR)
++static const X509_NAME *determine_subj(OSSL_CMP_CTX *ctx, int for_KUR,
++                                       const X509_NAME *ref_subj)
+ {
+     if (ctx->subjectName != NULL)
+         return IS_NULL_DN(ctx->subjectName) ? NULL : ctx->subjectName;
+-
+-    if (ref_subj != NULL && (ctx->p10CSR != NULL || for_KUR || !HAS_SAN(ctx)))
++    if (ctx->p10CSR != NULL) /* first default is from any given CSR */
++        return X509_REQ_get_subject_name(ctx->p10CSR);
++    if (for_KUR || !HAS_SAN(ctx))
+         /*
+-         * For KUR, copy subject from the reference.
++         * For KUR, copy subject from any reference cert as fallback.
+          * For IR or CR, do the same only if there is no subjectAltName.
+          */
+         return ref_subj;
+@@ -277,9 +277,8 @@ OSSL_CRMF_MSG *OSSL_CMP_CTX_setup_CRM(OSSL_CMP_CTX *ctx, int for_KUR, int rid)
+     EVP_PKEY *rkey = OSSL_CMP_CTX_get0_newPkey(ctx, 0);
+     STACK_OF(GENERAL_NAME) *default_sans = NULL;
+     const X509_NAME *ref_subj =
+-        ctx->p10CSR != NULL ? X509_REQ_get_subject_name(ctx->p10CSR) :
+         refcert != NULL ? X509_get_subject_name(refcert) : NULL;
+-    const X509_NAME *subject = determine_subj(ctx, ref_subj, for_KUR);
++    const X509_NAME *subject = determine_subj(ctx, for_KUR, ref_subj);
+     const X509_NAME *issuer = ctx->issuer != NULL || refcert == NULL
+         ? (IS_NULL_DN(ctx->issuer) ? NULL : ctx->issuer)
+         : X509_get_issuer_name(refcert);
+diff --git a/doc/man1/openssl-cmp.pod.in b/doc/man1/openssl-cmp.pod.in
+index ee62833f8e..2982b2ad0b 100644
+--- a/doc/man1/openssl-cmp.pod.in
++++ b/doc/man1/openssl-cmp.pod.in
+@@ -266,11 +266,11 @@ L<openssl-passphrase-options(1)>.
+ 
+ X509 Distinguished Name (DN) of subject to use in the requested certificate
+ template.
+-For KUR, it defaults to the public key
+-in the PKCS#10 CSR given with the B<-csr> option, if provided,
+-or of the reference certificate (see B<-oldcert>) if provided.
+-This default is used for IR and CR only if no SANs are set.
+ If the NULL-DN (C<"/">) is given then no subject is placed in the template.
++Default is the subject DN of any PKCS#10 CSR given with the B<-csr> option.
++For KUR, a further fallback is the subject DN
++of the reference certificate (see B<-oldcert>) if provided.
++This fallback is used for IR and CR only if no SANs are set.
+ 
+ If provided and neither B<-cert> nor B<-oldcert> is given,
+ the subject DN is used as fallback sender of outgoing CMP messages.
+@@ -354,8 +354,9 @@ is provided via the B<-newkey> or B<-key> options.
+ 
+ PKCS#10 CSR in PEM or DER format containing a certificate request.
+ With B<-cmd> I<p10cr> it is used directly in a legacy P10CR message.
+-When used with B<-cmd> I<ir>, I<cr>, or I<kur>, it is transformed into the
+-respective regular CMP request.
++When used with B<-cmd> I<ir>, I<cr>, or I<kur>,
++it is transformed into the respective regular CMP request,
++while its public key is ignored if I<-newkey> is given.
+ It may also be used with B<-cmd> I<rr> to specify the certificate to be revoked
+ via the included subject name and public key.
+ 
+diff --git a/doc/man3/OSSL_CMP_MSG_get0_header.pod b/doc/man3/OSSL_CMP_MSG_get0_header.pod
+index 76e24e1bad..6fc620f83b 100644
+--- a/doc/man3/OSSL_CMP_MSG_get0_header.pod
++++ b/doc/man3/OSSL_CMP_MSG_get0_header.pod
+@@ -45,12 +45,14 @@ the first available value of these:
+ 
+ =over 4
+ 
+-=item any subject name in I<ctx> set via L<OSSL_CMP_CTX_set1_subjectName(3)>,
++=item any subject name in I<ctx> set via L<OSSL_CMP_CTX_set1_subjectName(3)> -
++if it is the NULL-DN (i.e., any empty sequence of RDNs), no subject is included,
+ 
+-=item the subject field of any PKCS#10 CSR is given in I<ctx>, or
++=item the subject field of any PKCS#10 CSR set in I<ctx>
++via L<OSSL_CMP_CTX_set1_p10CSR(3)>,
+ 
+ =item the subject field of any reference certificate given in I<ctx>
+-(see L<OSSL_CMP_CTX_set1_oldCert(3)>), if I<for_KUR> is nonzero
++(see L<OSSL_CMP_CTX_set1_oldCert(3)>), but only if I<for_KUR> is nonzero
+ or the I<ctx> does not include a Subject Alternative Name.
+ 
+ =back
+@@ -61,9 +63,9 @@ The public key included is the first available value of these:
+ 
+ =item the public key derived from any key set via L<OSSL_CMP_CTX_set0_newPkey(3)>,
+ 
+-=item the public key of any PKCS#10 CSR is given in I<ctx>,
++=item the public key of any PKCS#10 CSR given in I<ctx>,
+ 
+-=item the public key of any reference certificate given in I<ctx>, or
++=item the public key of any reference certificate given in I<ctx>,
+ 
+ =item the public key derived from any client's private key
+ set via L<OSSL_CMP_CTX_set1_pkey(3)>.
+@@ -108,7 +110,7 @@ or NULL if the respective entry does not exist and on error.
+ 
+ OSSL_CMP_MSG_get_bodytype() returns the body type or -1 on error.
+ 
+-OSSL_CMP_CTX_setup_CRM() returns a pointer to a OSSL_CRMF_MSG on success,
++OSSL_CMP_CTX_setup_CRM() returns a pointer to a B<OSSL_CRMF_MSG> on success,
+ NULL on error.
+ 
+ d2i_OSSL_CMP_MSG_bio() returns the parsed message or NULL on error.
+@@ -121,6 +123,13 @@ the number of bytes successfully encoded or a negative value if an error occurs.
+ 
+ OSSL_CMP_MSG_update_transactionID() returns 1 on success, 0 on error.
+ 
++=head1 SEE ALSO
++
++L<OSSL_CMP_CTX_set1_subjectName(3)>, L<OSSL_CMP_CTX_set1_p10CSR(3)>,
++L<OSSL_CMP_CTX_set1_oldCert(3)>, L<OSSL_CMP_CTX_set0_newPkey(3)>,
++L<OSSL_CMP_CTX_set1_pkey(3)>, L<OSSL_CMP_CTX_set0_reqExtensions(3)>,
++L<OSSL_CMP_CTX_push1_subjectAltName(3)>, L<OSSL_CMP_CTX_push0_policy(3)>
++
+ =head1 HISTORY
+ 
+ The OpenSSL CMP support was added in OpenSSL 3.0.
+-- 
+2.34.1
+

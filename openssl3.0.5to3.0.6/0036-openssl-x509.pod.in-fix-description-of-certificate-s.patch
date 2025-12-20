@@ -1,0 +1,48 @@
+From 8ff32e3ecb125fbdea5fad52848942f9a28f8839 Mon Sep 17 00:00:00 2001
+From: "Dr. David von Oheimb" <David.von.Oheimb@siemens.com>
+Date: Tue, 31 May 2022 10:02:02 +0200
+Subject: [PATCH 036/209] openssl-x509.pod.in: fix description of certificate
+ serial number storage
+
+Reviewed-by: Tomas Mraz <tomas@openssl.org>
+Reviewed-by: Paul Dale <pauli@openssl.org>
+Reviewed-by: Hugo Landau <hlandau@openssl.org>
+(Merged from https://github.com/openssl/openssl/pull/18373)
+
+(cherry picked from commit aa73b7d352c383e415d4d7567b79ce074c6762cd)
+---
+ doc/man1/openssl-x509.pod.in | 12 ++++++------
+ 1 file changed, 6 insertions(+), 6 deletions(-)
+
+diff --git a/doc/man1/openssl-x509.pod.in b/doc/man1/openssl-x509.pod.in
+index ee1aa4492f..ef4ebfd649 100644
+--- a/doc/man1/openssl-x509.pod.in
++++ b/doc/man1/openssl-x509.pod.in
+@@ -496,18 +496,18 @@ See L<openssl-format-options(1)> for details.
+ 
+ Sets the CA serial number file to use.
+ 
+-When the B<-CA> option is used to sign a certificate it uses a serial
+-number specified in a file. This file consists of one line containing
+-an even number of hex digits with the serial number to use. After each
+-use the serial number is incremented and written out to the file again.
++When creating a certificate with this option, the certificate serial number
++is stored in the given file. This file consists of one line containing
++an even number of hex digits with the serial number used last time.
++After reading this number, it is incremented and used, and the file is updated.
+ 
+ The default filename consists of the CA certificate file base name with
+ F<.srl> appended. For example if the CA certificate file is called
+ F<mycacert.pem> it expects to find a serial number file called
+ F<mycacert.srl>.
+ 
+-If the B<-CA> option is specified and both the <-CAserial> and <-CAcreateserial>
+-options are not given and the default serial number file does not exist,
++If the B<-CA> option is specified and neither <-CAserial> or <-CAcreateserial>
++is given and the default serial number file does not exist,
+ a random number is generated; this is the recommended practice.
+ 
+ =item B<-CAcreateserial>
+-- 
+2.34.1
+

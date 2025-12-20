@@ -1,0 +1,37 @@
+From 9e4b57fbe9544326e4c7119fe30e5319803f5e17 Mon Sep 17 00:00:00 2001
+From: Matt Caswell <matt@openssl.org>
+Date: Thu, 11 Aug 2022 12:02:44 +0100
+Subject: [PATCH 115/209] Don't incorrectly skip the multiblock test
+
+sslapitest has a test for multiblock writes. Since multiblock writing is
+only available on some platforms the multiblock test checks whether we are
+on such a platform first, and skips the test if we are not. Unfortunately
+a bug in the check meant that we always skipped the test regardless of the
+platform.
+
+Reviewed-by: Dmitry Belyavskiy <beldmit@gmail.com>
+Reviewed-by: Paul Dale <pauli@openssl.org>
+Reviewed-by: Hugo Landau <hlandau@openssl.org>
+(Merged from https://github.com/openssl/openssl/pull/18983)
+
+(cherry picked from commit 7c82a7a8f3a66f47f727d31691d6298d88ed158b)
+---
+ test/sslapitest.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/test/sslapitest.c b/test/sslapitest.c
+index ac49f3ba91..4a3e9648fa 100644
+--- a/test/sslapitest.c
++++ b/test/sslapitest.c
+@@ -8437,7 +8437,7 @@ static int test_multiblock_write(int test_index)
+      * Check if the cipher exists before attempting to use it since it only has
+      * a hardware specific implementation.
+      */
+-    ciph = EVP_CIPHER_fetch(NULL, fetchable_ciphers[test_index], "");
++    ciph = EVP_CIPHER_fetch(libctx, fetchable_ciphers[test_index], "");
+     if (ciph == NULL) {
+         TEST_skip("Multiblock cipher is not available for %s", cipherlist);
+         return 1;
+-- 
+2.34.1
+

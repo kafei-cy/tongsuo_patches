@@ -1,0 +1,46 @@
+From aac139414e6f8fdfb4509f40811f1771f3ec193d Mon Sep 17 00:00:00 2001
+From: Jeff Croxell <jcroxell@gmail.com>
+Date: Thu, 18 Aug 2022 21:30:20 -0500
+Subject: [PATCH 126/209] Clarify dashes are required for openssl list command
+
+Fixes #19013
+
+CLA: trivial
+
+Reviewed-by: Matt Caswell <matt@openssl.org>
+Reviewed-by: Paul Dale <pauli@openssl.org>
+(Merged from https://github.com/openssl/openssl/pull/19031)
+
+(cherry picked from commit 63b94b3fc7feb12713fa46d386e10d109f074d28)
+---
+ doc/man1/openssl.pod | 14 +++++++-------
+ 1 file changed, 7 insertions(+), 7 deletions(-)
+
+diff --git a/doc/man1/openssl.pod b/doc/man1/openssl.pod
+index 5c7bf94657..8ce8e04f81 100644
+--- a/doc/man1/openssl.pod
++++ b/doc/man1/openssl.pod
+@@ -13,13 +13,13 @@ I<command>
+ 
+ B<openssl>
+ B<list>
+-B<standard-commands> |
+-B<digest-commands> |
+-B<cipher-commands> |
+-B<cipher-algorithms> |
+-B<digest-algorithms> |
+-B<mac-algorithms> |
+-B<public-key-algorithms>
++B<-standard-commands> |
++B<-digest-commands> |
++B<-cipher-commands> |
++B<-cipher-algorithms> |
++B<-digest-algorithms> |
++B<-mac-algorithms> |
++B<-public-key-algorithms>
+ 
+ B<openssl> B<no->I<XXX> [ I<options> ]
+ 
+-- 
+2.34.1
+

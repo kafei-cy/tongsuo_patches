@@ -1,0 +1,138 @@
+From 38502628e1d8450cf412c6ab180f46af26ecd8d9 Mon Sep 17 00:00:00 2001
+From: Bernd Edlinger <bernd.edlinger@hotmail.de>
+Date: Sun, 12 Jun 2022 09:37:26 +0200
+Subject: [PATCH 012/209] Fix reported performance degradation on aarch64
+
+This restores the implementation prior to
+commit 2621751 ("aes/asm/aesv8-armx.pl: avoid 32-bit lane assignment in CTR mode")
+for 64bit targets only, since it is reportedly 2-17% slower,
+and the silicon errata only affects 32bit targets.
+Only for 32bit targets the new algorithm is used.
+
+Fixes #18445
+
+Reviewed-by: Paul Dale <pauli@openssl.org>
+Reviewed-by: Tomas Mraz <tomas@openssl.org>
+(Merged from https://github.com/openssl/openssl/pull/18581)
+
+(cherry picked from commit 65523758e546fcef0f930e5f8878ef51d174dbc8)
+---
+ crypto/aes/asm/aesv8-armx.pl | 60 ++++++++++++++++++++++++++++++++++++
+ 1 file changed, 60 insertions(+)
+
+diff --git a/crypto/aes/asm/aesv8-armx.pl b/crypto/aes/asm/aesv8-armx.pl
+index 9532db70e2..314f9aa290 100755
+--- a/crypto/aes/asm/aesv8-armx.pl
++++ b/crypto/aes/asm/aesv8-armx.pl
+@@ -1797,6 +1797,21 @@ $code.=<<___;
+ #ifndef __ARMEB__
+ 	rev		$ctr, $ctr
+ #endif
++___
++$code.=<<___	if ($flavour =~ /64/);
++	vorr		$dat1,$dat0,$dat0
++	add		$tctr1, $ctr, #1
++	vorr		$dat2,$dat0,$dat0
++	add		$ctr, $ctr, #2
++	vorr		$ivec,$dat0,$dat0
++	rev		$tctr1, $tctr1
++	vmov.32		${dat1}[3],$tctr1
++	b.ls		.Lctr32_tail
++	rev		$tctr2, $ctr
++	sub		$len,$len,#3		// bias
++	vmov.32		${dat2}[3],$tctr2
++___
++$code.=<<___	if ($flavour !~ /64/);
+ 	add		$tctr1, $ctr, #1
+ 	vorr		$ivec,$dat0,$dat0
+ 	rev		$tctr1, $tctr1
+@@ -2003,11 +2018,25 @@ $code.=<<___;
+ 	aese		$dat1,q8
+ 	aesmc		$tmp1,$dat1
+ 	 vld1.8		{$in0},[$inp],#16
++___
++$code.=<<___	if ($flavour =~ /64/);
++	 vorr		$dat0,$ivec,$ivec
++___
++$code.=<<___	if ($flavour !~ /64/);
+ 	 add		$tctr0,$ctr,#1
++___
++$code.=<<___;
+ 	aese		$dat2,q8
+ 	aesmc		$dat2,$dat2
+ 	 vld1.8		{$in1},[$inp],#16
++___
++$code.=<<___	if ($flavour =~ /64/);
++	 vorr		$dat1,$ivec,$ivec
++___
++$code.=<<___	if ($flavour !~ /64/);
+ 	 rev		$tctr0,$tctr0
++___
++$code.=<<___;
+ 	aese		$tmp0,q9
+ 	aesmc		$tmp0,$tmp0
+ 	aese		$tmp1,q9
+@@ -2016,6 +2045,12 @@ $code.=<<___;
+ 	 mov		$key_,$key
+ 	aese		$dat2,q9
+ 	aesmc		$tmp2,$dat2
++___
++$code.=<<___	if ($flavour =~ /64/);
++	 vorr		$dat2,$ivec,$ivec
++	 add		$tctr0,$ctr,#1
++___
++$code.=<<___;
+ 	aese		$tmp0,q12
+ 	aesmc		$tmp0,$tmp0
+ 	aese		$tmp1,q12
+@@ -2031,22 +2066,47 @@ $code.=<<___;
+ 	aese		$tmp1,q13
+ 	aesmc		$tmp1,$tmp1
+ 	 veor		$in2,$in2,$rndlast
++___
++$code.=<<___	if ($flavour =~ /64/);
++	 rev		$tctr0,$tctr0
++	aese		$tmp2,q13
++	aesmc		$tmp2,$tmp2
++	 vmov.32	${dat0}[3], $tctr0
++___
++$code.=<<___	if ($flavour !~ /64/);
+ 	 vmov.32	${ivec}[3], $tctr0
+ 	aese		$tmp2,q13
+ 	aesmc		$tmp2,$tmp2
+ 	 vorr		$dat0,$ivec,$ivec
++___
++$code.=<<___;
+ 	 rev		$tctr1,$tctr1
+ 	aese		$tmp0,q14
+ 	aesmc		$tmp0,$tmp0
++___
++$code.=<<___	if ($flavour !~ /64/);
+ 	 vmov.32	${ivec}[3], $tctr1
+ 	 rev		$tctr2,$ctr
++___
++$code.=<<___;
+ 	aese		$tmp1,q14
+ 	aesmc		$tmp1,$tmp1
++___
++$code.=<<___	if ($flavour =~ /64/);
++	 vmov.32	${dat1}[3], $tctr1
++	 rev		$tctr2,$ctr
++	aese		$tmp2,q14
++	aesmc		$tmp2,$tmp2
++	 vmov.32	${dat2}[3], $tctr2
++___
++$code.=<<___	if ($flavour !~ /64/);
+ 	 vorr		$dat1,$ivec,$ivec
+ 	 vmov.32	${ivec}[3], $tctr2
+ 	aese		$tmp2,q14
+ 	aesmc		$tmp2,$tmp2
+ 	 vorr		$dat2,$ivec,$ivec
++___
++$code.=<<___;
+ 	 subs		$len,$len,#3
+ 	aese		$tmp0,q15
+ 	aese		$tmp1,q15
+-- 
+2.34.1
+

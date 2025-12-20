@@ -1,0 +1,121 @@
+From 2db226ce01be804fbd2d60b019c897305a8f091e Mon Sep 17 00:00:00 2001
+From: Todd Short <todd.short@me.com>
+Date: Thu, 28 Jul 2022 20:05:54 -0400
+Subject: [PATCH 089/209] Free up space in the session cache before adding.
+
+Fixes #18690
+
+In some circumstances, it's possible that when using an external
+database for the session cache, that pulling in an entry from that
+cache to the internal cache will cause the newly added entry to
+be deleted from the internal cache. This is likely to happen when
+the internal cache is set to have a small size, and the newly added
+entry's timeout places it at the end of the cache list.
+
+This could be fixed by updating the timestamp of the session (via
+`SSL_SESSION_set_time()` or `SSL_SESSION_set_timeout()`) before
+adding to the cache. But that may not be desireable.
+
+Reviewed-by: Viktor Dukhovni <viktor@openssl.org>
+Reviewed-by: Paul Dale <pauli@openssl.org>
+Reviewed-by: Tomas Mraz <tomas@openssl.org>
+(Merged from https://github.com/openssl/openssl/pull/18905)
+
+(cherry picked from commit 4842a27b902660b672d72d2ed23e941461ca481c)
+---
+ ssl/ssl_sess.c    | 26 +++++++++++++++-----------
+ test/sslapitest.c | 26 ++++++++++++++++++++++++++
+ 2 files changed, 41 insertions(+), 11 deletions(-)
+
+diff --git a/ssl/ssl_sess.c b/ssl/ssl_sess.c
+index 085dcfba6c..68b57a532b 100644
+--- a/ssl/ssl_sess.c
++++ b/ssl/ssl_sess.c
+@@ -748,25 +748,17 @@ int SSL_CTX_add_session(SSL_CTX *ctx, SSL_SESSION *c)
+         c->time = time(NULL);
+         ssl_session_calculate_timeout(c);
+     }
+-    SSL_SESSION_list_add(ctx, c);
+ 
+-    if (s != NULL) {
+-        /*
+-         * existing cache entry -- decrement previously incremented reference
+-         * count because it already takes into account the cache
+-         */
+-
+-        SSL_SESSION_free(s);    /* s == c */
+-        ret = 0;
+-    } else {
++    if (s == NULL) {
+         /*
+          * new cache entry -- remove old ones if cache has become too large
++         * delete cache entry *before* add, so we don't remove the one we're adding!
+          */
+ 
+         ret = 1;
+ 
+         if (SSL_CTX_sess_get_cache_size(ctx) > 0) {
+-            while (SSL_CTX_sess_number(ctx) > SSL_CTX_sess_get_cache_size(ctx)) {
++            while (SSL_CTX_sess_number(ctx) >= SSL_CTX_sess_get_cache_size(ctx)) {
+                 if (!remove_session_lock(ctx, ctx->session_cache_tail, 0))
+                     break;
+                 else
+@@ -774,6 +766,18 @@ int SSL_CTX_add_session(SSL_CTX *ctx, SSL_SESSION *c)
+             }
+         }
+     }
++
++    SSL_SESSION_list_add(ctx, c);
++
++    if (s != NULL) {
++        /*
++         * existing cache entry -- decrement previously incremented reference
++         * count because it already takes into account the cache
++         */
++
++        SSL_SESSION_free(s);    /* s == c */
++        ret = 0;
++    }
+     CRYPTO_THREAD_unlock(ctx->lock);
+     return ret;
+ }
+diff --git a/test/sslapitest.c b/test/sslapitest.c
+index 2911d6e94b..ac49f3ba91 100644
+--- a/test/sslapitest.c
++++ b/test/sslapitest.c
+@@ -2131,6 +2131,32 @@ static int execute_test_session(int maxprot, int use_int_cache,
+                 goto end;
+         }
+     }
++    /*
++     * Make a small cache, force out all other sessions but
++     * sess2, try to add sess1, which should succeed. Then
++     * make sure it's there by checking the owners. Despite
++     * the timeouts, sess1 should have kicked out sess2
++     */
++
++    /* Make sess1 expire before sess2 */
++    if (!TEST_long_gt(SSL_SESSION_set_time(sess1, 1000), 0)
++            || !TEST_long_gt(SSL_SESSION_set_timeout(sess1, 1000), 0)
++            || !TEST_long_gt(SSL_SESSION_set_time(sess2, 2000), 0)
++            || !TEST_long_gt(SSL_SESSION_set_timeout(sess2, 2000), 0))
++        goto end;
++
++    if (!TEST_long_ne(SSL_CTX_sess_set_cache_size(sctx, 1), 0))
++        goto end;
++
++    /* Don't care about results - cache should only be sess2 at end */
++    SSL_CTX_add_session(sctx, sess1);
++    SSL_CTX_add_session(sctx, sess2);
++
++    /* Now add sess1, and make sure it remains, despite timeout */
++    if (!TEST_true(SSL_CTX_add_session(sctx, sess1))
++            || !TEST_ptr(sess1->owner)
++            || !TEST_ptr_null(sess2->owner))
++        goto end;
+ 
+     testresult = 1;
+ 
+-- 
+2.34.1
+

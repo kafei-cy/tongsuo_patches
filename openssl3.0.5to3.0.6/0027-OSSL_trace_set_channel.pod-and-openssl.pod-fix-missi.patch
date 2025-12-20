@@ -1,0 +1,138 @@
+From 7486f00d82071065b34e5d24e2aff37e9e4f9b8f Mon Sep 17 00:00:00 2001
+From: "Dr. David von Oheimb" <David.von.Oheimb@siemens.com>
+Date: Fri, 8 Jul 2022 11:14:16 +0200
+Subject: [PATCH 027/209] OSSL_trace_set_channel.pod and openssl.pod: fix
+ missing/inconsistent category items
+
+Reviewed-by: Richard Levitte <levitte@openssl.org>
+Reviewed-by: Tomas Mraz <tomas@openssl.org>
+Reviewed-by: David von Oheimb <david.von.oheimb@siemens.com>
+(Merged from https://github.com/openssl/openssl/pull/18763)
+---
+ doc/man1/openssl.pod                | 40 +++++++++++++++++++++++------
+ doc/man3/OSSL_trace_set_channel.pod | 24 +++++++++++++++--
+ 2 files changed, 54 insertions(+), 10 deletions(-)
+
+diff --git a/doc/man1/openssl.pod b/doc/man1/openssl.pod
+index b6f4029a67..5c7bf94657 100644
+--- a/doc/man1/openssl.pod
++++ b/doc/man1/openssl.pod
+@@ -704,15 +704,19 @@ available:
+ 
+ =item B<TRACE>
+ 
+-The tracing functionality.
++Traces the OpenSSL trace API itself.
++
++=item B<INIT>
++
++Traces OpenSSL library initialization and cleanup.
+ 
+ =item B<TLS>
+ 
+-General SSL/TLS.
++Traces the TLS/SSL protocol.
+ 
+ =item B<TLS_CIPHER>
+ 
+-SSL/TLS cipher.
++Traces the ciphers used by the TLS/SSL protocol.
+ 
+ =item B<CONF>
+ 
+@@ -731,24 +735,44 @@ of generated for each change.
+ 
+ =item B<PKCS5V2>
+ 
+-PKCS#5 v2 keygen.
++Traces PKCS#5 v2 key generation.
+ 
+ =item B<PKCS12_KEYGEN>
+ 
+-PKCS#12 key generation.
++Traces PKCS#12 key generation.
+ 
+ =item B<PKCS12_DECRYPT>
+ 
+-PKCS#12 decryption.
++Traces PKCS#12 decryption.
+ 
+ =item B<X509V3_POLICY>
+ 
+-Generates the complete policy tree at various point during X.509 v3
++Generates the complete policy tree at various points during X.509 v3
+ policy evaluation.
+ 
+ =item B<BN_CTX>
+ 
+-BIGNUM context.
++Traces BIGNUM context operations.
++
++=item B<CMP>
++
++Traces CMP client and server activity.
++
++=item B<STORE>
++
++Traces STORE operations.
++
++=item B<DECODER>
++
++Traces decoder operations.
++
++=item B<ENCODER>
++
++Traces encoder operations.
++
++=item B<REF_COUNT>
++
++Traces decrementing certain ASN.1 structure references.
+ 
+ =back
+ 
+diff --git a/doc/man3/OSSL_trace_set_channel.pod b/doc/man3/OSSL_trace_set_channel.pod
+index 7564c60842..616223b0e1 100644
+--- a/doc/man3/OSSL_trace_set_channel.pod
++++ b/doc/man3/OSSL_trace_set_channel.pod
+@@ -136,6 +136,10 @@ Traces the TLS/SSL protocol.
+ 
+ Traces the ciphers used by the TLS/SSL protocol.
+ 
++=item B<OSSL_TRACE_CATEGORY_CONF>
++
++Traces details about the provider and engine configuration.
++
+ =item B<OSSL_TRACE_CATEGORY_ENGINE_TABLE>
+ 
+ Traces the ENGINE algorithm table selection.
+@@ -175,9 +179,25 @@ point during evaluation.
+ 
+ Traces BIGNUM context operations.
+ 
+-=item B<OSSL_TRACE_CATEGORY_CONF>
++=item B<OSSL_TRACE_CATEGORY_CMP>
+ 
+-Traces details about the provider and engine configuration.
++Traces CMP client and server activity.
++
++=item B<OSSL_TRACE_CATEGORY_STORE>
++
++Traces STORE operations.
++
++=item B<OSSL_TRACE_CATEGORY_DECODER>
++
++Traces decoder operations.
++
++=item B<OSSL_TRACE_CATEGORY_ENCODER>
++
++Traces encoder operations.
++
++=item B<OSSL_TRACE_CATEGORY_REF_COUNT>
++
++Traces decrementing certain ASN.1 structure references.
+ 
+ =back
+ 
+-- 
+2.34.1
+

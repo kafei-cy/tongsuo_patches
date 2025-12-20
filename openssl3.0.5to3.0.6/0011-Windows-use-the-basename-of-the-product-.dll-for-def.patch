@@ -1,0 +1,37 @@
+From 6d7c5db5cf2d9d6d0044e094160a3edff34e4e34 Mon Sep 17 00:00:00 2001
+From: Richard Levitte <levitte@openssl.org>
+Date: Wed, 6 Jul 2022 06:54:49 +0200
+Subject: [PATCH 011/209] Windows: use the basename of the product (.dll) for
+ definition files
+
+This resolves the faulty LIBRARY value that contained the directory
+of the product (.dll) in the build tree.  This applies to engines and
+other modules alike.
+
+Fixes #18726
+
+Reviewed-by: Hugo Landau <hlandau@openssl.org>
+Reviewed-by: Shane Lontis <shane.lontis@oracle.com>
+(Merged from https://github.com/openssl/openssl/pull/18732)
+
+(cherry picked from commit 5cc9ab5cf51137daf6d2d57718f56316dcb62744)
+---
+ Configurations/windows-makefile.tmpl | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/Configurations/windows-makefile.tmpl b/Configurations/windows-makefile.tmpl
+index 47c10d79df..300b6f16ed 100644
+--- a/Configurations/windows-makefile.tmpl
++++ b/Configurations/windows-makefile.tmpl
+@@ -742,7 +742,7 @@ EOF
+                               rel2abs($config{builddir}));
+           my $ord_ver = $args{intent} eq 'lib' ? ' --version $(VERSION_NUMBER)' : '';
+           my $ord_name =
+-              $args{generator}->[1] || platform->dsoname($args{product});
++              $args{generator}->[1] || basename(platform->dsoname($args{product}));
+           return <<"EOF";
+ $target: $gen0 $deps $mkdef
+ 	"\$(PERL)" "$mkdef"$ord_ver --type $args{intent} --ordinals $gen0 --name $ord_name --OS windows > $target
+-- 
+2.34.1
+

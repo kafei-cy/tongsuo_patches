@@ -1,0 +1,233 @@
+From 8ff66343bdf635ad574e9db4d4fca8f82c4bcc98 Mon Sep 17 00:00:00 2001
+From: Todd Short <tshort@akamai.com>
+Date: Fri, 23 Sep 2022 12:03:13 -0400
+Subject: [PATCH 186/209] Test TLS extension ordering
+
+Adding extensions is fragile, with the TLSEXT_TYPE entry needing to be
+located at TLSEXT_IDX in the array.
+
+This adds a test to ensure extensions are in the correct order.
+
+Reviewed-by: Matt Caswell <matt@openssl.org>
+Reviewed-by: Tomas Mraz <tomas@openssl.org>
+(Merged from https://github.com/openssl/openssl/pull/19269)
+
+(cherry picked from commit ac44deaf00ad24fd18b9d74de4a23d98a2b75c8d)
+---
+ ssl/statem/extensions.c              |  16 +++-
+ ssl/statem/statem_local.h            |   5 ++
+ test/build.info                      |   5 ++
+ test/ext_internal_test.c             | 105 +++++++++++++++++++++++++++
+ test/recipes/02-test_internal_exts.t |  15 ++++
+ 5 files changed, 145 insertions(+), 1 deletion(-)
+ create mode 100644 test/ext_internal_test.c
+ create mode 100644 test/recipes/02-test_internal_exts.t
+
+diff --git a/ssl/statem/extensions.c b/ssl/statem/extensions.c
+index c0bab081a2..8c9c16ec21 100644
+--- a/ssl/statem/extensions.c
++++ b/ssl/statem/extensions.c
+@@ -98,6 +98,9 @@ typedef struct extensions_definition_st {
+  * Definitions of all built-in extensions. NOTE: Changes in the number or order
+  * of these extensions should be mirrored with equivalent changes to the
+  * indexes ( TLSEXT_IDX_* ) defined in ssl_local.h.
++ * Extensions should be added to test/ext_internal_test.c as well, as that
++ * tests the ordering of the extensions.
++ *
+  * Each extension has an initialiser, a client and
+  * server side parser and a finaliser. The initialiser is called (if the
+  * extension is relevant to the given context) even if we did not see the
+@@ -118,7 +121,7 @@ typedef struct extensions_definition_st {
+  * NOTE: WebSphere Application Server 7+ cannot handle empty extensions at
+  * the end, keep these extensions before signature_algorithm.
+  */
+-#define INVALID_EXTENSION { 0x10000, 0, NULL, NULL, NULL, NULL, NULL, NULL }
++#define INVALID_EXTENSION { TLSEXT_TYPE_invalid, 0, NULL, NULL, NULL, NULL, NULL, NULL }
+ static const EXTENSION_DEFINITION ext_defs[] = {
+     {
+         TLSEXT_TYPE_renegotiate,
+@@ -385,6 +388,17 @@ static const EXTENSION_DEFINITION ext_defs[] = {
+     }
+ };
+ 
++/* Returns a TLSEXT_TYPE for the given index */
++unsigned int ossl_get_extension_type(size_t idx)
++{
++    size_t num_exts = OSSL_NELEM(ext_defs);
++
++    if (idx >= num_exts)
++        return TLSEXT_TYPE_out_of_range;
++
++    return ext_defs[idx].type;
++}
++
+ /* Check whether an extension's context matches the current context */
+ static int validate_context(SSL *s, unsigned int extctx, unsigned int thisctx)
+ {
+diff --git a/ssl/statem/statem_local.h b/ssl/statem/statem_local.h
+index 1883b0166f..01f60ebabb 100644
+--- a/ssl/statem/statem_local.h
++++ b/ssl/statem/statem_local.h
+@@ -37,6 +37,11 @@
+ /* Dummy message type */
+ #define SSL3_MT_DUMMY   -1
+ 
++/* Invalid extension ID for non-supported extensions */
++#define TLSEXT_TYPE_invalid            0x10000
++#define TLSEXT_TYPE_out_of_range       0x10001
++unsigned int ossl_get_extension_type(size_t idx);
++
+ extern const unsigned char hrrrandom[];
+ 
+ /* Message processing return codes */
+diff --git a/test/build.info b/test/build.info
+index a18f1a78d0..9d2d41e417 100644
+--- a/test/build.info
++++ b/test/build.info
+@@ -778,6 +778,11 @@ IF[{- !$disabled{tests} -}]
+     INCLUDE[ssl_old_test]=.. ../include ../apps/include
+     DEPEND[ssl_old_test]=../libcrypto.a ../libssl.a libtestutil.a
+ 
++    PROGRAMS{noinst}=ext_internal_test
++    SOURCE[ext_internal_test]=ext_internal_test.c
++    INCLUDE[ext_internal_test]=.. ../include ../apps/include
++    DEPEND[ext_internal_test]=../libcrypto.a ../libssl.a libtestutil.a
++
+     PROGRAMS{noinst}=algorithmid_test
+     SOURCE[algorithmid_test]=algorithmid_test.c
+     INCLUDE[algorithmid_test]=../include ../apps/include
+diff --git a/test/ext_internal_test.c b/test/ext_internal_test.c
+new file mode 100644
+index 0000000000..dc1420aba8
+--- /dev/null
++++ b/test/ext_internal_test.c
+@@ -0,0 +1,105 @@
++/*
++ * Copyright 1995-2021 The OpenSSL Project Authors. All Rights Reserved.
++ *
++ * Licensed under the Apache License 2.0 (the "License").  You may not use
++ * this file except in compliance with the License.  You can obtain a copy
++ * in the file LICENSE in the source distribution or at
++ * https://www.openssl.org/source/license.html
++ */
++
++#include "internal/nelem.h"
++#include "../ssl/ssl_local.h"
++#include "../ssl/statem/statem_local.h"
++#include "testutil.h"
++
++#define EXT_ENTRY(name) { TLSEXT_IDX_##name, TLSEXT_TYPE_##name, #name }
++#define EXT_EXCEPTION(name) { TLSEXT_IDX_##name, TLSEXT_TYPE_invalid, #name }
++#define EXT_END(name) { TLSEXT_IDX_##name, TLSEXT_TYPE_out_of_range, #name }
++
++typedef struct {
++    size_t idx;
++    unsigned int type;
++    char *name;
++} EXT_LIST;
++
++/* The order here does matter! */
++static EXT_LIST ext_list[] = {
++
++    EXT_ENTRY(renegotiate),
++    EXT_ENTRY(server_name),
++    EXT_ENTRY(max_fragment_length),
++#ifndef OPENSSL_NO_SRP
++    EXT_ENTRY(srp),
++#else
++    EXT_EXCEPTION(srp),
++#endif
++    EXT_ENTRY(ec_point_formats),
++    EXT_ENTRY(supported_groups),
++    EXT_ENTRY(session_ticket),
++#ifndef OPENSSL_NO_OCSP
++    EXT_ENTRY(status_request),
++#else
++    EXT_EXCEPTION(status_request),
++#endif
++#ifndef OPENSSL_NO_NEXTPROTONEG
++    EXT_ENTRY(next_proto_neg),
++#else
++    EXT_EXCEPTION(next_proto_neg),
++#endif
++    EXT_ENTRY(application_layer_protocol_negotiation),
++#ifndef OPENSSL_NO_SRTP
++    EXT_ENTRY(use_srtp),
++#else
++    EXT_EXCEPTION(use_srtp),
++#endif
++    EXT_ENTRY(encrypt_then_mac),
++#ifndef OPENSSL_NO_CT
++    EXT_ENTRY(signed_certificate_timestamp),
++#else
++    EXT_EXCEPTION(signed_certificate_timestamp),
++#endif
++    EXT_ENTRY(extended_master_secret),
++    EXT_ENTRY(signature_algorithms_cert),
++    EXT_ENTRY(post_handshake_auth),
++    EXT_ENTRY(signature_algorithms),
++    EXT_ENTRY(supported_versions),
++    EXT_ENTRY(psk_kex_modes),
++    EXT_ENTRY(key_share),
++    EXT_ENTRY(cookie),
++    EXT_ENTRY(cryptopro_bug),
++    EXT_ENTRY(early_data),
++    EXT_ENTRY(certificate_authorities),
++    EXT_ENTRY(padding),
++    EXT_ENTRY(psk),
++    EXT_END(num_builtins)
++};
++
++static int test_extension_list(void)
++{
++    size_t n = OSSL_NELEM(ext_list);
++    size_t i;
++    unsigned int type;
++    int retval = 1;
++
++    for (i = 0; i < n; i++) {
++        if (!TEST_size_t_eq(i, ext_list[i].idx)) {
++            retval = 0;
++            TEST_error("TLSEXT_IDX_%s=%zd, found at=%zd\n",
++                       ext_list[i].name, ext_list[i].idx, i);
++        }
++        type = ossl_get_extension_type(ext_list[i].idx);
++        if (!TEST_uint_eq(type, ext_list[i].type)) {
++            retval = 0;
++            TEST_error("TLSEXT_IDX_%s=%zd expected=0x%05X got=0x%05X",
++                       ext_list[i].name, ext_list[i].idx, ext_list[i].type,
++                       type);
++        }
++    }
++    return retval;
++}
++
++int setup_tests(void)
++{
++    ADD_TEST(test_extension_list);
++    return 1;
++}
+diff --git a/test/recipes/02-test_internal_exts.t b/test/recipes/02-test_internal_exts.t
+new file mode 100644
+index 0000000000..bec4a216cb
+--- /dev/null
++++ b/test/recipes/02-test_internal_exts.t
+@@ -0,0 +1,15 @@
++#! /usr/bin/env perl
++# Copyright 2022 The OpenSSL Project Authors. All Rights Reserved.
++#
++# Licensed under the Apache License 2.0 (the "License").  You may not use
++# this file except in compliance with the License.  You can obtain a copy
++# in the file LICENSE in the source distribution or at
++# https://www.openssl.org/source/license.html
++
++use strict;
++use OpenSSL::Test;
++use OpenSSL::Test::Simple;
++
++setup("test_internal_exts");
++
++simple_test("test_internal_exts", "ext_internal_test");
+-- 
+2.34.1
+

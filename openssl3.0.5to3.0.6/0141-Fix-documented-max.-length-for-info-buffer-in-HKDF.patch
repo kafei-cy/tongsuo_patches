@@ -1,0 +1,35 @@
+From 1ef0c91681d5405e7332d1e86fba96174fef3aa8 Mon Sep 17 00:00:00 2001
+From: Tobias Brunner <tobias@strongswan.org>
+Date: Mon, 29 Aug 2022 10:05:56 +0200
+Subject: [PATCH 141/209] Fix documented max. length for info buffer in HKDF
+
+This limit was increased with 20c2876f24d0 ("Increase
+HKDF_MAXBUF from 1024 to 2048").
+
+CLA: trivial
+
+Reviewed-by: Paul Dale <pauli@openssl.org>
+Reviewed-by: Tomas Mraz <tomas@openssl.org>
+(Merged from https://github.com/openssl/openssl/pull/19085)
+
+(cherry picked from commit d4ffdc42cb579a1ea6e3c95601c5845866028ebb)
+---
+ doc/man3/EVP_PKEY_CTX_set_hkdf_md.pod | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/doc/man3/EVP_PKEY_CTX_set_hkdf_md.pod b/doc/man3/EVP_PKEY_CTX_set_hkdf_md.pod
+index 15b908e540..81ee5c485b 100644
+--- a/doc/man3/EVP_PKEY_CTX_set_hkdf_md.pod
++++ b/doc/man3/EVP_PKEY_CTX_set_hkdf_md.pod
+@@ -99,7 +99,7 @@ A context for HKDF can be obtained by calling:
+ 
+  EVP_PKEY_CTX *pctx = EVP_PKEY_CTX_new_id(EVP_PKEY_HKDF, NULL);
+ 
+-The total length of the info buffer cannot exceed 1024 bytes in length: this
++The total length of the info buffer cannot exceed 2048 bytes in length: this
+ should be more than enough for any normal use of HKDF.
+ 
+ The output length of an HKDF expand operation is specified via the length
+-- 
+2.34.1
+

@@ -1,0 +1,148 @@
+From 4a84c54dbe9bbe88fb8138794163e5d04c5bc411 Mon Sep 17 00:00:00 2001
+From: Pauli <pauli@openssl.org>
+Date: Tue, 13 Sep 2022 08:46:34 +1000
+Subject: [PATCH 152/209] test: make unit tests FIPS provider version aware
+
+Fixes #19171
+
+Reviewed-by: Matt Caswell <matt@openssl.org>
+Reviewed-by: Tomas Mraz <tomas@openssl.org>
+Reviewed-by: Shane Lontis <shane.lontis@oracle.com>
+(Merged from https://github.com/openssl/openssl/pull/19201)
+
+(cherry picked from commit eaac0584db6e7452fdb627502527fb0678bb9a93)
+---
+ test/testutil.h          | 23 ++++++++++++
+ test/testutil/provider.c | 78 ++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 101 insertions(+)
+
+diff --git a/test/testutil.h b/test/testutil.h
+index c28df702cc..e5b0829f02 100644
+--- a/test/testutil.h
++++ b/test/testutil.h
+@@ -235,6 +235,29 @@ void add_all_tests(const char *test_case_name, int (*test_fn)(int idx), int num,
+ int global_init(void);
+ int setup_tests(void);
+ void cleanup_tests(void);
++
++/*
++ * Helper functions to detect specific versions of the FIPS provider being in use.
++ * Because of FIPS rules, code changes after a module has been validated are
++ * difficult and because we provide an hard guarantee of ABI and behavioural
++ * stability going forwards, it is a requirement to have tests be conditional
++ * on specific FIPS provider versions.  Without this, bug fixes cannot be tested
++ * in later releases.
++ *
++ * The reason for not including e.g. a less than test is to help avoid any
++ * temptation to use FIPS provider version numbers that don't exist.  Until the
++ * `new' provider is validated, its version isn't set in stone.  Thus a change
++ * in test behaviour must depend on already validated module versions only.
++ *
++ * In all cases, the function returns true if:
++ *      1. the FIPS provider version matches the criteria specified or
++ *      2. the FIPS provider isn't being used.
++ */
++int fips_provider_version_eq(OSSL_LIB_CTX *libctx, int major, int minor, int patch);
++int fips_provider_version_ne(OSSL_LIB_CTX *libctx, int major, int minor, int patch);
++int fips_provider_version_le(OSSL_LIB_CTX *libctx, int major, int minor, int patch);
++int fips_provider_version_gt(OSSL_LIB_CTX *libctx, int major, int minor, int patch);
++
+ /*
+  * Used to supply test specific command line options,
+  * If non optional parameters are used, then the first entry in the OPTIONS[]
+diff --git a/test/testutil/provider.c b/test/testutil/provider.c
+index d073d732da..f9b37cca8f 100644
+--- a/test/testutil/provider.c
++++ b/test/testutil/provider.c
+@@ -9,6 +9,7 @@
+ 
+ #include "../testutil.h"
+ #include <openssl/provider.h>
++#include <openssl/core_names.h>
+ #include <string.h>
+ 
+ int test_get_libctx(OSSL_LIB_CTX **libctx, OSSL_PROVIDER **default_null_prov,
+@@ -62,3 +63,80 @@ int test_arg_libctx(OSSL_LIB_CTX **libctx, OSSL_PROVIDER **default_null_prov,
+     return test_get_libctx(libctx, default_null_prov,
+                            test_get_argument(argn + 1), provider, module_name);
+ }
++
++typedef struct {
++    int major, minor, patch;
++} FIPS_VERSION;
++
++/*
++ * Query the FIPS provider to determine it's version number.
++ * Returns 1 if the version is retrieved correctly, 0 if the FIPS provider isn't
++ * loaded and -1 on error.
++ */
++static int fips_provider_version(OSSL_LIB_CTX *libctx, FIPS_VERSION *vers)
++{
++    OSSL_PARAM params[2] = { OSSL_PARAM_END, OSSL_PARAM_END };
++    OSSL_PROVIDER *fips_prov;
++    char *vs;
++
++    if (!OSSL_PROVIDER_available(libctx, "fips"))
++        return 0;
++    *params = OSSL_PARAM_construct_utf8_ptr(OSSL_PROV_PARAM_VERSION, &vs, 0);
++    if ((fips_prov = OSSL_PROVIDER_load(libctx, "fips")) == NULL)
++        return -1;
++    if (!OSSL_PROVIDER_get_params(fips_prov, params)
++            || sscanf(vs, "%d.%d.%d", &vers->major, &vers->minor, &vers->patch) != 3)
++        goto err;
++    if (!OSSL_PROVIDER_unload(fips_prov))
++        return -1;  /* WTF do we do here??? */
++    return 1;
++ err:
++    OSSL_PROVIDER_unload(fips_prov);
++    return -1;
++}
++
++int fips_provider_version_eq(OSSL_LIB_CTX *libctx, int major, int minor, int patch)
++{
++    FIPS_VERSION prov;
++    int res;
++
++    if ((res = fips_provider_version(libctx, &prov)) <= 0)
++        return res == 0;
++    return major == prov.major && minor == prov.minor && patch == prov.patch;
++}
++
++int fips_provider_version_ne(OSSL_LIB_CTX *libctx, int major, int minor, int patch)
++{
++    FIPS_VERSION prov;
++    int res;
++
++    if ((res = fips_provider_version(libctx, &prov)) <= 0)
++        return res == 0;
++    return major != prov.major || minor != prov.minor || patch != prov.patch;
++}
++
++int fips_provider_version_le(OSSL_LIB_CTX *libctx, int major, int minor, int patch)
++{
++    FIPS_VERSION prov;
++    int res;
++
++    if ((res = fips_provider_version(libctx, &prov)) <= 0)
++        return res == 0;
++    return prov.major < major
++           || (prov.major == major
++               && (prov.minor < minor
++                   || (prov.minor == minor && prov.patch <= patch)));
++}
++
++int fips_provider_version_gt(OSSL_LIB_CTX *libctx, int major, int minor, int patch)
++{
++    FIPS_VERSION prov;
++    int res;
++
++    if ((res = fips_provider_version(libctx, &prov)) <= 0)
++        return res == 0;
++    return prov.major > major
++           || (prov.major == major
++               && (prov.minor > minor
++                   || (prov.minor == minor && prov.patch > patch)));
++}
+-- 
+2.34.1
+

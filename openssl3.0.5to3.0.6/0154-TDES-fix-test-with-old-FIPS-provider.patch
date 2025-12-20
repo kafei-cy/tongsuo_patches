@@ -1,0 +1,31 @@
+From 5eabf8e5548607a317b41a437806bb075947d0fa Mon Sep 17 00:00:00 2001
+From: Pauli <pauli@openssl.org>
+Date: Tue, 13 Sep 2022 10:52:25 +1000
+Subject: [PATCH 154/209] TDES: fix test with old FIPS provider
+
+Reviewed-by: Matt Caswell <matt@openssl.org>
+Reviewed-by: Tomas Mraz <tomas@openssl.org>
+Reviewed-by: Shane Lontis <shane.lontis@oracle.com>
+(Merged from https://github.com/openssl/openssl/pull/19201)
+
+(cherry picked from commit 4d0249c2d1d0f81c211354d8a36738595936fad8)
+---
+ test/recipes/30-test_evp_data/evpciph_des3_common.txt | 2 ++
+ 1 file changed, 2 insertions(+)
+
+diff --git a/test/recipes/30-test_evp_data/evpciph_des3_common.txt b/test/recipes/30-test_evp_data/evpciph_des3_common.txt
+index dd2b26c145..aa238df2d9 100644
+--- a/test/recipes/30-test_evp_data/evpciph_des3_common.txt
++++ b/test/recipes/30-test_evp_data/evpciph_des3_common.txt
+@@ -22,6 +22,8 @@ Ciphertext = 3FE301C962AC01D02213763C1CBD4CDC799657C064ECF5D41C673812CFDE9675
+ NextIV = 1c673812cfde9675
+ 
+ # DES EDE3 ECB test
++# FIPS(3.0.0): has a bug in the IV length #17591
++FIPSversion = >3.0.0
+ Cipher = DES-EDE3-ECB
+ Key = 0123456789abcdeff1e0d3c2b5a49786fedcba9876543210
+ Plaintext = 37363534333231204E6F77206973207468652074696D6520666F722000000000
+-- 
+2.34.1
+

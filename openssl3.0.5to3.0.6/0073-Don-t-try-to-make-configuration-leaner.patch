@@ -1,0 +1,122 @@
+From 55461bf22a57a35d299f052323dfb659620a1dcd Mon Sep 17 00:00:00 2001
+From: Richard Levitte <levitte@openssl.org>
+Date: Wed, 20 Jul 2022 12:49:54 +0200
+Subject: [PATCH 073/209] Don't try to make configuration leaner
+
+This partially reverts Github PR #16378:
+commit 764cf5b26306a8712e8b3d41599c44dc5ed07a25, titled "Configuration:
+only produce a new configdata.pm if it has changed contents"
+
+Unfortunately, the attempt to make configuration leaner didn't take
+into account all the files that may or may not affect the outcome of
+`configdata.pm`, and most of all, didn't take into account that `Makefile`
+has clauses of its own to determined when a reconfiguration is needed, all
+based on time stamps.
+
+Something as simple as a changed `Configurations/10-main.conf`, where the
+change doesn't affect the resulting `configdata.pm` gets `make` into a
+reconfiguration loop, because `configdata.pm` is older than `10-main.conf`.
+
+The lesson to remember is not to try to outsmart `make` in cases like this.
+
+We retain the other parts of the PR mentioned, as they are still valid.
+
+needed to be taken into account (all the Configurations/*.conf
+as well as all the build.info)
+
+Reviewed-by: Tomas Mraz <tomas@openssl.org>
+Reviewed-by: Todd Short <todd.short@me.com>
+(Merged from https://github.com/openssl/openssl/pull/18832)
+
+(cherry picked from commit 54a84f02998b72fa63cd5309d915e43cfd85a06b)
+---
+ Configure | 64 +++++++++++--------------------------------------------
+ 1 file changed, 12 insertions(+), 52 deletions(-)
+
+diff --git a/Configure b/Configure
+index 8b234f640f..379f668177 100755
+--- a/Configure
++++ b/Configure
+@@ -17,7 +17,6 @@ use lib "$FindBin::Bin/util/perl";
+ use File::Basename;
+ use File::Spec::Functions qw/:DEFAULT abs2rel rel2abs splitdir/;
+ use File::Path qw/mkpath/;
+-use File::Compare qw(compare_text);
+ use OpenSSL::fallback "$FindBin::Bin/external/perl/MODULES.txt";
+ use OpenSSL::Glob;
+ use OpenSSL::Template;
+@@ -2849,59 +2848,20 @@ $configdata_tmpl->fill_in(
+ ) or die $Text::Template::ERROR;
+ close CONFIGDATA;
+ 
+-# When using stat() on Windows, we can get it to perform better by avoid some
+-# data.  This doesn't affect the mtime field, so we're not losing anything...
+-${^WIN32_SLOPPY_STAT} = 1;
+-
+-my $update_configdata = 0;
+-my $run_configdata = 0;
+-if (-f $configdata_outname) {
+-    my $Configure_mtime = (stat($0))[9];
+-    my $configdata_mtime = (stat($configdata_outname))[9];
+-
+-    # If this script was updated after the last configdata.pm, or if
+-    # configdata.pm.new differs from configdata.pm, we update configdata.pm
+-    if ($configdata_mtime < $Configure_mtime
+-        || compare_text("$configdata_outname.new", $configdata_outname) != 0) {
+-        $update_configdata = 1;
+-    } else {
+-        # If nothing has changed, let's just drop the new one and pretend
+-        # like nothing happened
+-        unlink "$configdata_outname.new";
+-
+-        # We still run configdata.pm if one of the build file (Makefile) or
+-        # the configuration header file are missing
+-        $run_configdata =
+-            !( -f $target{build_file} )
+-            || !( -f catfile('include', 'openssl', 'configuration.h') );
+-    }
+-} else {
+-    $update_configdata = 1;
++rename "$configdata_outname.new", $configdata_outname;
++if ($builder_platform eq 'unix') {
++    my $mode = (0755 & ~umask);
++    chmod $mode, 'configdata.pm'
++        or warn sprintf("WARNING: Couldn't change mode for 'configdata.pm' to 0%03o: %s\n",$mode,$!);
+ }
++print "Created $configdata_outname\n";
+ 
+-if ($update_configdata) {
+-    # If something did change, or there was no previous configdata.pm, we
+-    # rename the new one, set permissions as needed, and run it.
+-    rename "$configdata_outname.new", $configdata_outname;
+-    if ($builder_platform eq 'unix') {
+-        my $mode = (0755 & ~umask);
+-        chmod $mode, 'configdata.pm'
+-            or warn sprintf("WARNING: Couldn't change mode for 'configdata.pm' to 0%03o: %s\n",$mode,$!);
+-    }
+-    $run_configdata = 1;
+-    print "Created $configdata_outname\n";
+-}
+-
+-if ($run_configdata) {
+-    print "Running $configdata_outname\n";
+-    my $perlcmd = (quotify("maybeshell", $config{PERL}))[0];
+-    my $cmd = "$perlcmd $configdata_outname";
+-    #print STDERR "DEBUG[run_dofile]: \$cmd = $cmd\n";
+-    system($cmd);
+-    exit 1 if $? != 0;
+-} else {
+-    print "No changes in $configdata_outname, no need to run it\n";
+-}
++print "Running $configdata_outname\n";
++my $perlcmd = (quotify("maybeshell", $config{PERL}))[0];
++my $cmd = "$perlcmd $configdata_outname";
++#print STDERR "DEBUG[run_dofile]: \$cmd = $cmd\n";
++system($cmd);
++exit 1 if $? != 0;
+ 
+ $SIG{__DIE__} = $orig_death_handler;
+ 
+-- 
+2.34.1
+

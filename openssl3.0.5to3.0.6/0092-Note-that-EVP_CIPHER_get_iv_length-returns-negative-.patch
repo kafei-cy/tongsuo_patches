@@ -1,0 +1,31 @@
+From 2a6275f58bdb2371c603be7f89310f7b4906e5c0 Mon Sep 17 00:00:00 2001
+From: Pauli <pauli@openssl.org>
+Date: Thu, 28 Jul 2022 11:20:37 +1000
+Subject: [PATCH 092/209] Note that EVP_CIPHER_get_iv_length returns negative
+ values on error
+
+Reviewed-by: Tomas Mraz <tomas@openssl.org>
+Reviewed-by: Dmitry Belyavskiy <beldmit@gmail.com>
+(Merged from https://github.com/openssl/openssl/pull/18875)
+
+(cherry picked from commit 0a90577e717f76483525b2d8be6a42a9f04020d8)
+---
+ doc/man3/EVP_EncryptInit.pod | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/doc/man3/EVP_EncryptInit.pod b/doc/man3/EVP_EncryptInit.pod
+index 15834349f0..11bb94f29e 100644
+--- a/doc/man3/EVP_EncryptInit.pod
++++ b/doc/man3/EVP_EncryptInit.pod
+@@ -1216,7 +1216,7 @@ length.
+ EVP_CIPHER_CTX_set_padding() always returns 1.
+ 
+ EVP_CIPHER_get_iv_length() and EVP_CIPHER_CTX_get_iv_length() return the IV
+-length or zero if the cipher does not use an IV.
++length, zero if the cipher does not use an IV and a negative value on error.
+ 
+ EVP_CIPHER_CTX_get_tag_length() return the tag length or zero if the cipher
+ does not use a tag.
+-- 
+2.34.1
+

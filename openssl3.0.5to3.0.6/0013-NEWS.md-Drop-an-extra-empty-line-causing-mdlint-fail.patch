@@ -1,0 +1,29 @@
+From 197e6a3411682d56e460a329d8d547e9aa585d49 Mon Sep 17 00:00:00 2001
+From: Tomas Mraz <tomas@openssl.org>
+Date: Thu, 7 Jul 2022 10:35:16 +0200
+Subject: [PATCH 013/209] NEWS.md: Drop an extra empty line causing mdlint
+ failure
+
+Reviewed-by: Richard Levitte <levitte@openssl.org>
+Reviewed-by: Paul Dale <pauli@openssl.org>
+Reviewed-by: Hugo Landau <hlandau@openssl.org>
+(Merged from https://github.com/openssl/openssl/pull/18740)
+---
+ NEWS.md | 1 -
+ 1 file changed, 1 deletion(-)
+
+diff --git a/NEWS.md b/NEWS.md
+index 4fd1ace9b8..42cc73d629 100644
+--- a/NEWS.md
++++ b/NEWS.md
+@@ -29,7 +29,6 @@ OpenSSL 3.0
+   * Fixed AES OCB failure to encrypt some bytes on 32-bit x86 platforms
+     ([CVE-2022-2097])
+ 
+-
+ ### Major changes between OpenSSL 3.0.3 and OpenSSL 3.0.4 [21 Jun 2022]
+ 
+   * Fixed additional bugs in the c_rehash script which was not properly
+-- 
+2.34.1
+

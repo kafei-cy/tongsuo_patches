@@ -1,0 +1,56 @@
+From 75a6bc17f32505421a78476a972d4d9b74f303b6 Mon Sep 17 00:00:00 2001
+From: Matt Caswell <matt@openssl.org>
+Date: Tue, 11 Oct 2022 13:39:09 +0100
+Subject: [PATCH 209/209] Prepare for release of 3.0.6
+
+Reviewed-by: Richard Levitte <levitte@openssl.org>
+Release: yes
+---
+ CHANGES.md  | 2 +-
+ NEWS.md     | 2 +-
+ VERSION.dat | 4 ++--
+ 3 files changed, 4 insertions(+), 4 deletions(-)
+
+diff --git a/CHANGES.md b/CHANGES.md
+index f42084407a..a8e5d75b2a 100644
+--- a/CHANGES.md
++++ b/CHANGES.md
+@@ -28,7 +28,7 @@ breaking changes, and mappings for the large list of deprecated functions.
+ 
+ [Migration guide]: https://github.com/openssl/openssl/tree/master/doc/man7/migration_guide.pod
+ 
+-### Changes between 3.0.5 and 3.0.6 [xx XXX xxxx]
++### Changes between 3.0.5 and 3.0.6 [11 Oct 2022]
+ 
+  * OpenSSL supports creating a custom cipher via the legacy
+    EVP_CIPHER_meth_new() function and associated function calls. This function
+diff --git a/NEWS.md b/NEWS.md
+index 0bea5b5e2e..cc7c43ef94 100644
+--- a/NEWS.md
++++ b/NEWS.md
+@@ -18,7 +18,7 @@ OpenSSL Releases
+ OpenSSL 3.0
+ -----------
+ 
+-### Major changes between OpenSSL 3.0.5 and OpenSSL 3.0.6 [under development]
++### Major changes between OpenSSL 3.0.5 and OpenSSL 3.0.6 [11 Oct 2022]
+ 
+   * Fix for custom ciphers to prevent accidental use of NULL encryption
+     ([CVE-2022-3358])
+diff --git a/VERSION.dat b/VERSION.dat
+index 12d8c2a8f4..c20be6955d 100644
+--- a/VERSION.dat
++++ b/VERSION.dat
+@@ -1,7 +1,7 @@
+ MAJOR=3
+ MINOR=0
+ PATCH=6
+-PRE_RELEASE_TAG=dev
++PRE_RELEASE_TAG=
+ BUILD_METADATA=
+-RELEASE_DATE="5 Jul 2022"
++RELEASE_DATE="11 Oct 2022"
+ SHLIB_VERSION=3
+-- 
+2.34.1
+

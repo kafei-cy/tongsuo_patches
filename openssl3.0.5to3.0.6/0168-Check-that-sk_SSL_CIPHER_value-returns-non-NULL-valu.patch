@@ -1,0 +1,45 @@
+From 67f58eaac17d16020da8503493dbbe77c80698f5 Mon Sep 17 00:00:00 2001
+From: Daniel Fiala <daniel@openssl.org>
+Date: Sun, 18 Sep 2022 07:36:36 +0200
+Subject: [PATCH 168/209] Check that sk_SSL_CIPHER_value returns non-NULL
+ value.
+
+Fixes openssl#19162.
+
+Reviewed-by: Paul Dale <pauli@openssl.org>
+Reviewed-by: Tomas Mraz <tomas@openssl.org>
+(Merged from https://github.com/openssl/openssl/pull/19233)
+
+(cherry picked from commit 630d31219b343d2654ab03d2e2c7884e764936ab)
+---
+ apps/ciphers.c | 7 +++++++
+ 1 file changed, 7 insertions(+)
+
+diff --git a/apps/ciphers.c b/apps/ciphers.c
+index 4dc3fa9454..42a0bb79f6 100644
+--- a/apps/ciphers.c
++++ b/apps/ciphers.c
+@@ -227,6 +227,10 @@ int ciphers_main(int argc, char **argv)
+     if (!verbose) {
+         for (i = 0; i < sk_SSL_CIPHER_num(sk); i++) {
+             const SSL_CIPHER *c = sk_SSL_CIPHER_value(sk, i);
++
++            if (!ossl_assert(c != NULL))
++                continue;
++
+             p = SSL_CIPHER_get_name(c);
+             if (p == NULL)
+                 break;
+@@ -242,6 +246,9 @@ int ciphers_main(int argc, char **argv)
+ 
+             c = sk_SSL_CIPHER_value(sk, i);
+ 
++            if (!ossl_assert(c != NULL))
++                continue;
++
+             if (Verbose) {
+                 unsigned long id = SSL_CIPHER_get_id(c);
+                 int id0 = (int)(id >> 24);
+-- 
+2.34.1
+

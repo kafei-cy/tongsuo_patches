@@ -1,0 +1,183 @@
+From d4b9a613839c07d9dd18d51106f6b94c64291402 Mon Sep 17 00:00:00 2001
+From: Matt Caswell <matt@openssl.org>
+Date: Mon, 25 Jul 2022 12:39:52 +0100
+Subject: [PATCH 114/209] Test that swapping the first app data record with
+ Finished msg works
+
+If the first app data record arrives before the Finished message we should
+be able to buffer it and move on to the Finished message.
+
+Reviewed-by: Hugo Landau <hlandau@openssl.org>
+Reviewed-by: Tomas Mraz <tomas@openssl.org>
+(Merged from https://github.com/openssl/openssl/pull/18975)
+---
+ test/dtlstest.c           | 88 +++++++++++++++++++++++++++++++++++++++
+ test/helpers/ssltestlib.c | 33 +++++++++++++++
+ test/helpers/ssltestlib.h |  1 +
+ 3 files changed, 122 insertions(+)
+
+diff --git a/test/dtlstest.c b/test/dtlstest.c
+index 2f3fcae0f6..9b878ecc6a 100644
+--- a/test/dtlstest.c
++++ b/test/dtlstest.c
+@@ -442,6 +442,93 @@ static int test_just_finished(void)
+     return testresult;
+ }
+ 
++/*
++ * Test that swapping an app data record so that it is received before the
++ * Finished message still works.
++ */
++static int test_swap_app_data(void)
++{
++    SSL_CTX *sctx = NULL, *cctx = NULL;
++    SSL *sssl = NULL, *cssl = NULL;
++    int testresult = 0;
++    BIO *bio;
++    char msg[] = { 0x00, 0x01, 0x02, 0x03 };
++    char buf[10];
++
++    if (!TEST_true(create_ssl_ctx_pair(NULL, DTLS_server_method(),
++                                       DTLS_client_method(),
++                                       DTLS1_VERSION, 0,
++                                       &sctx, &cctx, cert, privkey)))
++        return 0;
++
++#ifndef OPENSSL_NO_DTLS1_2
++    if (!TEST_true(SSL_CTX_set_cipher_list(cctx, "AES128-SHA")))
++        goto end;
++#else
++    /* Default sigalgs are SHA1 based in <DTLS1.2 which is in security level 0 */
++    if (!TEST_true(SSL_CTX_set_cipher_list(sctx, "AES128-SHA:@SECLEVEL=0"))
++            || !TEST_true(SSL_CTX_set_cipher_list(cctx,
++                                                  "AES128-SHA:@SECLEVEL=0")))
++        goto end;
++#endif
++
++    if (!TEST_true(create_ssl_objects(sctx, cctx, &sssl, &cssl,
++                                      NULL, NULL)))
++        goto end;
++
++    /* Send flight 1: ClientHello */
++    if (!TEST_int_le(SSL_connect(cssl), 0))
++        goto end;
++
++    /* Recv flight 1, send flight 2: ServerHello, Certificate, ServerHelloDone */
++    if (!TEST_int_le(SSL_accept(sssl), 0))
++        goto end;
++
++    /* Recv flight 2, send flight 3: ClientKeyExchange, CCS, Finished */
++    if (!TEST_int_le(SSL_connect(cssl), 0))
++        goto end;
++
++    /* Recv flight 3, send flight 4: datagram 1(NST, CCS) datagram 2(Finished) */
++    if (!TEST_int_gt(SSL_accept(sssl), 0))
++        goto end;
++
++    /* Send flight 5: app data */
++    if (!TEST_int_eq(SSL_write(sssl, msg, sizeof(msg)), (int)sizeof(msg)))
++        goto end;
++
++    bio = SSL_get_wbio(sssl);
++    if (!TEST_ptr(bio)
++            || !TEST_true(mempacket_swap_recent(bio)))
++        goto end;
++
++    /*
++     * Recv flight 4 (datagram 1): NST, CCS, + flight 5: app data
++     *      + flight 4 (datagram 2): Finished
++     */
++    if (!TEST_int_gt(SSL_connect(cssl), 0))
++        goto end;
++
++    /* The app data should be buffered already */
++    if (!TEST_int_eq(SSL_pending(cssl), (int)sizeof(msg))
++            || !TEST_true(SSL_has_pending(cssl)))
++        goto end;
++
++    /*
++     * Recv flight 5 (app data)
++     * We already buffered this so it should be available.
++     */
++    if (!TEST_int_eq(SSL_read(cssl, buf, sizeof(buf)), (int)sizeof(msg)))
++        goto end;
++
++    testresult = 1;
++ end:
++    SSL_free(cssl);
++    SSL_free(sssl);
++    SSL_CTX_free(cctx);
++    SSL_CTX_free(sctx);
++    return testresult;
++}
++
+ OPT_TEST_DECLARE_USAGE("certfile privkeyfile\n")
+ 
+ int setup_tests(void)
+@@ -462,6 +549,7 @@ int setup_tests(void)
+     ADD_TEST(test_cookie);
+     ADD_TEST(test_dtls_duplicate_records);
+     ADD_TEST(test_just_finished);
++    ADD_TEST(test_swap_app_data);
+ 
+     return 1;
+ }
+diff --git a/test/helpers/ssltestlib.c b/test/helpers/ssltestlib.c
+index 2d992cde23..9bb6590c18 100644
+--- a/test/helpers/ssltestlib.c
++++ b/test/helpers/ssltestlib.c
+@@ -410,6 +410,39 @@ static int mempacket_test_read(BIO *bio, char *out, int outl)
+     return outl;
+ }
+ 
++/* Take the last and penultimate packets and swap them around */
++int mempacket_swap_recent(BIO *bio)
++{
++    MEMPACKET_TEST_CTX *ctx = BIO_get_data(bio);
++    MEMPACKET *thispkt;
++    int numpkts = sk_MEMPACKET_num(ctx->pkts);
++
++    /* We need at least 2 packets to be able to swap them */
++    if (numpkts <= 1)
++        return 0;
++
++    /* Get the penultimate packet */
++    thispkt = sk_MEMPACKET_value(ctx->pkts, numpkts - 2);
++    if (thispkt == NULL)
++        return 0;
++
++    if (sk_MEMPACKET_delete(ctx->pkts, numpkts - 2) != thispkt)
++        return 0;
++
++    /* Re-add it to the end of the list */
++    thispkt->num++;
++    if (sk_MEMPACKET_insert(ctx->pkts, thispkt, numpkts - 1) <= 0)
++        return 0;
++
++    /* We also have to adjust the packet number of the other packet */
++    thispkt = sk_MEMPACKET_value(ctx->pkts, numpkts - 2);
++    if (thispkt == NULL)
++        return 0;
++    thispkt->num--;
++
++    return 1;
++}
++
+ int mempacket_test_inject(BIO *bio, const char *in, int inl, int pktnum,
+                           int type)
+ {
+diff --git a/test/helpers/ssltestlib.h b/test/helpers/ssltestlib.h
+index 0466286365..aa8a6dbfb2 100644
+--- a/test/helpers/ssltestlib.h
++++ b/test/helpers/ssltestlib.h
+@@ -49,6 +49,7 @@ void bio_s_always_retry_free(void);
+ #define MEMPACKET_CTRL_GET_DROP_REC         (3 << 15)
+ #define MEMPACKET_CTRL_SET_DUPLICATE_REC    (4 << 15)
+ 
++int mempacket_swap_recent(BIO *bio);
+ int mempacket_test_inject(BIO *bio, const char *in, int inl, int pktnum,
+                           int type);
+ 
+-- 
+2.34.1
+

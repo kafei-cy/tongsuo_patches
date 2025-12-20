@@ -1,0 +1,59 @@
+From c9bdbc12ac7343992ba249e11d2bda3338469a97 Mon Sep 17 00:00:00 2001
+From: Tomas Mraz <tomas@openssl.org>
+Date: Fri, 10 Jun 2022 09:46:45 +0200
+Subject: [PATCH 051/209] dh_to_text: Print the dh->length if set
+
+Reviewed-by: Paul Dale <pauli@openssl.org>
+Reviewed-by: Kurt Roeckx <kurt@roeckx.be>
+(Merged from https://github.com/openssl/openssl/pull/18793)
+---
+ providers/implementations/encode_decode/encode_key2text.c | 6 ++++++
+ test/recipes/30-test_evp_pkey_provided/DH.priv.txt        | 1 +
+ test/recipes/30-test_evp_pkey_provided/DH.pub.txt         | 1 +
+ 3 files changed, 8 insertions(+)
+
+diff --git a/providers/implementations/encode_decode/encode_key2text.c b/providers/implementations/encode_decode/encode_key2text.c
+index 80d6f7b35f..7d983f5e51 100644
+--- a/providers/implementations/encode_decode/encode_key2text.c
++++ b/providers/implementations/encode_decode/encode_key2text.c
+@@ -220,6 +220,7 @@ static int dh_to_text(BIO *out, const void *key, int selection)
+     const BIGNUM *priv_key = NULL, *pub_key = NULL;
+     const FFC_PARAMS *params = NULL;
+     const BIGNUM *p = NULL;
++    long length;
+ 
+     if (out == NULL || dh == NULL) {
+         ERR_raise(ERR_LIB_PROV, ERR_R_PASSED_NULL_PARAMETER);
+@@ -272,6 +273,11 @@ static int dh_to_text(BIO *out, const void *key, int selection)
+     if (params != NULL
+         && !ffc_params_to_text(out, params))
+         return 0;
++    length = DH_get_length(dh);
++    if (length > 0
++        && BIO_printf(out, "recommended-private-length: %ld bits\n",
++                      length) <= 0)
++        return 0;
+ 
+     return 1;
+ }
+diff --git a/test/recipes/30-test_evp_pkey_provided/DH.priv.txt b/test/recipes/30-test_evp_pkey_provided/DH.priv.txt
+index 0e6f9519b4..0dd83429f5 100644
+--- a/test/recipes/30-test_evp_pkey_provided/DH.priv.txt
++++ b/test/recipes/30-test_evp_pkey_provided/DH.priv.txt
+@@ -22,3 +22,4 @@ public-key:
+     a8:ee:72:13:45:65:15:42:17:aa:d8:ab:cf:33:42:
+     83:42
+ GROUP: ffdhe2048
++recommended-private-length: 224 bits
+diff --git a/test/recipes/30-test_evp_pkey_provided/DH.pub.txt b/test/recipes/30-test_evp_pkey_provided/DH.pub.txt
+index 325e160f36..491f9d9d5e 100644
+--- a/test/recipes/30-test_evp_pkey_provided/DH.pub.txt
++++ b/test/recipes/30-test_evp_pkey_provided/DH.pub.txt
+@@ -19,3 +19,4 @@ public-key:
+     a8:ee:72:13:45:65:15:42:17:aa:d8:ab:cf:33:42:
+     83:42
+ GROUP: ffdhe2048
++recommended-private-length: 224 bits
+-- 
+2.34.1
+

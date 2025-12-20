@@ -1,0 +1,89 @@
+From a806fd89b149518a7c093b247131dabd3e5f3177 Mon Sep 17 00:00:00 2001
+From: "Mingjun.Yang" <yangmingjun@uniontech.com>
+Date: Mon, 4 Jul 2022 17:41:54 +0800
+Subject: [PATCH 018/209] feat: add hmac-sm3 test cases from GM/T 0042-2015
+ Appendix D.3
+
+Reviewed-by: Hugo Landau <hlandau@openssl.org>
+Reviewed-by: Paul Dale <pauli@openssl.org>
+(Merged from https://github.com/openssl/openssl/pull/18714)
+
+(cherry picked from commit 0648ec1c35a54fb2b7ead34a215691fe9e38516d)
+---
+ test/recipes/30-test_evp.t                    |  1 +
+ .../30-test_evp_data/evpmac_common.txt        |  1 -
+ test/recipes/30-test_evp_data/evpmac_sm3.txt  | 38 +++++++++++++++++++
+ 3 files changed, 39 insertions(+), 1 deletion(-)
+ create mode 100644 test/recipes/30-test_evp_data/evpmac_sm3.txt
+
+diff --git a/test/recipes/30-test_evp.t b/test/recipes/30-test_evp.t
+index 7ae546e1d7..86c2785187 100644
+--- a/test/recipes/30-test_evp.t
++++ b/test/recipes/30-test_evp.t
+@@ -104,6 +104,7 @@ my @defltfiles = qw(
+                      evpmac_blake.txt
+                      evpmac_poly1305.txt
+                      evpmac_siphash.txt
++                     evpmac_sm3.txt
+                      evpmd_blake.txt
+                      evpmd_md.txt
+                      evpmd_mdc2.txt
+diff --git a/test/recipes/30-test_evp_data/evpmac_common.txt b/test/recipes/30-test_evp_data/evpmac_common.txt
+index e2fbfac414..b463eaeca7 100644
+--- a/test/recipes/30-test_evp_data/evpmac_common.txt
++++ b/test/recipes/30-test_evp_data/evpmac_common.txt
+@@ -239,7 +239,6 @@ Input = "Test that SHAKE128 fails"
+ Key = 000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f
+ Result = MAC_INIT_ERROR
+ 
+-
+ Title = CMAC tests (from FIPS module)
+ 
+ MAC = CMAC
+diff --git a/test/recipes/30-test_evp_data/evpmac_sm3.txt b/test/recipes/30-test_evp_data/evpmac_sm3.txt
+new file mode 100644
+index 0000000000..7456b8e7a7
+--- /dev/null
++++ b/test/recipes/30-test_evp_data/evpmac_sm3.txt
+@@ -0,0 +1,38 @@
++#
++# Copyright 2022-2022 The OpenSSL Project Authors. All Rights Reserved.
++#
++# Licensed under the Apache License 2.0 (the "License").  You may not use
++# this file except in compliance with the License.  You can obtain a copy
++# in the file LICENSE in the source distribution or at
++# https://www.openssl.org/source/license.html
++
++# Tests start with one of these keywords
++#       Cipher Decrypt Derive Digest Encoding MAC
++# and continue until a blank line. Lines starting with a pound sign are ignored.
++# The keyword Availablein must appear before the test name if needed.
++
++Title = HMAC-SM3 from GM/T 0042-2015 Appendix D.3
++
++MAC = HMAC
++Algorithm = SM3
++Input = "abcdbcdecdefdefgefghfghighijhijkijkljklmklmnlmnomnopnopqabcdbcdecdefdefgefghfghighijhijkijkljklmklmnlmnomnopnopq"
++Key = 0102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f20
++Output = ca05e144ed05d1857840d1f318a4a8669e559fc8391f414485bfdf7bb408963a
++
++MAC = HMAC
++Algorithm = SM3
++Input = cdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcd
++Key = 0102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f202122232425
++Output = 220bf579ded555393f0159f66c99877822a3ecf610d1552154b41d44b94db3ae
++
++MAC = HMAC
++Algorithm = SM3
++Input = "Hi There"
++Key = 0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b
++Output = c0ba18c68b90c88bc07de794bfc7d2c8d19ec31ed8773bc2b390c9604e0be11e
++
++MAC = HMAC
++Algorithm = SM3
++Input = "what do ya want for nothing?"
++Key = "Jefe"
++Output = 2e87f1d16862e6d964b50a5200bf2b10b764faa9680a296a2405f24bec39f882
+-- 
+2.34.1
+

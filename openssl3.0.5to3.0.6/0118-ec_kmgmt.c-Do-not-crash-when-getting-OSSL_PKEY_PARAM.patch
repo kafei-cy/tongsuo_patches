@@ -1,0 +1,54 @@
+From 93bb2c45ecdaa531c0215969d5f3f0d93c1ec18f Mon Sep 17 00:00:00 2001
+From: Tomas Mraz <tomas@openssl.org>
+Date: Thu, 28 Jul 2022 13:57:02 +0200
+Subject: [PATCH 118/209] ec_kmgmt.c: Do not crash when getting
+ OSSL_PKEY_PARAM_ENCODED_PUBLIC_KEY
+
+If the public key is not set on the key, return error instead of crash.
+
+Fixes #18495
+
+Reviewed-by: Paul Dale <pauli@openssl.org>
+Reviewed-by: Matt Caswell <matt@openssl.org>
+(Merged from https://github.com/openssl/openssl/pull/18902)
+
+(cherry picked from commit b5db237def7e22ccea1a540ec777045b3ce4600e)
+---
+ providers/implementations/keymgmt/ec_kmgmt.c | 13 ++++++++++---
+ 1 file changed, 10 insertions(+), 3 deletions(-)
+
+diff --git a/providers/implementations/keymgmt/ec_kmgmt.c b/providers/implementations/keymgmt/ec_kmgmt.c
+index 6e18f7063e..3938e5c1c0 100644
+--- a/providers/implementations/keymgmt/ec_kmgmt.c
++++ b/providers/implementations/keymgmt/ec_kmgmt.c
+@@ -637,8 +637,10 @@ int common_get_params(void *key, OSSL_PARAM params[], int sm2)
+     BN_CTX *bnctx = NULL;
+ 
+     ecg = EC_KEY_get0_group(eck);
+-    if (ecg == NULL)
++    if (ecg == NULL) {
++        ERR_raise(ERR_LIB_PROV, PROV_R_NO_PARAMETERS_SET);
+         return 0;
++    }
+ 
+     libctx = ossl_ec_key_get_libctx(eck);
+     propq = ossl_ec_key_get0_propq(eck);
+@@ -727,8 +729,13 @@ int common_get_params(void *key, OSSL_PARAM params[], int sm2)
+     }
+     if ((p = OSSL_PARAM_locate(params,
+                                OSSL_PKEY_PARAM_ENCODED_PUBLIC_KEY)) != NULL) {
+-        p->return_size = EC_POINT_point2oct(EC_KEY_get0_group(key),
+-                                            EC_KEY_get0_public_key(key),
++        const EC_POINT *ecp = EC_KEY_get0_public_key(key);
++
++        if (ecp == NULL) {
++            ERR_raise(ERR_LIB_PROV, PROV_R_NOT_A_PUBLIC_KEY);
++            goto err;
++        }
++        p->return_size = EC_POINT_point2oct(ecg, ecp,
+                                             POINT_CONVERSION_UNCOMPRESSED,
+                                             p->data, p->return_size, bnctx);
+         if (p->return_size == 0)
+-- 
+2.34.1
+

@@ -1,0 +1,167 @@
+From 1d6c45694a1ae4ac5f9aa8f76dc1de68089f8a72 Mon Sep 17 00:00:00 2001
+From: Pauli <pauli@openssl.org>
+Date: Thu, 14 Jul 2022 15:17:41 +1000
+Subject: [PATCH 045/209] evp: make all _is_a functions accept and handle a
+ NULL argument
+
+Makes life easier for callers.
+
+Fixes Coverity 1503326
+
+Reviewed-by: Tomas Mraz <tomas@openssl.org>
+Reviewed-by: Dmitry Belyavskiy <beldmit@gmail.com>
+Reviewed-by: Hugo Landau <hlandau@openssl.org>
+(Merged from https://github.com/openssl/openssl/pull/18799)
+
+(cherry picked from commit ee8db8c5fb5b091f48d29914126d35a7e29cdcf2)
+---
+ crypto/evp/evp_lib.c      | 4 ++++
+ crypto/evp/evp_rand.c     | 2 +-
+ crypto/evp/exchange.c     | 3 ++-
+ crypto/evp/kdf_lib.c      | 2 +-
+ crypto/evp/kem.c          | 2 +-
+ crypto/evp/keymgmt_meth.c | 3 ++-
+ crypto/evp/mac_lib.c      | 2 +-
+ crypto/evp/p_lib.c        | 9 ++++-----
+ crypto/evp/signature.c    | 3 ++-
+ 9 files changed, 18 insertions(+), 12 deletions(-)
+
+diff --git a/crypto/evp/evp_lib.c b/crypto/evp/evp_lib.c
+index b9180812cf..d5ae5ca4ad 100644
+--- a/crypto/evp/evp_lib.c
++++ b/crypto/evp/evp_lib.c
+@@ -659,6 +659,8 @@ int EVP_CIPHER_CTX_get_nid(const EVP_CIPHER_CTX *ctx)
+ 
+ int EVP_CIPHER_is_a(const EVP_CIPHER *cipher, const char *name)
+ {
++    if (cipher == NULL)
++        return 0;
+     if (cipher->prov != NULL)
+         return evp_is_a(cipher->prov, cipher->name_id, NULL, name);
+     return evp_is_a(NULL, 0, EVP_CIPHER_get0_name(cipher), name);
+@@ -713,6 +715,8 @@ int EVP_CIPHER_get_mode(const EVP_CIPHER *cipher)
+ 
+ int EVP_MD_is_a(const EVP_MD *md, const char *name)
+ {
++    if (md == NULL)
++        return 0;
+     if (md->prov != NULL)
+         return evp_is_a(md->prov, md->name_id, NULL, name);
+     return evp_is_a(NULL, 0, EVP_MD_get0_name(md), name);
+diff --git a/crypto/evp/evp_rand.c b/crypto/evp/evp_rand.c
+index 0db755e06b..e92108abb1 100644
+--- a/crypto/evp/evp_rand.c
++++ b/crypto/evp/evp_rand.c
+@@ -305,7 +305,7 @@ const char *EVP_RAND_get0_description(const EVP_RAND *rand)
+ 
+ int EVP_RAND_is_a(const EVP_RAND *rand, const char *name)
+ {
+-    return evp_is_a(rand->prov, rand->name_id, NULL, name);
++    return rand != NULL && evp_is_a(rand->prov, rand->name_id, NULL, name);
+ }
+ 
+ const OSSL_PROVIDER *EVP_RAND_get0_provider(const EVP_RAND *rand)
+diff --git a/crypto/evp/exchange.c b/crypto/evp/exchange.c
+index 8eb13ad5dd..d7a4ad142a 100644
+--- a/crypto/evp/exchange.c
++++ b/crypto/evp/exchange.c
+@@ -550,7 +550,8 @@ const char *EVP_KEYEXCH_get0_description(const EVP_KEYEXCH *keyexch)
+ 
+ int EVP_KEYEXCH_is_a(const EVP_KEYEXCH *keyexch, const char *name)
+ {
+-    return evp_is_a(keyexch->prov, keyexch->name_id, NULL, name);
++    return keyexch != NULL
++           && evp_is_a(keyexch->prov, keyexch->name_id, NULL, name);
+ }
+ 
+ void EVP_KEYEXCH_do_all_provided(OSSL_LIB_CTX *libctx,
+diff --git a/crypto/evp/kdf_lib.c b/crypto/evp/kdf_lib.c
+index 8177626ae0..5b53d9822c 100644
+--- a/crypto/evp/kdf_lib.c
++++ b/crypto/evp/kdf_lib.c
+@@ -97,7 +97,7 @@ const char *EVP_KDF_get0_description(const EVP_KDF *kdf)
+ 
+ int EVP_KDF_is_a(const EVP_KDF *kdf, const char *name)
+ {
+-    return evp_is_a(kdf->prov, kdf->name_id, NULL, name);
++    return kdf != NULL && evp_is_a(kdf->prov, kdf->name_id, NULL, name);
+ }
+ 
+ const OSSL_PROVIDER *EVP_KDF_get0_provider(const EVP_KDF *kdf)
+diff --git a/crypto/evp/kem.c b/crypto/evp/kem.c
+index 7594888b97..bd28ede7ae 100644
+--- a/crypto/evp/kem.c
++++ b/crypto/evp/kem.c
+@@ -421,7 +421,7 @@ EVP_KEM *evp_kem_fetch_from_prov(OSSL_PROVIDER *prov, const char *algorithm,
+ 
+ int EVP_KEM_is_a(const EVP_KEM *kem, const char *name)
+ {
+-    return evp_is_a(kem->prov, kem->name_id, NULL, name);
++    return kem != NULL && evp_is_a(kem->prov, kem->name_id, NULL, name);
+ }
+ 
+ int evp_kem_get_number(const EVP_KEM *kem)
+diff --git a/crypto/evp/keymgmt_meth.c b/crypto/evp/keymgmt_meth.c
+index fb999c7fd0..57b19a07b2 100644
+--- a/crypto/evp/keymgmt_meth.c
++++ b/crypto/evp/keymgmt_meth.c
+@@ -279,7 +279,8 @@ const char *EVP_KEYMGMT_get0_name(const EVP_KEYMGMT *keymgmt)
+ 
+ int EVP_KEYMGMT_is_a(const EVP_KEYMGMT *keymgmt, const char *name)
+ {
+-    return evp_is_a(keymgmt->prov, keymgmt->name_id, NULL, name);
++    return keymgmt != NULL
++           && evp_is_a(keymgmt->prov, keymgmt->name_id, NULL, name);
+ }
+ 
+ void EVP_KEYMGMT_do_all_provided(OSSL_LIB_CTX *libctx,
+diff --git a/crypto/evp/mac_lib.c b/crypto/evp/mac_lib.c
+index 24fdb35c8e..a49c103220 100644
+--- a/crypto/evp/mac_lib.c
++++ b/crypto/evp/mac_lib.c
+@@ -226,7 +226,7 @@ const char *EVP_MAC_get0_description(const EVP_MAC *mac)
+ 
+ int EVP_MAC_is_a(const EVP_MAC *mac, const char *name)
+ {
+-    return evp_is_a(mac->prov, mac->name_id, NULL, name);
++    return mac != NULL && evp_is_a(mac->prov, mac->name_id, NULL, name);
+ }
+ 
+ int EVP_MAC_names_do_all(const EVP_MAC *mac,
+diff --git a/crypto/evp/p_lib.c b/crypto/evp/p_lib.c
+index aef63128f9..170cb89cb0 100644
+--- a/crypto/evp/p_lib.c
++++ b/crypto/evp/p_lib.c
+@@ -1039,11 +1039,10 @@ const char *evp_pkey_type2name(int type)
+ 
+ int EVP_PKEY_is_a(const EVP_PKEY *pkey, const char *name)
+ {
+-    if (pkey->keymgmt == NULL) {
+-        int type = evp_pkey_name2type(name);
+-
+-        return pkey->type == type;
+-    }
++    if (pkey == NULL)
++        return 0;
++    if (pkey->keymgmt == NULL)
++        return pkey->type == evp_pkey_name2type(name);
+     return EVP_KEYMGMT_is_a(pkey->keymgmt, name);
+ }
+ 
+diff --git a/crypto/evp/signature.c b/crypto/evp/signature.c
+index 49f40c8cec..c9871668ad 100644
+--- a/crypto/evp/signature.c
++++ b/crypto/evp/signature.c
+@@ -327,7 +327,8 @@ EVP_SIGNATURE *evp_signature_fetch_from_prov(OSSL_PROVIDER *prov,
+ 
+ int EVP_SIGNATURE_is_a(const EVP_SIGNATURE *signature, const char *name)
+ {
+-    return evp_is_a(signature->prov, signature->name_id, NULL, name);
++    return signature != NULL
++           && evp_is_a(signature->prov, signature->name_id, NULL, name);
+ }
+ 
+ int evp_signature_get_number(const EVP_SIGNATURE *signature)
+-- 
+2.34.1
+

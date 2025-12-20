@@ -1,0 +1,47 @@
+From e7abe53a19f571a06008ec8abe31cb6e1c074286 Mon Sep 17 00:00:00 2001
+From: "Dr. David von Oheimb" <David.von.Oheimb@siemens.com>
+Date: Thu, 6 Jan 2022 22:54:20 +0100
+Subject: [PATCH 063/209] check-format.pl: Fix report on missing space before
+ +/-: allow, e.g., '1e-6'
+
+Reviewed-by: Paul Dale <pauli@openssl.org>
+(cherry picked from commit d45c0e1a5e89f01d83f6059c788524e901a11604)
+---
+ util/check-format-test-negatives.c | 5 +++++
+ util/check-format.pl               | 4 ++--
+ 2 files changed, 7 insertions(+), 2 deletions(-)
+
+diff --git a/util/check-format-test-negatives.c b/util/check-format-test-negatives.c
+index 8f6ed23ee7..3ea792a72f 100644
+--- a/util/check-format-test-negatives.c
++++ b/util/check-format-test-negatives.c
+@@ -190,6 +190,11 @@ X509 *x509 = NULL;
+ int y = a + 1 < b;
+ int ret, was_NULL = *certs == NULL;
+ 
++/* should not trigger: no space before binary ... operator */
++float z = 1e-6 * (-1) * b[+6] * 1e+1 * (a)->f * (long)+1
++    - (tmstart.tv_sec + tmstart.tv_nsec * 1e-9);
++struct st = {-1, 0};
++
+ const OPTIONS passwd_options[] = {
+     {"aixmd5", OPT_AIXMD5, '-', "AIX MD5-based password algorithm"},
+ #if !defined(OPENSSL_NO_DES) && !defined(OPENSSL_NO_DEPRECATED_3_0)
+diff --git a/util/check-format.pl b/util/check-format.pl
+index 8861b2bd8a..836fe30fa9 100755
+--- a/util/check-format.pl
++++ b/util/check-format.pl
+@@ -691,8 +691,8 @@ while (<>) { # loop over all lines of all input files
+         report("no space before '=' or '<op>='") if $intra_line =~ m/\S(=)/;   # '=' etc. without preceding space
+         report("no space before '$1'")  if $intra_line =~ m/\S([|\/%<>^\?])/;  # |/%<>^? without preceding space
+         # TODO ternary ':' without preceding SPC, while allowing no SPC before ':' after 'case'
+-        report("no space before binary '$1'")  if $intra_line =~ m/[^\s{()\[]([+\-])/;# +/- without preceding space or {()[
+-                                                                             # or ')' (which is used f type casts)
++        report("no space before binary '$2'")  if $intra_line =~ m/([^\s{()\[e])([+\-])/; # '+'/'-' without preceding space or {()[e
++        # ')' may be used for type casts or before "->", 'e' may be used for numerical literals such as "1e-6"
+         report("no space before binary '$1'")  if $intra_line =~ m/[^\s{()\[*!]([*])/; # '*' without preceding space or {()[*!
+         report("no space before binary '$1'")  if $intra_line =~ m/[^\s{()\[]([&])/;  # '&' without preceding space or {()[
+         report("no space after ternary '$1'") if $intra_line =~ m/(:)[^\s\d]/; # ':' without following space or digit
+-- 
+2.34.1
+

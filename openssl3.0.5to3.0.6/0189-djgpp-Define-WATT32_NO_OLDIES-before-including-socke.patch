@@ -1,0 +1,46 @@
+From 8a7e4f1177c83df5814d4c3de7054ccbdf9f0507 Mon Sep 17 00:00:00 2001
+From: "J.W. Jagersma" <jwjagersma@gmail.com>
+Date: Sun, 25 Sep 2022 19:13:32 +0200
+Subject: [PATCH 189/209] djgpp: Define WATT32_NO_OLDIES before including
+ socket headers
+
+If this macro is left undefined, Watt-32 will "helpfully" declare some
+typedefs such as 'byte' and 'word' in the global namespace.  This broke
+compilation of apps/s_client.c.
+
+CLA: trivial
+
+Reviewed-by: Richard Levitte <levitte@openssl.org>
+Reviewed-by: Tomas Mraz <tomas@openssl.org>
+(Merged from https://github.com/openssl/openssl/pull/19274)
+
+(cherry picked from commit 8ae74c5bc091e7388c082f090c1fde992c31320f)
+---
+ include/internal/sockets.h | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/include/internal/sockets.h b/include/internal/sockets.h
+index 4701eb7e0e..1876af8faf 100644
+--- a/include/internal/sockets.h
++++ b/include/internal/sockets.h
+@@ -28,6 +28,8 @@
+ 
+ # elif defined(OPENSSL_SYS_WINDOWS) || defined(OPENSSL_SYS_MSDOS)
+ #  if defined(__DJGPP__)
++#   define WATT32
++#   define WATT32_NO_OLDIES
+ #   include <sys/socket.h>
+ #   include <sys/un.h>
+ #   include <tcp.h>
+@@ -134,8 +136,6 @@ struct servent *PASCAL getservbyname(const char *, const char *);
+ #  define readsocket(s,b,n)       recv((s),(b),(n),0)
+ #  define writesocket(s,b,n)      send((s),(b),(n),0)
+ # elif defined(__DJGPP__)
+-#  define WATT32
+-#  define WATT32_NO_OLDIES
+ #  define closesocket(s)          close_s(s)
+ #  define readsocket(s,b,n)       read_s(s,b,n)
+ #  define writesocket(s,b,n)      send(s,b,n,0)
+-- 
+2.34.1
+

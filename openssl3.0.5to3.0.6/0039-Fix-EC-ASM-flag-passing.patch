@@ -1,0 +1,42 @@
+From 2af7ec5997730d4624d19814be1131ce5dd14304 Mon Sep 17 00:00:00 2001
+From: Juergen Christ <jchrist@linux.ibm.com>
+Date: Wed, 13 Jul 2022 11:15:43 +0200
+Subject: [PATCH 039/209] Fix EC ASM flag passing
+
+Flags for ASM implementations of EC curves were only passed to the FIPS
+provider and not to the default or legacy provider.  This left some potential
+for optimization.  Pass the correct flags also to these providers.
+
+Signed-off-by: Juergen Christ <jchrist@linux.ibm.com>
+
+Reviewed-by: Patrick Steuer <patrick.steuer@de.ibm.com>
+Reviewed-by: Tomas Mraz <tomas@openssl.org>
+(Merged from https://github.com/openssl/openssl/pull/18791)
+
+(cherry picked from commit 12186377cb987c4527d286e91e735e8261a45669)
+---
+ crypto/ec/build.info | 8 ++++++++
+ 1 file changed, 8 insertions(+)
+
+diff --git a/crypto/ec/build.info b/crypto/ec/build.info
+index 70ec25079d..a511e887a9 100644
+--- a/crypto/ec/build.info
++++ b/crypto/ec/build.info
+@@ -71,6 +71,14 @@ SOURCE[../../providers/libfips.a]=$COMMON
+ # need to be applied to all affected libraries and modules.
+ DEFINE[../../libcrypto]=$ECDEF
+ DEFINE[../../providers/libfips.a]=$ECDEF
++DEFINE[../../providers/libdefault.a]=$ECDEF
++# We only need to include the ECDEF stuff in the legacy provider when
++# it's a separate module and it's dynamically linked with libcrypto.
++# Otherwise, it already gets everything that the static libcrypto.a
++# has, and doesn't need it added again.
++IF[{- !$disabled{module} && !$disabled{shared} -}]
++  DEFINE[../providers/liblegacy.a]=$ECDEF
++ENDIF
+ 
+ GENERATE[ecp_nistz256-x86.S]=asm/ecp_nistz256-x86.pl
+ 
+-- 
+2.34.1
+

@@ -1,0 +1,188 @@
+From ba8fd22b358ce0467f4893bc8f925c6272964628 Mon Sep 17 00:00:00 2001
+From: slontis <shane.lontis@oracle.com>
+Date: Wed, 22 Jun 2022 15:21:13 +1000
+Subject: [PATCH 112/209] SHAKE documentation updates for default output
+ length.
+
+Fixes #18586
+
+In order to not break existing applications the OpenSSL documentation
+related to SHAKE has been updated.
+
+Background:
+
+All digests algorithms (including XOF's) use the bitlen as the default output length.
+This results in a security strength of bitlen / 2.
+
+This means that SHAKE128 will by default have an output length of 16
+bytes and a security strength of 64 bits.
+
+For SHAKE256 the default output length is 32 bytes and has a security
+strength of 128 bits.
+
+This behaviour was present in 1.1.1 and has been duplicated in the
+provider SHAKE algorithms for 3.0.
+
+The SHAKE XOF algorithms have a security strength of
+min(bitlen, output xof length in bits / 2).
+
+Reviewed-by: Matthias St. Pierre <Matthias.St.Pierre@ncp-e.com>
+Reviewed-by: Tomas Mraz <tomas@openssl.org>
+(Merged from https://github.com/openssl/openssl/pull/18622)
+
+(cherry picked from commit b7cf9dd2393de8e90a15e83466d9b8b781b18385)
+---
+ apps/dgst.c                  |  7 ++++++-
+ doc/man1/openssl-dgst.pod.in | 15 ++++++++++++++-
+ doc/man7/EVP_MD-SHAKE.pod    | 16 +++++++++++++---
+ test/recipes/20-test_dgst.t  | 28 +++++++++++++++++++++++++++-
+ 4 files changed, 60 insertions(+), 6 deletions(-)
+
+diff --git a/apps/dgst.c b/apps/dgst.c
+index 77e16263d1..f117e1b835 100644
+--- a/apps/dgst.c
++++ b/apps/dgst.c
+@@ -66,7 +66,7 @@ const OPTIONS dgst_options[] = {
+     {"keyform", OPT_KEYFORM, 'f', "Key file format (ENGINE, other values ignored)"},
+     {"hex", OPT_HEX, '-', "Print as hex dump"},
+     {"binary", OPT_BINARY, '-', "Print in binary form"},
+-    {"xoflen", OPT_XOFLEN, 'p', "Output length for XOF algorithms"},
++    {"xoflen", OPT_XOFLEN, 'p', "Output length for XOF algorithms. To obtain the maximum security strength set this to 32 (or greater) for SHAKE128, and 64 (or greater) for SHAKE256"},
+     {"d", OPT_DEBUG, '-', "Print debug info"},
+     {"debug", OPT_DEBUG, '-', "Print debug info"},
+ 
+@@ -418,6 +418,11 @@ int dgst_main(int argc, char **argv)
+             BIO_printf(bio_err, "Length can only be specified for XOF\n");
+             goto end;
+         }
++        /*
++         * Signing using XOF is not supported by any algorithms currently since
++         * each algorithm only calls EVP_DigestFinal_ex() in their sign_final
++         * and verify_final methods.
++         */
+         if (sigkey != NULL) {
+             BIO_printf(bio_err, "Signing key cannot be specified for XOF\n");
+             goto end;
+diff --git a/doc/man1/openssl-dgst.pod.in b/doc/man1/openssl-dgst.pod.in
+index 8a091131cf..5dcdbe548e 100644
+--- a/doc/man1/openssl-dgst.pod.in
++++ b/doc/man1/openssl-dgst.pod.in
+@@ -86,7 +86,20 @@ Output the digest or signature in binary form.
+ 
+ =item B<-xoflen> I<length>
+ 
+-Set the output length for XOF algorithms, such as B<shake128>.
++Set the output length for XOF algorithms, such as B<shake128> and B<shake256>.
++This option is not supported for signing operations.
++
++For OpenSSL providers it is recommended to set this value for shake algorithms,
++since the default values are set to only supply half of the maximum security
++strength.
++
++For backwards compatibility reasons the default xoflen length for B<shake128> is
++16 (bytes) which results in a security strength of only 64 bits. To ensure the
++maximum security strength of 128 bits, the xoflen should be set to at least 32.
++
++For backwards compatibility reasons the default xoflen length for B<shake256> is
++32 (bytes) which results in a security strength of only 128 bits. To ensure the
++maximum security strength of 256 bits, the xoflen should be set to at least 64.
+ 
+ =item B<-r>
+ 
+diff --git a/doc/man7/EVP_MD-SHAKE.pod b/doc/man7/EVP_MD-SHAKE.pod
+index 2426d5a4a2..8a31cd53a8 100644
+--- a/doc/man7/EVP_MD-SHAKE.pod
++++ b/doc/man7/EVP_MD-SHAKE.pod
+@@ -15,18 +15,20 @@ implementation (see L<EVP_MAC-KMAC(7)>).
+ 
+ =head2 Identities
+ 
+-This implementation is only available with the default provider, and
+-includes the following varieties:
++This implementation is available in the FIPS provider as well as the default
++provider, and includes the following varieties:
+ 
+ =over 4
+ 
+ =item KECCAK-KMAC-128
+ 
+ Known names are "KECCAK-KMAC-128" and "KECCAK-KMAC128"
++This is used by L<EVP_MAC-KMAC128(7)>
+ 
+ =item KECCAK-KMAC-256
+ 
+ Known names are "KECCAK-KMAC-256" and "KECCAK-KMAC256"
++This is used by L<EVP_MAC-KMAC256(7)>
+ 
+ =item SHAKE-128
+ 
+@@ -55,6 +57,14 @@ settable for an B<EVP_MD_CTX> with L<EVP_MD_CTX_set_params(3)>:
+ Sets the digest length for extendable output functions.
+ The length of the "xoflen" parameter should not exceed that of a B<size_t>.
+ 
++For backwards compatibility reasons the default xoflen length for SHAKE-128 is
++16 (bytes) which results in a security strength of only 64 bits. To ensure the
++maximum security strength of 128 bits, the xoflen should be set to at least 32.
++
++For backwards compatibility reasons the default xoflen length for SHAKE-256 is
++32 (bytes) which results in a security strength of only 128 bits. To ensure the
++maximum security strength of 256 bits, the xoflen should be set to at least 64.
++
+ =back
+ 
+ =head1 SEE ALSO
+@@ -63,7 +73,7 @@ L<EVP_MD_CTX_set_params(3)>, L<provider-digest(7)>, L<OSSL_PROVIDER-default(7)>
+ 
+ =head1 COPYRIGHT
+ 
+-Copyright 2020 The OpenSSL Project Authors. All Rights Reserved.
++Copyright 2020-2022 The OpenSSL Project Authors. All Rights Reserved.
+ 
+ Licensed under the Apache License 2.0 (the "License").  You may not use
+ this file except in compliance with the License.  You can obtain a copy
+diff --git a/test/recipes/20-test_dgst.t b/test/recipes/20-test_dgst.t
+index 31254de684..f5895747ca 100644
+--- a/test/recipes/20-test_dgst.t
++++ b/test/recipes/20-test_dgst.t
+@@ -17,7 +17,7 @@ use OpenSSL::Test::Utils;
+ 
+ setup("test_dgst");
+ 
+-plan tests => 10;
++plan tests => 12;
+ 
+ sub tsignverify {
+     my $testtext = shift;
+@@ -178,3 +178,29 @@ subtest "Custom length XOF digest generation with `dgst` CLI" => sub {
+     ok($xofdata[1] =~ $expected,
+        "XOF: Check second digest value is consistent with the first ($xofdata[1]) vs ($expected)");
+ };
++
++subtest "SHAKE digest generation with no xoflen set `dgst` CLI" => sub {
++    plan tests => 1;
++
++    my $testdata = srctop_file('test', 'data.bin');
++    my @xofdata = run(app(['openssl', 'dgst', '-shake128', $testdata], stderr => "outerr.txt"), capture => 1);
++    chomp(@xofdata);
++    my $expected = qr/SHAKE-128\(\Q$testdata\E\)= bb565dac72640109e1c926ef441d3fa6/;
++    ok($xofdata[0] =~ $expected, "Check short digest is output");
++};
++
++SKIP: {
++    skip "ECDSA is not supported by this OpenSSL build", 1
++        if disabled("ec");
++
++    subtest "signing with xoflen is not supported `dgst` CLI" => sub {
++        plan tests => 1;
++        my $data_to_sign = srctop_file('test', 'data.bin');
++
++        ok(!run(app(['openssl', 'dgst', '-shake256', '-xoflen', '64',
++                     '-sign', srctop_file("test","testec-p256.pem"),
++                     '-out', 'test.sig',
++                     srctop_file('test', 'data.bin')])),
++                     "Generating signature with xoflen should fail");
++    }
++}
+-- 
+2.34.1
+

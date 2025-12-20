@@ -1,0 +1,162 @@
+From ea9e16d16b17d9aa1544e54e79c6438aef9b2e6e Mon Sep 17 00:00:00 2001
+From: slontis <shane.lontis@oracle.com>
+Date: Tue, 12 Jul 2022 14:28:37 +1000
+Subject: [PATCH 032/209] Check for EVP_MD being NULL inside ssl.
+
+Fix multiple places that could potentially segfault if memory
+allocations fail. e.g. ssl_load_ciphers() could fail while calling
+ssl_evp_md_fetch().
+
+Found by #18355
+
+Reviewed-by: Paul Dale <pauli@openssl.org>
+Reviewed-by: Hugo Landau <hlandau@openssl.org>
+Reviewed-by: Dmitry Belyavskiy <beldmit@gmail.com>
+(Merged from https://github.com/openssl/openssl/pull/18784)
+
+(cherry picked from commit b740012f77aed97cb4b3cd8a4f1fb2f668542795)
+---
+ ssl/s3_lib.c                 |  5 +++--
+ ssl/ssl_ciph.c               |  7 +++++--
+ ssl/statem/extensions_srvr.c |  4 ++++
+ ssl/statem/statem_clnt.c     |  6 ++++--
+ ssl/tls13_enc.c              | 15 ++++++++++-----
+ 5 files changed, 26 insertions(+), 11 deletions(-)
+
+diff --git a/ssl/s3_lib.c b/ssl/s3_lib.c
+index f530c5066d..78d4f04056 100644
+--- a/ssl/s3_lib.c
++++ b/ssl/s3_lib.c
+@@ -4301,9 +4301,10 @@ const SSL_CIPHER *ssl3_choose_cipher(SSL *s, STACK_OF(SSL_CIPHER) *clnt,
+ 
+             if (prefer_sha256) {
+                 const SSL_CIPHER *tmp = sk_SSL_CIPHER_value(allow, ii);
++                const EVP_MD *md = ssl_md(s->ctx, tmp->algorithm2);
+ 
+-                if (EVP_MD_is_a(ssl_md(s->ctx, tmp->algorithm2),
+-                                       OSSL_DIGEST_NAME_SHA2_256)) {
++                if (md != NULL
++                        && EVP_MD_is_a(md, OSSL_DIGEST_NAME_SHA2_256)) {
+                     ret = tmp;
+                     break;
+                 }
+diff --git a/ssl/ssl_ciph.c b/ssl/ssl_ciph.c
+index 54431b79c6..942ab5c6db 100644
+--- a/ssl/ssl_ciph.c
++++ b/ssl/ssl_ciph.c
+@@ -555,11 +555,14 @@ int ssl_cipher_get_evp(SSL_CTX *ctx, const SSL_SESSION *s,
+         if (c->algorithm_mac == SSL_AEAD)
+             mac_pkey_type = NULL;
+     } else {
+-        if (!ssl_evp_md_up_ref(ctx->ssl_digest_methods[i])) {
++        const EVP_MD *digest = ctx->ssl_digest_methods[i];
++
++        if (digest == NULL
++                || !ssl_evp_md_up_ref(digest)) {
+             ssl_evp_cipher_free(*enc);
+             return 0;
+         }
+-        *md = ctx->ssl_digest_methods[i];
++        *md = digest;
+         if (mac_pkey_type != NULL)
+             *mac_pkey_type = ctx->ssl_mac_pkey_id[i];
+         if (mac_secret_size != NULL)
+diff --git a/ssl/statem/extensions_srvr.c b/ssl/statem/extensions_srvr.c
+index 7a38e01e43..bf89e8247d 100644
+--- a/ssl/statem/extensions_srvr.c
++++ b/ssl/statem/extensions_srvr.c
+@@ -1154,6 +1154,10 @@ int tls_parse_ctos_psk(SSL *s, PACKET *pkt, unsigned int context, X509 *x,
+         }
+ 
+         md = ssl_md(s->ctx, sess->cipher->algorithm2);
++        if (md == NULL) {
++            SSLfatal(s, SSL_AD_INTERNAL_ERROR, ERR_R_INTERNAL_ERROR);
++            goto err;
++        }
+         if (!EVP_MD_is_a(md,
+                 EVP_MD_get0_name(ssl_md(s->ctx,
+                                         s->s3.tmp.new_cipher->algorithm2)))) {
+diff --git a/ssl/statem/statem_clnt.c b/ssl/statem/statem_clnt.c
+index b59eddae33..3af7234342 100644
+--- a/ssl/statem/statem_clnt.c
++++ b/ssl/statem/statem_clnt.c
+@@ -1346,12 +1346,14 @@ static int set_client_ciphersuite(SSL *s, const unsigned char *cipherchars)
+         s->session->cipher_id = s->session->cipher->id;
+     if (s->hit && (s->session->cipher_id != c->id)) {
+         if (SSL_IS_TLS13(s)) {
++            const EVP_MD *md = ssl_md(s->ctx, c->algorithm2);
++
+             /*
+              * In TLSv1.3 it is valid for the server to select a different
+              * ciphersuite as long as the hash is the same.
+              */
+-            if (ssl_md(s->ctx, c->algorithm2)
+-                    != ssl_md(s->ctx, s->session->cipher->algorithm2)) {
++            if (md == NULL
++                    || md != ssl_md(s->ctx, s->session->cipher->algorithm2)) {
+                 SSLfatal(s, SSL_AD_ILLEGAL_PARAMETER,
+                          SSL_R_CIPHERSUITE_DIGEST_HAS_CHANGED);
+                 return 0;
+diff --git a/ssl/tls13_enc.c b/ssl/tls13_enc.c
+index 13b4d71a1e..07d065e35e 100644
+--- a/ssl/tls13_enc.c
++++ b/ssl/tls13_enc.c
+@@ -257,13 +257,17 @@ int tls13_generate_master_secret(SSL *s, unsigned char *out,
+ size_t tls13_final_finish_mac(SSL *s, const char *str, size_t slen,
+                              unsigned char *out)
+ {
+-    const char *mdname = EVP_MD_get0_name(ssl_handshake_md(s));
++    const EVP_MD *md = ssl_handshake_md(s);
++    const char *mdname = EVP_MD_get0_name(md);
+     unsigned char hash[EVP_MAX_MD_SIZE];
+     unsigned char finsecret[EVP_MAX_MD_SIZE];
+     unsigned char *key = NULL;
+     size_t len = 0, hashlen;
+     OSSL_PARAM params[2], *p = params;
+ 
++    if (md == NULL)
++        return 0;
++
+     /* Safe to cast away const here since we're not "getting" any data */
+     if (s->ctx->propq != NULL)
+         *p++ = OSSL_PARAM_construct_utf8_string(OSSL_ALG_PARAM_PROPERTIES,
+@@ -281,7 +285,7 @@ size_t tls13_final_finish_mac(SSL *s, const char *str, size_t slen,
+     } else if (SSL_IS_FIRST_HANDSHAKE(s)) {
+         key = s->client_finished_secret;
+     } else {
+-        if (!tls13_derive_finishedkey(s, ssl_handshake_md(s),
++        if (!tls13_derive_finishedkey(s, md,
+                                       s->client_app_traffic_secret,
+                                       finsecret, hashlen))
+             goto err;
+@@ -770,7 +774,7 @@ int tls13_update_key(SSL *s, int sending)
+         RECORD_LAYER_reset_read_sequence(&s->rlayer);
+     }
+ 
+-    if (!derive_secret_key_and_iv(s, sending, ssl_handshake_md(s),
++    if (!derive_secret_key_and_iv(s, sending, md,
+                                   s->s3.tmp.new_sym_enc, insecret, NULL,
+                                   application_traffic,
+                                   sizeof(application_traffic) - 1, secret, key,
+@@ -815,7 +819,7 @@ int tls13_export_keying_material(SSL *s, unsigned char *out, size_t olen,
+     unsigned int hashsize, datalen;
+     int ret = 0;
+ 
+-    if (ctx == NULL || !ossl_statem_export_allowed(s))
++    if (ctx == NULL || md == NULL || !ossl_statem_export_allowed(s))
+         goto err;
+ 
+     if (!use_context)
+@@ -884,7 +888,8 @@ int tls13_export_keying_material_early(SSL *s, unsigned char *out, size_t olen,
+      *
+      * Here Transcript-Hash is the cipher suite hash algorithm.
+      */
+-    if (EVP_DigestInit_ex(ctx, md, NULL) <= 0
++    if (md == NULL
++            || EVP_DigestInit_ex(ctx, md, NULL) <= 0
+             || EVP_DigestUpdate(ctx, context, contextlen) <= 0
+             || EVP_DigestFinal_ex(ctx, hash, &hashsize) <= 0
+             || EVP_DigestInit_ex(ctx, md, NULL) <= 0
+-- 
+2.34.1
+

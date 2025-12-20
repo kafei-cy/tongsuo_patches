@@ -1,0 +1,53 @@
+From 3e7ecb8627a585c05de4cfb8420609ae30c1d91a Mon Sep 17 00:00:00 2001
+From: Tomas Mraz <tomas@openssl.org>
+Date: Tue, 20 Sep 2022 16:48:59 +0200
+Subject: [PATCH 180/209] Maximum return value of BIO_ctrl_(w)pending is
+ SIZE_MAX
+
+Reviewed-by: Hugo Landau <hlandau@openssl.org>
+Reviewed-by: Matt Caswell <matt@openssl.org>
+Reviewed-by: Paul Dale <pauli@openssl.org>
+(Merged from https://github.com/openssl/openssl/pull/19240)
+
+(cherry picked from commit c6be0aa8ac3c172ad998ce33f392143312bfe760)
+---
+ crypto/bio/bio_lib.c | 9 +++++++++
+ 1 file changed, 9 insertions(+)
+
+diff --git a/crypto/bio/bio_lib.c b/crypto/bio/bio_lib.c
+index 8831debc76..cddbc5eebb 100644
+--- a/crypto/bio/bio_lib.c
++++ b/crypto/bio/bio_lib.c
+@@ -12,6 +12,7 @@
+ #include <stdio.h>
+ #include <errno.h>
+ #include <openssl/crypto.h>
++#include "internal/numbers.h"
+ #include "bio_local.h"
+ 
+ /*
+@@ -624,6 +625,10 @@ size_t BIO_ctrl_pending(BIO *bio)
+ 
+     if (ret < 0)
+         ret = 0;
++#if LONG_MAX > SIZE_MAX
++    if (ret > SIZE_MAX)
++        ret = SIZE_MAX;
++#endif
+     return (size_t)ret;
+ }
+ 
+@@ -633,6 +638,10 @@ size_t BIO_ctrl_wpending(BIO *bio)
+ 
+     if (ret < 0)
+         ret = 0;
++#if LONG_MAX > SIZE_MAX
++    if (ret > SIZE_MAX)
++        ret = SIZE_MAX;
++#endif
+     return (size_t)ret;
+ }
+ 
+-- 
+2.34.1
+

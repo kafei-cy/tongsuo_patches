@@ -1,0 +1,41 @@
+From 6c3728c72a8263a201352f6d118f9fc94bdbc6fb Mon Sep 17 00:00:00 2001
+From: Cameron Gutman <aicommander@gmail.com>
+Date: Fri, 22 Jul 2022 21:04:46 -0500
+Subject: [PATCH 202/209] armcap: skip probing _armv7_tick()
+
+Detection of this feature is unreliable so only use it if requested.
+
+Reviewed-by: Paul Dale <pauli@openssl.org>
+Reviewed-by: Dmitry Belyavskiy <beldmit@gmail.com>
+Reviewed-by: Hugo Landau <hlandau@openssl.org>
+(Merged from https://github.com/openssl/openssl/pull/18852)
+
+(cherry picked from commit f2ec24c9e7c3df55fba97336594a5e815c342b01)
+---
+ crypto/armcap.c | 10 +++++-----
+ 1 file changed, 5 insertions(+), 5 deletions(-)
+
+diff --git a/crypto/armcap.c b/crypto/armcap.c
+index 5b45a9d0f4..3c8522b8ae 100644
+--- a/crypto/armcap.c
++++ b/crypto/armcap.c
+@@ -257,11 +257,11 @@ void OPENSSL_cpuid_setup(void)
+     }
+ # endif
+ 
+-    /* Things that getauxval didn't tell us */
+-    if (sigsetjmp(ill_jmp, 1) == 0) {
+-        _armv7_tick();
+-        OPENSSL_armcap_P |= ARMV7_TICK;
+-    }
++    /*
++     * Probing for ARMV7_TICK is known to produce unreliable results,
++     * so we will only use the feature when the user explicitly enables
++     * it with OPENSSL_armcap.
++     */
+ 
+     sigaction(SIGILL, &ill_oact, NULL);
+     sigprocmask(SIG_SETMASK, &oset, NULL);
+-- 
+2.34.1
+

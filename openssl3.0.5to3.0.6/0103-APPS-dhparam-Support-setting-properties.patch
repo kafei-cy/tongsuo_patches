@@ -1,0 +1,120 @@
+From 05c8bd1f35d07f1877860e671bfde51faf4b3483 Mon Sep 17 00:00:00 2001
+From: Clemens Lang <cllang@redhat.com>
+Date: Fri, 1 Jul 2022 14:50:59 +0200
+Subject: [PATCH 103/209] APPS: dhparam: Support setting properties
+
+The -provider and -propquery options did not work on dhparam. Fix this
+and add tests that check that operations that would usually fail with
+the FIPS provider work when run with
+
+| -provider default -propquery '?fips!=yes'
+
+See also 30b2c3592e8511b60d44f93eb657a1ecb3662c08, which previously
+fixed the same problem in dsaparam and gendsa. See also the initial
+report in https://bugzilla.redhat.com/show_bug.cgi?id=2094956.
+
+Signed-off-by: Clemens Lang <cllang@redhat.com>
+
+Reviewed-by: Tomas Mraz <tomas@openssl.org>
+Reviewed-by: Dmitry Belyavskiy <beldmit@gmail.com>
+(Merged from https://github.com/openssl/openssl/pull/18717)
+
+(cherry picked from commit ae3c30acac17271693e91dcae42c804cd96e8f93)
+---
+ apps/dhparam.c                 |  6 +++---
+ test/recipes/20-test_dhparam.t | 34 ++++++++++++++++++++++++++++++++--
+ 2 files changed, 35 insertions(+), 5 deletions(-)
+
+diff --git a/apps/dhparam.c b/apps/dhparam.c
+index d255129ed1..43906cea56 100644
+--- a/apps/dhparam.c
++++ b/apps/dhparam.c
+@@ -185,7 +185,7 @@ int dhparam_main(int argc, char **argv)
+             BIO_printf(bio_err, "Warning, input file %s ignored\n", infile);
+         }
+ 
+-        ctx = EVP_PKEY_CTX_new_from_name(NULL, alg, NULL);
++        ctx = EVP_PKEY_CTX_new_from_name(app_get0_libctx(), alg, app_get0_propq());
+         if (ctx == NULL) {
+             BIO_printf(bio_err,
+                         "Error, %s param generation context allocation failed\n",
+@@ -313,7 +313,7 @@ int dhparam_main(int argc, char **argv)
+         EVP_PKEY_print_params(out, pkey, 4, NULL);
+ 
+     if (check) {
+-        ctx = EVP_PKEY_CTX_new_from_pkey(NULL, pkey, NULL);
++        ctx = EVP_PKEY_CTX_new_from_pkey(app_get0_libctx(), pkey, app_get0_propq());
+         if (ctx == NULL) {
+             BIO_printf(bio_err, "Error, failed to check DH parameters\n");
+             goto end;
+@@ -385,7 +385,7 @@ static EVP_PKEY *dsa_to_dh(EVP_PKEY *dh)
+         goto err;
+     }
+ 
+-    ctx = EVP_PKEY_CTX_new_from_name(NULL, "DHX", NULL);
++    ctx = EVP_PKEY_CTX_new_from_name(app_get0_libctx(), "DHX", app_get0_propq());
+     if (ctx == NULL
+             || EVP_PKEY_fromdata_init(ctx) <= 0
+             || EVP_PKEY_fromdata(ctx, &pkey, EVP_PKEY_KEY_PARAMETERS, params) <= 0) {
+diff --git a/test/recipes/20-test_dhparam.t b/test/recipes/20-test_dhparam.t
+index 78a63508b3..7ca363196e 100644
+--- a/test/recipes/20-test_dhparam.t
++++ b/test/recipes/20-test_dhparam.t
+@@ -10,7 +10,7 @@
+ use strict;
+ use warnings;
+ 
+-use OpenSSL::Test qw(:DEFAULT data_file);
++use OpenSSL::Test qw(:DEFAULT data_file srctop_file);
+ use OpenSSL::Test::Utils;
+ 
+ #Tests for the dhparam CLI application
+@@ -19,7 +19,9 @@ setup("test_dhparam");
+ 
+ plan skip_all => "DH is not supported in this build"
+     if disabled("dh");
+-plan tests => 17;
++plan tests => 21;
++
++my $fipsconf = srctop_file("test", "fips-and-base.cnf");
+ 
+ sub checkdhparams {
+     my $file = shift; #Filename containing params
+@@ -171,6 +173,34 @@ SKIP: {
+         checkdhparams("gen-x942-0-512.der", "X9.42", 0, "DER", 512);
+     };
+ }
++SKIP: {
++    skip "Skipping tests that are only supported in a fips build with security ".
++        "checks", 4 if (disabled("fips") || disabled("fips-securitychecks"));
++
++    $ENV{OPENSSL_CONF} = $fipsconf;
++
++    ok(!run(app(['openssl', 'dhparam', '-check', '512'])),
++        "Generating 512 bit DH params should fail in FIPS mode");
++
++    ok(run(app(['openssl', 'dhparam', '-provider', 'default', '-propquery',
++            '?fips!=yes', '-check', '512'])),
++        "Generating 512 bit DH params should succeed in FIPS mode using".
++        " non-FIPS property query");
++
++    SKIP: {
++        skip "Skipping tests that require DSA", 2 if disabled("dsa");
++
++        ok(!run(app(['openssl', 'dhparam', '-dsaparam', '-check', '512'])),
++            "Generating 512 bit DSA-style DH params should fail in FIPS mode");
++
++        ok(run(app(['openssl', 'dhparam', '-provider', 'default', '-propquery',
++                '?fips!=yes', '-dsaparam', '-check', '512'])),
++            "Generating 512 bit DSA-style DH params should succeed in FIPS".
++            " mode using non-FIPS property query");
++    }
++
++    delete $ENV{OPENSSL_CONF};
++}
+ 
+ ok(run(app(["openssl", "dhparam", "-noout", "-text"],
+            stdin => data_file("pkcs3-2-1024.pem"))),
+-- 
+2.34.1
+

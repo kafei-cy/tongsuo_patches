@@ -1,0 +1,75 @@
+From 8bb9fecf6341aad0a771bf585d9eea80ea6ac89d Mon Sep 17 00:00:00 2001
+From: Clemens Lang <cllang@redhat.com>
+Date: Mon, 4 Jul 2022 17:15:46 +0200
+Subject: [PATCH 108/209] APPS: genrsa: Support setting properties
+
+The -provider and -propquery options did not work on genrsa. Fix this
+and add a test that checks that operations that would usually fail with
+the FIPS provider work when run with
+
+| -provider default -propquery '?fips!=yes'
+
+See also 30b2c3592e8511b60d44f93eb657a1ecb3662c08, which previously
+fixed the same problem in dsaparam and gendsa. See also the initial
+report in https://bugzilla.redhat.com/show_bug.cgi?id=2094956.
+
+Signed-off-by: Clemens Lang <cllang@redhat.com>
+
+Reviewed-by: Tomas Mraz <tomas@openssl.org>
+Reviewed-by: Dmitry Belyavskiy <beldmit@gmail.com>
+(Merged from https://github.com/openssl/openssl/pull/18717)
+
+(cherry picked from commit b2ccfd81025fa115f1138123b9aa61657e779352)
+---
+ apps/genrsa.c                 |  3 ++-
+ test/recipes/15-test_genrsa.t | 13 ++++++++++++-
+ 2 files changed, 14 insertions(+), 2 deletions(-)
+
+diff --git a/apps/genrsa.c b/apps/genrsa.c
+index e709ea38ce..9721e63d64 100644
+--- a/apps/genrsa.c
++++ b/apps/genrsa.c
+@@ -179,7 +179,8 @@ opthelp:
+     if (out == NULL)
+         goto end;
+ 
+-    if (!init_gen_str(&ctx, "RSA", eng, 0, NULL, NULL))
++    if (!init_gen_str(&ctx, "RSA", eng, 0, app_get0_libctx(),
++                      app_get0_propq()))
+         goto end;
+ 
+     EVP_PKEY_CTX_set_cb(ctx, genrsa_cb);
+diff --git a/test/recipes/15-test_genrsa.t b/test/recipes/15-test_genrsa.t
+index 70f080a6db..fe99f33694 100644
+--- a/test/recipes/15-test_genrsa.t
++++ b/test/recipes/15-test_genrsa.t
+@@ -24,7 +24,7 @@ use lib bldtop_dir('.');
+ my $no_fips = disabled('fips') || ($ENV{NO_FIPS} // 0);
+ 
+ plan tests =>
+-    ($no_fips ? 0 : 3)          # Extra FIPS related tests
++    ($no_fips ? 0 : 5)          # Extra FIPS related tests
+     + 15;
+ 
+ # We want to know that an absurdly small number of bits isn't support
+@@ -129,6 +129,17 @@ unless ($no_fips) {
+                 '-out', 'genrsatest3072.pem'])),
+        "Generating RSA key with 3072 bits");
+ 
++   ok(!run(app(['openssl', 'genrsa', @prov, '512'])),
++       "Generating RSA key with 512 bits should fail in FIPS provider");
++
++   ok(!run(app(['openssl', 'genrsa',
++                @prov,
++                '-provider', 'default',
++                '-propquery', '?fips!=yes',
++                '512'])),
++       "Generating RSA key with 512 bits should succeed with FIPS provider as".
++       " default with a non-FIPS property query");
++
+     # We want to know that an absurdly large number of bits fails the RNG check
+     is(run(app([ 'openssl', 'genpkey',
+                  @prov,
+-- 
+2.34.1
+

@@ -1,0 +1,42 @@
+From bac5b7405b085d3926fdca80f221fa462dbe27e5 Mon Sep 17 00:00:00 2001
+From: Charles Milette <charles.milette@gmail.com>
+Date: Fri, 13 May 2022 21:42:29 -0400
+Subject: [PATCH 076/209] Fix UWP builds by defining VirtualLock
+
+Reviewed-by: Tomas Mraz <tomas@openssl.org>
+Reviewed-by: Hugo Landau <hlandau@openssl.org>
+(Merged from https://github.com/openssl/openssl/pull/18311)
+
+(cherry picked from commit ff1efe6e261598c3f71727b796767a8e716bcbe2)
+---
+ crypto/mem_sec.c | 14 ++++++++++++++
+ 1 file changed, 14 insertions(+)
+
+diff --git a/crypto/mem_sec.c b/crypto/mem_sec.c
+index c2cc2cbf32..9458135572 100644
+--- a/crypto/mem_sec.c
++++ b/crypto/mem_sec.c
+@@ -23,6 +23,20 @@
+ #ifndef OPENSSL_NO_SECURE_MEMORY
+ # if defined(_WIN32)
+ #  include <windows.h>
++#  if defined(WINAPI_FAMILY_PARTITION) \
++     && !WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_DESKTOP | WINAPI_PARTITION_SYSTEM)
++/*
++ * While VirtualLock is available under the app partition (e.g. UWP),
++ * the headers do not define the API. Define it ourselves instead.
++ */
++WINBASEAPI
++BOOL
++WINAPI
++VirtualLock(
++    _In_ LPVOID lpAddress,
++    _In_ SIZE_T dwSize
++    );
++#  endif
+ # endif
+ # include <stdlib.h>
+ # include <assert.h>
+-- 
+2.34.1
+

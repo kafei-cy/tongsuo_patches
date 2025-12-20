@@ -1,0 +1,47 @@
+From d6d977c807343112d137ced096dece84303ded46 Mon Sep 17 00:00:00 2001
+From: Tomas Mraz <tomas@openssl.org>
+Date: Thu, 28 Jul 2022 14:13:06 +0200
+Subject: [PATCH 119/209] Add testcases for EVP_PKEY_get1_encoded_public_key
+
+Reviewed-by: Paul Dale <pauli@openssl.org>
+Reviewed-by: Matt Caswell <matt@openssl.org>
+(Merged from https://github.com/openssl/openssl/pull/18902)
+
+(cherry picked from commit 3a1596f4e3d710c163279a20e6b844d371886e73)
+---
+ test/evp_extra_test.c | 12 ++++++++++++
+ 1 file changed, 12 insertions(+)
+
+diff --git a/test/evp_extra_test.c b/test/evp_extra_test.c
+index 49ee8319c6..12dc0e3628 100644
+--- a/test/evp_extra_test.c
++++ b/test/evp_extra_test.c
+@@ -897,6 +897,7 @@ static int test_EC_priv_pub(void)
+     EVP_PKEY *params_and_keypair = NULL;
+     BIGNUM *priv = NULL;
+     int ret = 0;
++    unsigned char *encoded = NULL;
+ 
+     /*
+      * Setup the parameters for our pkey object. For our purposes they don't
+@@ -1005,6 +1006,17 @@ static int test_EC_priv_pub(void)
+         || !TEST_int_gt(EVP_PKEY_eq(params_and_keypair, params_and_priv), 0))
+         goto err;
+ 
++    /* Positive and negative testcase for EVP_PKEY_get1_encoded_public_key */
++    if (!TEST_int_gt(EVP_PKEY_get1_encoded_public_key(params_and_pub, &encoded), 0))
++        goto err;
++    OPENSSL_free(encoded);
++    encoded = NULL;
++    if (!TEST_int_eq(EVP_PKEY_get1_encoded_public_key(just_params, &encoded), 0)) {
++        OPENSSL_free(encoded);
++        encoded = NULL;
++        goto err;
++    }
++
+     ret = 1;
+  err:
+     OSSL_PARAM_free(params);
+-- 
+2.34.1
+

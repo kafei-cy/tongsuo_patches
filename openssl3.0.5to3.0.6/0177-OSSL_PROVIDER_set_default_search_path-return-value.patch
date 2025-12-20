@@ -1,0 +1,45 @@
+From 843a9a9ff6f22a4340eb10cc0ed2a5606bf4d27a Mon Sep 17 00:00:00 2001
+From: olszomal <Malgorzata.Olszowka@stunnel.org>
+Date: Mon, 19 Sep 2022 08:59:02 +0200
+Subject: [PATCH 177/209] OSSL_PROVIDER_set_default_search_path() return value
+
+CLA: trivial
+
+Reviewed-by: Richard Levitte <levitte@openssl.org>
+Reviewed-by: Tomas Mraz <tomas@openssl.org>
+Reviewed-by: Paul Dale <pauli@openssl.org>
+(Merged from https://github.com/openssl/openssl/pull/19239)
+
+(cherry picked from commit 257cade411ef9217305c5db47f40e5dacdb99c71)
+---
+ doc/man3/OSSL_PROVIDER.pod | 7 ++++---
+ 1 file changed, 4 insertions(+), 3 deletions(-)
+
+diff --git a/doc/man3/OSSL_PROVIDER.pod b/doc/man3/OSSL_PROVIDER.pod
+index 3c18f5ca10..47e296c186 100644
+--- a/doc/man3/OSSL_PROVIDER.pod
++++ b/doc/man3/OSSL_PROVIDER.pod
+@@ -18,8 +18,8 @@ OSSL_PROVIDER_self_test
+ 
+  typedef struct ossl_provider_st OSSL_PROVIDER;
+ 
+- void OSSL_PROVIDER_set_default_search_path(OSSL_LIB_CTX *libctx,
+-                                            const char *path);
++ int OSSL_PROVIDER_set_default_search_path(OSSL_LIB_CTX *libctx,
++                                           const char *path);
+ 
+  OSSL_PROVIDER *OSSL_PROVIDER_load(OSSL_LIB_CTX *libctx, const char *name);
+  OSSL_PROVIDER *OSSL_PROVIDER_try_load(OSSL_LIB_CTX *libctx, const char *name,
+@@ -157,7 +157,8 @@ L<provider-base(7)/CAPABILTIIES>.
+ 
+ =head1 RETURN VALUES
+ 
+-OSSL_PROVIDER_add(), OSSL_PROVIDER_unload(), OSSL_PROVIDER_get_params() and
++OSSL_PROVIDER_set_default_search_path(), OSSL_PROVIDER_add(),
++OSSL_PROVIDER_unload(), OSSL_PROVIDER_get_params() and
+ OSSL_PROVIDER_get_capabilities() return 1 on success, or 0 on error.
+ 
+ OSSL_PROVIDER_load() and OSSL_PROVIDER_try_load() return a pointer to a
+-- 
+2.34.1
+

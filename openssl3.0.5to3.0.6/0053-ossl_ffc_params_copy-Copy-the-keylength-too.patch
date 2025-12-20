@@ -1,0 +1,87 @@
+From ce4579adf94d5f26e566a1e04c8a52ec5943cdd0 Mon Sep 17 00:00:00 2001
+From: Tomas Mraz <tomas@openssl.org>
+Date: Thu, 14 Jul 2022 12:32:03 +0200
+Subject: [PATCH 053/209] ossl_ffc_params_copy: Copy the keylength too
+
+Reviewed-by: Paul Dale <pauli@openssl.org>
+Reviewed-by: Kurt Roeckx <kurt@roeckx.be>
+(Merged from https://github.com/openssl/openssl/pull/18793)
+---
+ crypto/ffc/ffc_params.c  |  1 +
+ test/ffc_internal_test.c | 34 ++++++++++++++++++++++++++++++++++
+ 2 files changed, 35 insertions(+)
+
+diff --git a/crypto/ffc/ffc_params.c b/crypto/ffc/ffc_params.c
+index 073f661c7c..fb558f8221 100644
+--- a/crypto/ffc/ffc_params.c
++++ b/crypto/ffc/ffc_params.c
+@@ -196,6 +196,7 @@ int ossl_ffc_params_copy(FFC_PARAMS *dst, const FFC_PARAMS *src)
+     dst->h = src->h;
+     dst->gindex = src->gindex;
+     dst->flags = src->flags;
++    dst->keylength = src->keylength;
+     return 1;
+ }
+ 
+diff --git a/test/ffc_internal_test.c b/test/ffc_internal_test.c
+index 051a31eac0..f3df4ab4fd 100644
+--- a/test/ffc_internal_test.c
++++ b/test/ffc_internal_test.c
+@@ -618,6 +618,8 @@ static int ffc_private_gen_test(int index)
+                                                  ossl_ifc_ffc_compute_security_bits(BN_num_bits(params->p)),
+                                                  priv)))
+         goto err;
++    if (!TEST_int_le(BN_num_bits(priv), 225))
++        goto err;
+     if (!TEST_true(ossl_ffc_validate_private_key(params->q, priv, &res)))
+         goto err;
+ 
+@@ -628,6 +630,37 @@ err:
+     BN_CTX_free(ctx);
+     return ret;
+ }
++
++static int ffc_params_copy_test(void)
++{
++    int ret = 0;
++    DH *dh = NULL;
++    FFC_PARAMS *params, copy;
++
++    ossl_ffc_params_init(&copy);
++
++    if (!TEST_ptr(dh = DH_new_by_nid(NID_ffdhe3072)))
++        goto err;
++    params = ossl_dh_get0_params(dh);
++
++    if (!TEST_int_eq(params->keylength, 275))
++        goto err;
++
++    if (!TEST_true(ossl_ffc_params_copy(&copy, params)))
++        goto err;
++
++    if (!TEST_int_eq(copy.keylength, 275))
++        goto err;
++
++    if (!TEST_true(ossl_ffc_params_cmp(&copy, params, 0)))
++        goto err;
++
++    ret = 1;
++err:
++    ossl_ffc_params_cleanup(&copy);
++    DH_free(dh);
++    return ret;
++}
+ #endif /* OPENSSL_NO_DH */
+ 
+ int setup_tests(void)
+@@ -643,6 +676,7 @@ int setup_tests(void)
+     ADD_TEST(ffc_public_validate_test);
+     ADD_TEST(ffc_private_validate_test);
+     ADD_ALL_TESTS(ffc_private_gen_test, 10);
++    ADD_TEST(ffc_params_copy_test);
+ #endif /* OPENSSL_NO_DH */
+     return 1;
+ }
+-- 
+2.34.1
+

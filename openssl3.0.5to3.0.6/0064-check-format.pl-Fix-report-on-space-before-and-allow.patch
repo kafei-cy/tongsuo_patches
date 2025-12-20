@@ -1,0 +1,42 @@
+From 18b1d210c0a2e7a0b95d43088d3e922d47972b37 Mon Sep 17 00:00:00 2001
+From: "Dr. David von Oheimb" <David.von.Oheimb@siemens.com>
+Date: Thu, 6 Jan 2022 23:14:27 +0100
+Subject: [PATCH 064/209] check-format.pl: Fix report on space before ';' and
+ allow it after ')'
+
+Reviewed-by: Paul Dale <pauli@openssl.org>
+(cherry picked from commit c30bc4e2093f47a37736944da548653bc08d774d)
+---
+ util/check-format-test-negatives.c | 2 ++
+ util/check-format.pl               | 2 +-
+ 2 files changed, 3 insertions(+), 1 deletion(-)
+
+diff --git a/util/check-format-test-negatives.c b/util/check-format-test-negatives.c
+index 3ea792a72f..4d925572c4 100644
+--- a/util/check-format-test-negatives.c
++++ b/util/check-format-test-negatives.c
+@@ -70,6 +70,8 @@ int f(void) /*
+         ;
+     for (i = 0; i < 1;)
+         ;
++    for (;;) ; /* should not trigger: space before ';' */
++ lab: ;  /* should not trigger: space before ';' */
+ 
+ #if X
+     if (1) /* bad style: just part of control structure depends on #if */
+diff --git a/util/check-format.pl b/util/check-format.pl
+index 836fe30fa9..17bdc0aa15 100755
+--- a/util/check-format.pl
++++ b/util/check-format.pl
+@@ -684,7 +684,7 @@ while (<>) { # loop over all lines of all input files
+         report("space before '$1'") if $intra_line =~ m/\s(\.|->)/;            # '.' or '->' with preceding space
+         report("space after '$1'")  if $intra_line =~ m/(\.|->)\s/;            # '.' or '->' with following space
+         $intra_line =~ s/\-\>|\+\+|\-\-/@/g;         # blind '->,', '++', and '--'
+-        report("space before '$2'")     if $intra_line =~ m/[^:]\s+(;)/;       # space before ';' but not after ':'
++        report("space before '$1'")     if $intra_line =~ m/[^:)]\s+(;)/;      # space before ';' but not after ':' or ')'
+         report("space before '$1'")     if $intra_line =~ m/\s([,)\]])/;       # space before ,)]
+         report("space after '$1'")      if $intra_line =~ m/([(\[~!])\s/;      # space after ([~!
+         report("space after '$1'")      if $intra_line =~ m/(defined)\s/;      # space after 'defined'
+-- 
+2.34.1
+

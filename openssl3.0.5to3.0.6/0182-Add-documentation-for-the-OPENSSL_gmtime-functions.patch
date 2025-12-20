@@ -1,0 +1,134 @@
+From a2c0a959e0bb26fc5aa5c822ecee30135b08a282 Mon Sep 17 00:00:00 2001
+From: Todd Short <tshort@akamai.com>
+Date: Wed, 21 Sep 2022 14:06:23 -0400
+Subject: [PATCH 182/209] Add documentation for the OPENSSL_gmtime functions
+
+Reviewed-by: Tomas Mraz <tomas@openssl.org>
+Reviewed-by: Paul Dale <pauli@openssl.org>
+Reviewed-by: Hugo Landau <hlandau@openssl.org>
+(Merged from https://github.com/openssl/openssl/pull/19257)
+
+(cherry picked from commit 28a5aa0cbdddfdf4d82a437d72407d4f52d4e54a)
+---
+ doc/build.info              |  6 ++++
+ doc/man3/OPENSSL_gmtime.pod | 62 +++++++++++++++++++++++++++++++++++++
+ util/missingcrypto.txt      |  3 --
+ 3 files changed, 68 insertions(+), 3 deletions(-)
+ create mode 100644 doc/man3/OPENSSL_gmtime.pod
+
+diff --git a/doc/build.info b/doc/build.info
+index 7e86de588a..36a792c2bd 100644
+--- a/doc/build.info
++++ b/doc/build.info
+@@ -1495,6 +1495,10 @@ DEPEND[html/man3/OPENSSL_fork_prepare.html]=man3/OPENSSL_fork_prepare.pod
+ GENERATE[html/man3/OPENSSL_fork_prepare.html]=man3/OPENSSL_fork_prepare.pod
+ DEPEND[man/man3/OPENSSL_fork_prepare.3]=man3/OPENSSL_fork_prepare.pod
+ GENERATE[man/man3/OPENSSL_fork_prepare.3]=man3/OPENSSL_fork_prepare.pod
++DEPEND[html/man3/OPENSSL_gmtime.html]=man3/OPENSSL_gmtime.pod
++GENERATE[html/man3/OPENSSL_gmtime.html]=man3/OPENSSL_gmtime.pod
++DEPEND[man/man3/OPENSSL_gmtime.3]=man3/OPENSSL_gmtime.pod
++GENERATE[man/man3/OPENSSL_gmtime.3]=man3/OPENSSL_gmtime.pod
+ DEPEND[html/man3/OPENSSL_hexchar2int.html]=man3/OPENSSL_hexchar2int.pod
+ GENERATE[html/man3/OPENSSL_hexchar2int.html]=man3/OPENSSL_hexchar2int.pod
+ DEPEND[man/man3/OPENSSL_hexchar2int.3]=man3/OPENSSL_hexchar2int.pod
+@@ -3105,6 +3109,7 @@ html/man3/OPENSSL_LH_COMPFUNC.html \
+ html/man3/OPENSSL_LH_stats.html \
+ html/man3/OPENSSL_config.html \
+ html/man3/OPENSSL_fork_prepare.html \
++html/man3/OPENSSL_gmtime.html \
+ html/man3/OPENSSL_hexchar2int.html \
+ html/man3/OPENSSL_ia32cap.html \
+ html/man3/OPENSSL_init_crypto.html \
+@@ -3700,6 +3705,7 @@ man/man3/OPENSSL_LH_COMPFUNC.3 \
+ man/man3/OPENSSL_LH_stats.3 \
+ man/man3/OPENSSL_config.3 \
+ man/man3/OPENSSL_fork_prepare.3 \
++man/man3/OPENSSL_gmtime.3 \
+ man/man3/OPENSSL_hexchar2int.3 \
+ man/man3/OPENSSL_ia32cap.3 \
+ man/man3/OPENSSL_init_crypto.3 \
+diff --git a/doc/man3/OPENSSL_gmtime.pod b/doc/man3/OPENSSL_gmtime.pod
+new file mode 100644
+index 0000000000..b86557f3ca
+--- /dev/null
++++ b/doc/man3/OPENSSL_gmtime.pod
+@@ -0,0 +1,62 @@
++=pod
++
++=head1 NAME
++
++OPENSSL_gmtime,
++OPENSSL_gmtime_adj,
++OPENSSL_gmtime_diff - platform-agnostic OpenSSL time routines
++
++=head1 SYNOPSIS
++
++ #include <openssl/crypto.h>
++
++ struct tm *OPENSSL_gmtime(const time_t *timer, struct tm *result);
++ int OPENSSL_gmtime_adj(struct tm *tm, int offset_day, long offset_sec);
++ int OPENSSL_gmtime_diff(int *pday, int *psec,
++                        const struct tm *from, const struct tm *to);
++
++=head1 DESCRIPTION
++
++OPENSSL_gmtime() returns the UTC time specified by I<timer> into the provided
++I<result> argument.
++
++OPENSSL_gmtime_adj() adds the offsets in I<offset_day> and I<offset_sec> to I<tm>.
++
++OPENSSL_gmtime_diff() calculates the difference between I<from> and I<to>.
++
++=head1 NOTES
++
++It is an error to call OPENSSL_gmtime() with I<result> equal to NULL. The
++contents of the time_t given by I<timer> are stored into the I<result>. Calling
++with I<timer> equal to NULL means use the current time.
++
++OPENSSL_gmtime_adj() converts I<tm> into a days and seconds value, adds the
++offsets, then converts back into a I<struct tm> specified by I<tm>. Leap seconds
++are not considered.
++
++OPENSSL_gmtime_diff() calculates the difference between the two I<struct tm>
++structures I<from> and I<to>. The difference in days is placed into I<*pday>,
++the remaining seconds are placed to I<*psec>. The value in I<*psec> will be less
++than the number of seconds per day (3600). Leap seconds are not considered.
++
++=head1 RETURN VALUES
++
++OPENSSL_gmtime() returns NULL on error, or I<result> on success.
++
++OPENSSL_gmtime_adj() and OPENSSL_gmtime_diff() return 0 on error, and 1 on success.
++
++=head1 HISTORY
++
++OPENSSL_gmtime(), OPENSSL_gmtime_adj() and OPENSSL_gmtime_diff() have been
++in OpenSSL since 1.0.0.
++
++=head1 COPYRIGHT
++
++Copyright 2022 The OpenSSL Project Authors. All Rights Reserved.
++
++Licensed under the Apache License 2.0 (the "License").  You may not use
++this file except in compliance with the License.  You can obtain a copy
++in the file LICENSE in the source distribution or at
++L<https://www.openssl.org/source/license.html>.
++
++=cut
+diff --git a/util/missingcrypto.txt b/util/missingcrypto.txt
+index 94ccafeec2..7851872b66 100644
+--- a/util/missingcrypto.txt
++++ b/util/missingcrypto.txt
+@@ -809,9 +809,6 @@ OPENSSL_LH_set_down_load(3)
+ OPENSSL_LH_strhash(3)
+ OPENSSL_asc2uni(3)
+ OPENSSL_die(3)
+-OPENSSL_gmtime(3)
+-OPENSSL_gmtime_adj(3)
+-OPENSSL_gmtime_diff(3)
+ OPENSSL_init(3)
+ OPENSSL_isservice(3)
+ OPENSSL_issetugid(3)
+-- 
+2.34.1
+

@@ -1,0 +1,41 @@
+From 2628de72b93534fec09336e28ab572b542a16885 Mon Sep 17 00:00:00 2001
+From: Alexander Scheel <alex.scheel@hashicorp.com>
+Date: Wed, 29 Jun 2022 10:19:58 -0400
+Subject: [PATCH 009/209] Fixes OSCP->OCSP typo in ocsp command line
+
+The existing help text says:
+
+>  -badsig                 Corrupt last byte of loaded OSCP response signature (for test)
+
+but this should be OCSP. This is the only occurrence within the project
+of this typo.
+
+CLA: trivial
+
+Signed-off-by: Alexander Scheel <alex.scheel@hashicorp.com>
+
+Reviewed-by: Tomas Mraz <tomas@openssl.org>
+Reviewed-by: Hugo Landau <hlandau@openssl.org>
+(Merged from https://github.com/openssl/openssl/pull/18684)
+
+(cherry picked from commit 2837b19fcba4bf4ff2ecdc8435c650bf18c27552)
+---
+ apps/ocsp.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/apps/ocsp.c b/apps/ocsp.c
+index 7e2e89c387..50bf55f338 100644
+--- a/apps/ocsp.c
++++ b/apps/ocsp.c
+@@ -135,7 +135,7 @@ const OPTIONS ocsp_options[] = {
+     {"no_certs", OPT_NO_CERTS, '-',
+      "Don't include any certificates in signed request"},
+     {"badsig", OPT_BADSIG, '-',
+-        "Corrupt last byte of loaded OSCP response signature (for test)"},
++        "Corrupt last byte of loaded OCSP response signature (for test)"},
+     {"CA", OPT_CA, '<', "CA certificate"},
+     {"nmin", OPT_NMIN, 'p', "Number of minutes before next update"},
+     {"nrequest", OPT_REQUEST, 'p',
+-- 
+2.34.1
+

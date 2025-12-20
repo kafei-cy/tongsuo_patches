@@ -1,0 +1,50 @@
+From e2fccd7b1eed8d4ec4fe74eae9320ced2bac203b Mon Sep 17 00:00:00 2001
+From: Tomas Mraz <tomas@openssl.org>
+Date: Thu, 28 Jul 2022 15:45:02 +0200
+Subject: [PATCH 120/209] Clarify documentation in regards to EC key parameters
+
+Also clarify that EVP_PKEY_fromdata ignores parameters that
+are unknown or incorrect for given selection.
+
+Reviewed-by: Paul Dale <pauli@openssl.org>
+Reviewed-by: Matt Caswell <matt@openssl.org>
+(Merged from https://github.com/openssl/openssl/pull/18902)
+
+(cherry picked from commit 58135cb3c020805354ecc869aca040934d1299c8)
+---
+ doc/man3/EVP_PKEY_fromdata.pod | 3 +++
+ doc/man7/EVP_PKEY-EC.pod       | 4 +++-
+ 2 files changed, 6 insertions(+), 1 deletion(-)
+
+diff --git a/doc/man3/EVP_PKEY_fromdata.pod b/doc/man3/EVP_PKEY_fromdata.pod
+index fdab94cd4f..158d1bf42d 100644
+--- a/doc/man3/EVP_PKEY_fromdata.pod
++++ b/doc/man3/EVP_PKEY_fromdata.pod
+@@ -53,6 +53,9 @@ the settable parameters that can be used with EVP_PKEY_fromdata().
+ I<selection> is described in L</Selections>.
+ See L<OSSL_PARAM(3)> for the use of B<OSSL_PARAM> as parameter descriptor.
+ 
++Parameters in the I<params> array that are not among the settable parameters
++for the given I<selection> are ignored.
++
+ =head2 Selections
+ 
+ The following constants can be used for I<selection>:
+diff --git a/doc/man7/EVP_PKEY-EC.pod b/doc/man7/EVP_PKEY-EC.pod
+index c58f35547a..d9b1666b2e 100644
+--- a/doc/man7/EVP_PKEY-EC.pod
++++ b/doc/man7/EVP_PKEY-EC.pod
+@@ -110,7 +110,9 @@ per-operation basis.
+ 
+ =item "pub" (B<OSSL_PKEY_PARAM_PUB_KEY>) <octet string>
+ 
+-The public key value in EC point format.
++The public key value in encoded EC point format. This parameter is used
++when importing or exporting the public key value with the EVP_PKEY_fromdata()
++and EVP_PKEY_todata() functions.
+ 
+ =item "priv" (B<OSSL_PKEY_PARAM_PRIV_KEY>) <unsigned integer>
+ 
+-- 
+2.34.1
+

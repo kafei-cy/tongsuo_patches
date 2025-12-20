@@ -1,0 +1,208 @@
+From 90d6e6a3d5d30c3df4edf4a6430472c3eeb7d7a7 Mon Sep 17 00:00:00 2001
+From: Varun Sharma <varunsh@stepsecurity.io>
+Date: Sat, 9 Jul 2022 07:03:23 -0700
+Subject: [PATCH 028/209] ci: add GitHub token permissions for workflows
+
+Signed-off-by: Varun Sharma <varunsh@stepsecurity.io>
+
+Reviewed-by: Richard Levitte <levitte@openssl.org>
+Reviewed-by: Paul Dale <pauli@openssl.org>
+(Merged from https://github.com/openssl/openssl/pull/18766)
+
+(cherry picked from commit c6e7f427c82dfa17416a39af7661c40162d57aaf)
+---
+ .github/workflows/ci.yml                | 3 +++
+ .github/workflows/compiler-zoo.yml      | 3 +++
+ .github/workflows/coveralls.yml         | 6 ++++++
+ .github/workflows/cross-compiles.yml    | 3 +++
+ .github/workflows/fips-checksums.yml    | 3 +++
+ .github/workflows/fips-label.yml        | 6 ++++++
+ .github/workflows/fuzz-checker.yml      | 3 +++
+ .github/workflows/main.yml              | 3 +++
+ .github/workflows/run-checker-ci.yml    | 3 +++
+ .github/workflows/run-checker-daily.yml | 3 +++
+ .github/workflows/run-checker-merge.yml | 3 +++
+ .github/workflows/windows.yml           | 3 +++
+ 12 files changed, 42 insertions(+)
+
+diff --git a/.github/workflows/ci.yml b/.github/workflows/ci.yml
+index 321161907a..29a502a8d7 100644
+--- a/.github/workflows/ci.yml
++++ b/.github/workflows/ci.yml
+@@ -18,6 +18,9 @@ on: [pull_request, push]
+ # before_script:
+ #     - make="make -s"
+ 
++permissions:
++  contents: read
++
+ jobs:
+   check_update:
+     runs-on: ubuntu-latest
+diff --git a/.github/workflows/compiler-zoo.yml b/.github/workflows/compiler-zoo.yml
+index 55d108543f..a696e90a2a 100644
+--- a/.github/workflows/compiler-zoo.yml
++++ b/.github/workflows/compiler-zoo.yml
+@@ -9,6 +9,9 @@ name: Compiler Zoo CI
+ 
+ on: [push]
+ 
++permissions:
++  contents: read
++
+ jobs:
+   compiler:
+     strategy:
+diff --git a/.github/workflows/coveralls.yml b/.github/workflows/coveralls.yml
+index 3392edda4a..92fb6dd08b 100644
+--- a/.github/workflows/coveralls.yml
++++ b/.github/workflows/coveralls.yml
+@@ -12,8 +12,14 @@ on:
+   schedule:
+     - cron:  '49 0 * * *'
+ 
++permissions:
++  contents: read
++
+ jobs:
+   coverage:
++    permissions:
++      checks: write  # for coverallsapp/github-action to create new checks
++      contents: read  # for actions/checkout to fetch code
+     runs-on: ubuntu-latest
+     steps:
+     - uses: actions/checkout@v2
+diff --git a/.github/workflows/cross-compiles.yml b/.github/workflows/cross-compiles.yml
+index ebfc13c626..60987e0623 100644
+--- a/.github/workflows/cross-compiles.yml
++++ b/.github/workflows/cross-compiles.yml
+@@ -9,6 +9,9 @@ name: Cross Compile
+ 
+ on: [pull_request, push]
+ 
++permissions:
++  contents: read
++
+ jobs:
+   cross-compilation:
+     strategy:
+diff --git a/.github/workflows/fips-checksums.yml b/.github/workflows/fips-checksums.yml
+index 78351981d5..176b3dea30 100644
+--- a/.github/workflows/fips-checksums.yml
++++ b/.github/workflows/fips-checksums.yml
+@@ -8,6 +8,9 @@
+ name: FIPS Checksums
+ on: [pull_request]
+ 
++permissions:
++  contents: read
++
+ jobs:
+   compute-checksums:
+     runs-on: ubuntu-latest
+diff --git a/.github/workflows/fips-label.yml b/.github/workflows/fips-label.yml
+index c241801b9e..a22e9bf069 100644
+--- a/.github/workflows/fips-label.yml
++++ b/.github/workflows/fips-label.yml
+@@ -12,8 +12,14 @@ on:
+     types:
+       - completed
+ 
++permissions:
++  contents: read
++
+ jobs:
+   apply-label:
++    permissions:
++      actions: read
++      pull-requests: write
+     runs-on: ubuntu-latest
+     if: ${{ github.event.workflow_run.event == 'pull_request' }}
+     steps:
+diff --git a/.github/workflows/fuzz-checker.yml b/.github/workflows/fuzz-checker.yml
+index 4d3bf35884..9e5627fd03 100644
+--- a/.github/workflows/fuzz-checker.yml
++++ b/.github/workflows/fuzz-checker.yml
+@@ -9,6 +9,9 @@ name: Fuzz-checker CI
+ 
+ on: [push]
+ 
++permissions:
++  contents: read
++
+ jobs:
+   fuzz-checker:
+     strategy:
+diff --git a/.github/workflows/main.yml b/.github/workflows/main.yml
+index 4ad9c0c1fa..0646e5e713 100644
+--- a/.github/workflows/main.yml
++++ b/.github/workflows/main.yml
+@@ -7,6 +7,9 @@
+ 
+ name: CIFuzz
+ on: [pull_request, push]
++permissions:
++  contents: read
++
+ jobs:
+   Fuzzing:
+     runs-on: ubuntu-latest
+diff --git a/.github/workflows/run-checker-ci.yml b/.github/workflows/run-checker-ci.yml
+index 1fa716f94a..cfc458ac58 100644
+--- a/.github/workflows/run-checker-ci.yml
++++ b/.github/workflows/run-checker-ci.yml
+@@ -8,6 +8,9 @@
+ # Jobs run per pull request submission
+ name: Run-checker CI
+ on: [pull_request, push]
++permissions:
++  contents: read
++
+ jobs:
+   run-checker:
+     strategy:
+diff --git a/.github/workflows/run-checker-daily.yml b/.github/workflows/run-checker-daily.yml
+index 0937d2f57d..d3f1b25c65 100644
+--- a/.github/workflows/run-checker-daily.yml
++++ b/.github/workflows/run-checker-daily.yml
+@@ -11,6 +11,9 @@ name: Run-checker daily
+ on:
+   schedule:
+     - cron: '0 6 * * *'
++permissions:
++  contents: read
++
+ jobs:
+   run-checker:
+     strategy:
+diff --git a/.github/workflows/run-checker-merge.yml b/.github/workflows/run-checker-merge.yml
+index 7795ab1db2..dcc9d0d15f 100644
+--- a/.github/workflows/run-checker-merge.yml
++++ b/.github/workflows/run-checker-merge.yml
+@@ -9,6 +9,9 @@ name: Run-checker merge
+ # Jobs run per merge to master
+ 
+ on: [push]
++permissions:
++  contents: read
++
+ jobs:
+   run-checker:
+     strategy:
+diff --git a/.github/workflows/windows.yml b/.github/workflows/windows.yml
+index c530ba0780..92052cf49b 100644
+--- a/.github/workflows/windows.yml
++++ b/.github/workflows/windows.yml
+@@ -9,6 +9,9 @@ name: Windows GitHub CI
+ 
+ on: [pull_request, push]
+ 
++permissions:
++  contents: read
++
+ jobs:
+   shared:
+     # Run a job for each of the specified target architectures:
+-- 
+2.34.1
+

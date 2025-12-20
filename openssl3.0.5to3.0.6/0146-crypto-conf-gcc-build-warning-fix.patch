@@ -1,0 +1,52 @@
+From 94f47ea43e741d8e183b1abb7f48660357f54279 Mon Sep 17 00:00:00 2001
+From: Gang Chen <gang.c.chen@intel.com>
+Date: Wed, 7 Sep 2022 14:31:31 +0800
+Subject: [PATCH 146/209] crypto/conf: gcc build warning fix
+
+Fix the gcc build warning from conf_sap.c:
+variable flags set but not used [-Wunused-but-set-variable]
+variable appname set but not used [-Wunused-but-set-variable]
+variable filename set but not used [-Wunused-but-set-variable]
+
+CLA: trivial
+
+Signed-off-by: Gang Chen <gang.c.chen@intel.com>
+
+Reviewed-by: Tomas Mraz <tomas@openssl.org>
+Reviewed-by: Paul Dale <pauli@openssl.org>
+Reviewed-by: Hugo Landau <hlandau@openssl.org>
+(Merged from https://github.com/openssl/openssl/pull/19153)
+
+(cherry picked from commit 8ae080bf851a25187b93803b8c6a93e82dd97437)
+---
+ crypto/conf/conf_sap.c | 4 ++++
+ 1 file changed, 4 insertions(+)
+
+diff --git a/crypto/conf/conf_sap.c b/crypto/conf/conf_sap.c
+index 6742ecf87f..2b50a9fd0d 100644
+--- a/crypto/conf/conf_sap.c
++++ b/crypto/conf/conf_sap.c
+@@ -44,16 +44,20 @@ void OPENSSL_config(const char *appname)
+ int ossl_config_int(const OPENSSL_INIT_SETTINGS *settings)
+ {
+     int ret = 0;
++#if defined(OPENSSL_INIT_DEBUG) || !defined(OPENSSL_SYS_UEFI)
+     const char *filename;
+     const char *appname;
+     unsigned long flags;
++#endif
+ 
+     if (openssl_configured)
+         return 1;
+ 
++#if defined(OPENSSL_INIT_DEBUG) || !defined(OPENSSL_SYS_UEFI)
+     filename = settings ? settings->filename : NULL;
+     appname = settings ? settings->appname : NULL;
+     flags = settings ? settings->flags : DEFAULT_CONF_MFLAGS;
++#endif
+ 
+ #ifdef OPENSSL_INIT_DEBUG
+     fprintf(stderr, "OPENSSL_INIT: ossl_config_int(%s, %s, %lu)\n",
+-- 
+2.34.1
+

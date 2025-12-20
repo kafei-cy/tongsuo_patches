@@ -1,0 +1,44 @@
+From 03421456b3eb745b8cdd908a3fcd3014132adf5b Mon Sep 17 00:00:00 2001
+From: "Dr. David von Oheimb" <David.von.Oheimb@siemens.com>
+Date: Wed, 13 Jul 2022 00:05:48 +0200
+Subject: [PATCH 066/209] check-format.pl: fix false positive on 'for(;; stmt)'
+
+Reviewed-by: Richard Levitte <levitte@openssl.org>
+Reviewed-by: Paul Dale <pauli@openssl.org>
+Reviewed-by: Hugo Landau <hlandau@openssl.org>
+(cherry picked from commit 4e9fa07121abf3ebaaf7e0367bd9be3a8b273ebf)
+---
+ util/check-format-test-negatives.c | 4 ++++
+ util/check-format.pl               | 1 +
+ 2 files changed, 5 insertions(+)
+
+diff --git a/util/check-format-test-negatives.c b/util/check-format-test-negatives.c
+index 4d925572c4..58a1f59e6c 100644
+--- a/util/check-format-test-negatives.c
++++ b/util/check-format-test-negatives.c
+@@ -70,6 +70,10 @@ int f(void) /*
+         ;
+     for (i = 0; i < 1;)
+         ;
++    for (;;)
++        for (; i < n; i++)
++            for (;; p++)
++                ;
+     for (;;) ; /* should not trigger: space before ';' */
+  lab: ;  /* should not trigger: space before ';' */
+ 
+diff --git a/util/check-format.pl b/util/check-format.pl
+index 705455020d..9fcebb4382 100755
+--- a/util/check-format.pl
++++ b/util/check-format.pl
+@@ -677,6 +677,7 @@ while (<>) { # loop over all lines of all input files
+         $intra_line =~ s/\s+$//;                     # strip any (resulting) space at EOL
+         $intra_line =~ s/(for\s*\([^;]*);;(\))/"$1$2"/eg; # strip trailing ';;' in for (;;)
+         $intra_line =~ s/(for\s*\([^;]+;[^;]+);(\))/"$1$2"/eg; # strip trailing ';' in for (;;)
++        $intra_line =~ s/(for\s*\();(;)/"$1$2"/eg;   # replace leading ';;' in for (;;) by ';'
+         $intra_line =~ s/(=\s*)\{ /"$1@ "/eg;        # do not report {SPC in initializers such as ' = { 0, };'
+         $intra_line =~ s/, \};/, @;/g;               # do not report SPC} in initializers such as ' = { 0, };'
+         report("space before '$1'") if $intra_line =~ m/[\w)\]]\s+(\+\+|--)/;  # postfix ++/-- with preceding space
+-- 
+2.34.1
+

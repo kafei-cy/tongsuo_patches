@@ -1,0 +1,31 @@
+From 25c486762daf8a279676e3e98136855e2e021100 Mon Sep 17 00:00:00 2001
+From: Pauli <pauli@openssl.org>
+Date: Mon, 22 Aug 2022 11:06:57 +1000
+Subject: [PATCH 133/209] Coverity 1508532: out of bounds access
+
+Reviewed-by: Tomas Mraz <tomas@openssl.org>
+Reviewed-by: Hugo Landau <hlandau@openssl.org>
+(Merged from https://github.com/openssl/openssl/pull/19033)
+
+(cherry picked from commit eb7a5cc3454174094c0c09f1d00aec464ce0f786)
+---
+ crypto/dh/dh_pmeth.c | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/crypto/dh/dh_pmeth.c b/crypto/dh/dh_pmeth.c
+index 1ad50b850d..bd7902c433 100644
+--- a/crypto/dh/dh_pmeth.c
++++ b/crypto/dh/dh_pmeth.c
+@@ -432,7 +432,8 @@ static int pkey_dh_derive(EVP_PKEY_CTX *ctx, unsigned char *key,
+     else if (dctx->kdf_type == EVP_PKEY_DH_KDF_X9_42) {
+ 
+         unsigned char *Z = NULL;
+-        size_t Zlen = 0;
++        int Zlen = 0;
++
+         if (!dctx->kdf_outlen || !dctx->kdf_oid)
+             return 0;
+         if (key == NULL) {
+-- 
+2.34.1
+

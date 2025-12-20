@@ -1,0 +1,55 @@
+From c71728b0d0ceaca5618e6fca2f2f41e6659624f4 Mon Sep 17 00:00:00 2001
+From: Richard Levitte <levitte@openssl.org>
+Date: Tue, 27 Sep 2022 18:51:57 +0200
+Subject: [PATCH 193/209] OpenSSL::config: Fix trivial bugs
+
+Reviewed-by: Hugo Landau <hlandau@openssl.org>
+Reviewed-by: Matt Caswell <matt@openssl.org>
+(Merged from https://github.com/openssl/openssl/pull/19285)
+
+(cherry picked from commit 2ba5bffa26c0c4677f48e730628c0b54c31c734c)
+---
+ util/perl/OpenSSL/config.pm | 8 ++++++--
+ 1 file changed, 6 insertions(+), 2 deletions(-)
+
+diff --git a/util/perl/OpenSSL/config.pm b/util/perl/OpenSSL/config.pm
+index 4c2cbd49a5..2f1edcafb6 100755
+--- a/util/perl/OpenSSL/config.pm
++++ b/util/perl/OpenSSL/config.pm
+@@ -15,6 +15,7 @@ use strict;
+ use warnings;
+ use Getopt::Std;
+ use File::Basename;
++use File::Spec;
+ use IPC::Cmd;
+ use POSIX;
+ use Config;
+@@ -51,12 +52,15 @@ my @c_compilers = qw(clang gcc cc);
+ my @cc_version =
+     (
+      clang => sub {
++         return undef unless IPC::Cmd::can_run("$CROSS_COMPILE$CC");
+          my $v = `$CROSS_COMPILE$CC -v 2>&1`;
+          $v =~ m/(?:(?:clang|LLVM) version|.*based on LLVM)\s+([0-9]+\.[0-9]+)/;
+          return $1;
+      },
+      gnu => sub {
+-         my $v = `$CROSS_COMPILE$CC -dumpversion 2>/dev/null`;
++         return undef unless IPC::Cmd::can_run("$CROSS_COMPILE$CC");
++         my $nul = File::Spec->devnull();
++         my $v = `$CROSS_COMPILE$CC -dumpversion 2> $nul`;
+          # Strip off whatever prefix egcs prepends the number with.
+          # Hopefully, this will work for any future prefixes as well.
+          $v =~ s/^[a-zA-Z]*\-//;
+@@ -900,7 +904,7 @@ EOF
+             } else {
+                 $config{disable} = [ 'asm' ];
+             }
+-            return %config;
++            return { %config };
+         }
+       ],
+ 
+-- 
+2.34.1
+

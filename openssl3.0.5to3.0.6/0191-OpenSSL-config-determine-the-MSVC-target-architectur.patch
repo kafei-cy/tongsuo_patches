@@ -1,0 +1,127 @@
+From 79eeaf97dd2ab5153875ea92699fe1b421869aa6 Mon Sep 17 00:00:00 2001
+From: Richard Levitte <levitte@openssl.org>
+Date: Tue, 27 Sep 2022 18:31:15 +0200
+Subject: [PATCH 191/209] OpenSSL::config: determine the MSVC target
+ architecture by asking cl
+
+Since cl knows what architecture it builds fore, all depending on what
+the user set up, it makes sense to ask it, and use that result primarly,
+and only use the POSIX::uname() MACHINE value as a fallback.
+
+Also, this does indeed determine if cl is present or not.
+
+We drop the explicit names in .github/workflows/windows.yml as proof
+of concept.
+
+Fixes #19281
+
+Reviewed-by: Hugo Landau <hlandau@openssl.org>
+Reviewed-by: Matt Caswell <matt@openssl.org>
+(Merged from https://github.com/openssl/openssl/pull/19285)
+
+(cherry picked from commit 0747f94b5f7b7f07f21384507ba1adaea6f99e88)
+---
+ .github/workflows/windows.yml |  6 ++---
+ util/perl/OpenSSL/config.pm   | 47 ++++++++++++++++++++++++++++++++---
+ 2 files changed, 47 insertions(+), 6 deletions(-)
+
+diff --git a/.github/workflows/windows.yml b/.github/workflows/windows.yml
+index 92052cf49b..f5b33dde05 100644
+--- a/.github/workflows/windows.yml
++++ b/.github/workflows/windows.yml
+@@ -22,9 +22,9 @@ jobs:
+           - windows-2022
+         platform:
+           - arch: win64
+-            config: VC-WIN64A enable-fips
++            config: enable-fips
+           - arch: win32
+-            config: VC-WIN32 --strict-warnings no-fips
++            config: --strict-warnings no-fips
+     runs-on: ${{matrix.os}}
+     steps:
+     - uses: actions/checkout@v2
+@@ -95,7 +95,7 @@ jobs:
+     - name: config
+       working-directory: _build
+       run: |
+-        perl ..\Configure --banner=Configured no-makedepend no-bulk no-deprecated no-fips no-asm -DOPENSSL_SMALL_FOOTPRINT VC-WIN64A
++        perl ..\Configure --banner=Configured no-makedepend no-bulk no-deprecated no-fips no-asm -DOPENSSL_SMALL_FOOTPRINT
+         perl configdata.pm --dump
+     - name: build
+       working-directory: _build
+diff --git a/util/perl/OpenSSL/config.pm b/util/perl/OpenSSL/config.pm
+index 84485abae5..cd6b13929d 100755
+--- a/util/perl/OpenSSL/config.pm
++++ b/util/perl/OpenSSL/config.pm
+@@ -32,6 +32,7 @@ my $SYSTEM;
+ my $VERSION;
+ my $CCVENDOR;
+ my $CCVER;
++my $CL_ARCH;
+ my $GCC_BITS;
+ my $GCC_ARCH;
+ 
+@@ -378,6 +379,22 @@ sub determine_compiler_settings {
+                 $CCVER = $v;
+             }
+         }
++
++        # 'Windows NT' is the system name according to POSIX::uname()!
++        if ( $SYSTEM eq "Windows NT" ) {
++            # favor vendor cl over gcc
++            if (IPC::Cmd::can_run('cl')) {
++                $CC = 'cl';
++                $CCVENDOR = ''; # Determine later
++                $CCVER = 0;
++
++                my $v = `cl 2>&1`;
++                if ( $v =~ /Microsoft .* Version ([0-9\.]+) for (x86|x64|ARM|ia64)/ ) {
++                    $CCVER = $1;
++                    $CL_ARCH = $2;
++                }
++            }
++        }
+     }
+ 
+     # If no C compiler has been determined at this point, we die.  Hard.
+@@ -881,9 +898,33 @@ EOF
+       ],
+ 
+       # Windows values found by looking at Perl 5's win32/win32.c
+-      [ 'amd64-.*?-Windows NT',   { target => 'VC-WIN64A' } ],
+-      [ 'ia64-.*?-Windows NT',    { target => 'VC-WIN64I' } ],
+-      [ 'x86-.*?-Windows NT',     { target => 'VC-WIN32'  } ],
++      [ '(amd64|ia64|x86|ARM)-.*?-Windows NT',
++        sub {
++            # If we determined the arch by asking cl, take that value,
++            # otherwise the SYSTEM we got from from POSIX::uname().
++            my $arch = $CL_ARCH // $1;
++            my $config;
++
++            if ($arch) {
++                $config = { 'amd64' => { target => 'VC-WIN64A'    },
++                            'ia64'  => { target => 'VC-WIN64I'    },
++                            'x86'   => { target => 'VC-WIN32'     },
++                            'x64'   => { target => 'VC-WIN64A'    },
++                            'ARM'   => { target => 'VC-WIN64-ARM' },
++                          } -> {$arch};
++                die <<_____ unless defined $config;
++ERROR
++I do not know how to handle ${arch}.
++_____
++            }
++            die <<_____ unless defined $config;
++ERROR
++Could not figure out the architecture.
++_____
++
++            return $config;
++        }
++      ],
+ 
+       # VMS values found by observation on existing machinery.
+       # Unfortunately, the machine part is a bit...  overdone.  It seems,
+-- 
+2.34.1
+

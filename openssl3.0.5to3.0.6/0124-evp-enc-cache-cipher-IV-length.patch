@@ -1,0 +1,146 @@
+From 87ceff925f5f1d43dac0413f36c8b7bba94e4a41 Mon Sep 17 00:00:00 2001
+From: Pauli <pauli@openssl.org>
+Date: Wed, 26 Jan 2022 15:04:51 +1100
+Subject: [PATCH 124/209] evp enc: cache cipher IV length
+
+Instead of doing a heavy params based query every time a context is asked for
+its IV length, this value is cached in the context and only queried if it could
+have been modified.
+
+Fixes #17064
+
+Reviewed-by: Tomas Mraz <tomas@openssl.org>
+Reviewed-by: Matt Caswell <matt@openssl.org>
+(Merged from https://github.com/openssl/openssl/pull/18995)
+---
+ crypto/evp/evp_enc.c   | 11 ++++++++++-
+ crypto/evp/evp_lib.c   | 42 ++++++++++++++++++++++++++----------------
+ crypto/evp/evp_local.h |  1 +
+ 3 files changed, 37 insertions(+), 17 deletions(-)
+
+diff --git a/crypto/evp/evp_enc.c b/crypto/evp/evp_enc.c
+index e69da3f9a0..012422630a 100644
+--- a/crypto/evp/evp_enc.c
++++ b/crypto/evp/evp_enc.c
+@@ -43,6 +43,7 @@ int EVP_CIPHER_CTX_reset(EVP_CIPHER_CTX *ctx)
+     if (ctx->fetched_cipher != NULL)
+         EVP_CIPHER_free(ctx->fetched_cipher);
+     memset(ctx, 0, sizeof(*ctx));
++    ctx->iv_len = -1;
+ 
+     return 1;
+ 
+@@ -61,6 +62,7 @@ int EVP_CIPHER_CTX_reset(EVP_CIPHER_CTX *ctx)
+     ENGINE_finish(ctx->engine);
+ #endif
+     memset(ctx, 0, sizeof(*ctx));
++    ctx->iv_len = -1;
+     return 1;
+ }
+ 
+@@ -87,6 +89,9 @@ static int evp_cipher_init_internal(EVP_CIPHER_CTX *ctx,
+ #if !defined(OPENSSL_NO_ENGINE) && !defined(FIPS_MODULE)
+     ENGINE *tmpimpl = NULL;
+ #endif
++
++    ctx->iv_len = -1;
++
+     /*
+      * enc == 1 means we are encrypting.
+      * enc == 0 means we are decrypting.
+@@ -1085,12 +1090,14 @@ int EVP_CIPHER_CTX_ctrl(EVP_CIPHER_CTX *ctx, int type, int arg, void *ptr)
+         if (arg < 0)
+             return 0;
+         params[0] = OSSL_PARAM_construct_size_t(OSSL_CIPHER_PARAM_IVLEN, &sz);
++        ctx->iv_len = -1;
+         break;
+     case EVP_CTRL_CCM_SET_L:
+         if (arg < 2 || arg > 8)
+             return 0;
+         sz = 15 - arg;
+         params[0] = OSSL_PARAM_construct_size_t(OSSL_CIPHER_PARAM_IVLEN, &sz);
++        ctx->iv_len = -1;
+         break;
+     case EVP_CTRL_AEAD_SET_IV_FIXED:
+         params[0] = OSSL_PARAM_construct_octet_string(
+@@ -1254,8 +1261,10 @@ int EVP_CIPHER_get_params(EVP_CIPHER *cipher, OSSL_PARAM params[])
+ 
+ int EVP_CIPHER_CTX_set_params(EVP_CIPHER_CTX *ctx, const OSSL_PARAM params[])
+ {
+-    if (ctx->cipher != NULL && ctx->cipher->set_ctx_params != NULL)
++    if (ctx->cipher != NULL && ctx->cipher->set_ctx_params != NULL) {
++        ctx->iv_len = -1;
+         return ctx->cipher->set_ctx_params(ctx->algctx, params);
++    }
+     return 0;
+ }
+ 
+diff --git a/crypto/evp/evp_lib.c b/crypto/evp/evp_lib.c
+index d5ae5ca4ad..e0ad6cf93e 100644
+--- a/crypto/evp/evp_lib.c
++++ b/crypto/evp/evp_lib.c
+@@ -504,23 +504,33 @@ int EVP_CIPHER_get_iv_length(const EVP_CIPHER *cipher)
+ 
+ int EVP_CIPHER_CTX_get_iv_length(const EVP_CIPHER_CTX *ctx)
+ {
+-    int rv, len = EVP_CIPHER_get_iv_length(ctx->cipher);
+-    size_t v = len;
+-    OSSL_PARAM params[2] = { OSSL_PARAM_END, OSSL_PARAM_END };
+-
+-    params[0] = OSSL_PARAM_construct_size_t(OSSL_CIPHER_PARAM_IVLEN, &v);
+-    rv = evp_do_ciph_ctx_getparams(ctx->cipher, ctx->algctx, params);
+-    if (rv == EVP_CTRL_RET_UNSUPPORTED)
+-        goto legacy;
+-    return rv != 0 ? (int)v : -1;
+-    /* Code below to be removed when legacy support is dropped. */
+-legacy:
+-    if ((EVP_CIPHER_get_flags(ctx->cipher) & EVP_CIPH_CUSTOM_IV_LENGTH) != 0) {
+-        rv = EVP_CIPHER_CTX_ctrl((EVP_CIPHER_CTX *)ctx, EVP_CTRL_GET_IVLEN,
+-                                 0, &len);
+-        return (rv == 1) ? len : -1;
++    if (ctx->iv_len < 0) {
++        int rv, len = EVP_CIPHER_get_iv_length(ctx->cipher);
++        size_t v = len;
++        OSSL_PARAM params[2] = { OSSL_PARAM_END, OSSL_PARAM_END };
++
++        params[0] = OSSL_PARAM_construct_size_t(OSSL_CIPHER_PARAM_IVLEN, &v);
++        rv = evp_do_ciph_ctx_getparams(ctx->cipher, ctx->algctx, params);
++        if (rv != EVP_CTRL_RET_UNSUPPORTED) {
++            if (rv <= 0)
++                return -1;
++            len = (int)v;
++        }
++        /* Code below to be removed when legacy support is dropped. */
++        else if ((EVP_CIPHER_get_flags(ctx->cipher)
++                  & EVP_CIPH_CUSTOM_IV_LENGTH) != 0) {
++            rv = EVP_CIPHER_CTX_ctrl((EVP_CIPHER_CTX *)ctx, EVP_CTRL_GET_IVLEN,
++                                     0, &len);
++            if (rv <= 0)
++                return -1;
++        }
++        /*-
++         * Casting away the const is annoying but required here.  We need to
++         * cache the result for performance reasons.
++         */
++        ((EVP_CIPHER_CTX *)ctx)->iv_len = len;
+     }
+-    return len;
++    return ctx->iv_len;
+ }
+ 
+ int EVP_CIPHER_CTX_get_tag_length(const EVP_CIPHER_CTX *ctx)
+diff --git a/crypto/evp/evp_local.h b/crypto/evp/evp_local.h
+index 13e248d384..3ccfaeb37c 100644
+--- a/crypto/evp/evp_local.h
++++ b/crypto/evp/evp_local.h
+@@ -46,6 +46,7 @@ struct evp_cipher_ctx_st {
+     /* FIXME: Should this even exist? It appears unused */
+     void *app_data;             /* application stuff */
+     int key_len;                /* May change for variable length cipher */
++    int iv_len;                 /* IV length */
+     unsigned long flags;        /* Various flags */
+     void *cipher_data;          /* per EVP data */
+     int final_used;
+-- 
+2.34.1
+

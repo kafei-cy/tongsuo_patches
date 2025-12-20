@@ -1,0 +1,42 @@
+From 682d4a1204bc0a4c19ad3dd23f09d1e76959f8cf Mon Sep 17 00:00:00 2001
+From: valdaarhun <icegambit91@gmail.com>
+Date: Thu, 11 Aug 2022 00:48:05 +0530
+Subject: [PATCH 117/209] Fix memory leak in BN_rand_range()
+
+The patch enables BN_rand_range() to exit immediately
+if BIGNUM *rnd is NULL.
+
+CLA: trivial
+
+Fixes: #18951
+
+Reviewed-by: Matt Caswell <matt@openssl.org>
+Reviewed-by: Paul Dale <pauli@openssl.org>
+Reviewed-by: Hugo Landau <hlandau@openssl.org>
+Reviewed-by: Tomas Mraz <tomas@openssl.org>
+(Merged from https://github.com/openssl/openssl/pull/18982)
+
+(cherry picked from commit 70f589ae41928edda18470ba1c3df82af02a92b3)
+---
+ crypto/bn/bn_rand.c | 5 +++++
+ 1 file changed, 5 insertions(+)
+
+diff --git a/crypto/bn/bn_rand.c b/crypto/bn/bn_rand.c
+index 1b49596990..fd17e7a601 100644
+--- a/crypto/bn/bn_rand.c
++++ b/crypto/bn/bn_rand.c
+@@ -136,6 +136,11 @@ static int bnrand_range(BNRAND_FLAG flag, BIGNUM *r, const BIGNUM *range,
+     int n;
+     int count = 100;
+ 
++    if (r == NULL) {
++        ERR_raise(ERR_LIB_BN, ERR_R_PASSED_NULL_PARAMETER);
++        return 0;
++    }
++
+     if (range->neg || BN_is_zero(range)) {
+         ERR_raise(ERR_LIB_BN, BN_R_INVALID_RANGE);
+         return 0;
+-- 
+2.34.1
+

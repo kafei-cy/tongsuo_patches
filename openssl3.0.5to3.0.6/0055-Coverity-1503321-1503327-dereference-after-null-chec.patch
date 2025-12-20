@@ -1,0 +1,33 @@
+From 3cfc2a967a4a5313f141ae433b833f3c6c9a5643 Mon Sep 17 00:00:00 2001
+From: Pauli <pauli@openssl.org>
+Date: Tue, 19 Jul 2022 11:01:57 +1000
+Subject: [PATCH 055/209] Coverity 1503321 & 1503327: dereference after null
+ check
+
+The earlier fix being inadequate
+
+Reviewed-by: Tomas Mraz <tomas@openssl.org>
+Reviewed-by: Dmitry Belyavskiy <beldmit@gmail.com>
+(Merged from https://github.com/openssl/openssl/pull/18822)
+
+(cherry picked from commit f913c3cd7e22eecbcc8f84b72c645081fa37fdf4)
+---
+ crypto/provider_core.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/crypto/provider_core.c b/crypto/provider_core.c
+index 7f417f734b..c9e87d9f67 100644
+--- a/crypto/provider_core.c
++++ b/crypto/provider_core.c
+@@ -1260,7 +1260,7 @@ int ossl_provider_deactivate(OSSL_PROVIDER *prov, int removechildren)
+ 
+ void *ossl_provider_ctx(const OSSL_PROVIDER *prov)
+ {
+-    return prov->provctx != NULL ? prov->provctx : NULL;
++    return prov != NULL ? prov->provctx : NULL;
+ }
+ 
+ /*
+-- 
+2.34.1
+

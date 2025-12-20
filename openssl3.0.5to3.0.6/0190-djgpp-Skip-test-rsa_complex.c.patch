@@ -1,0 +1,47 @@
+From ae4fc850a70f34d636024fe7c526d45f58560e6d Mon Sep 17 00:00:00 2001
+From: "J.W. Jagersma" <jwjagersma@gmail.com>
+Date: Tue, 27 Sep 2022 18:52:05 +0200
+Subject: [PATCH 190/209] djgpp: Skip test/rsa_complex.c
+
+We don't have <complex.h> on djgpp, so this entire test can be skipped.
+
+Reviewed-by: Richard Levitte <levitte@openssl.org>
+Reviewed-by: Hugo Landau <hlandau@openssl.org>
+Reviewed-by: Tomas Mraz <tomas@openssl.org>
+(Merged from https://github.com/openssl/openssl/pull/19286)
+
+(cherry picked from commit 2de00f4f1e20d3dd4cb8e3165f30146c1294f6d4)
+---
+ test/rsa_complex.c | 13 +++++++++----
+ 1 file changed, 9 insertions(+), 4 deletions(-)
+
+diff --git a/test/rsa_complex.c b/test/rsa_complex.c
+index 66b85f0ca0..7c77980f54 100644
+--- a/test/rsa_complex.c
++++ b/test/rsa_complex.c
+@@ -11,13 +11,18 @@
+  * Check to see if there is a conflict between complex.h and openssl/rsa.h.
+  * The former defines "I" as a macro and earlier versions of the latter use
+  * for function arguments.
++ *
++ * Will always succeed on djgpp, since its libc does not have complex.h.
+  */
+-#if defined(__STDC_VERSION__)
+-# if __STDC_VERSION__ >= 199901L
+-#  include <complex.h>
++
++#if !defined(__DJGPP__)
++# if defined(__STDC_VERSION__)
++#  if __STDC_VERSION__ >= 199901L
++#   include <complex.h>
++#  endif
+ # endif
++# include <openssl/rsa.h>
+ #endif
+-#include <openssl/rsa.h>
+ #include <stdlib.h>
+ 
+ int main(int argc, char *argv[])
+-- 
+2.34.1
+

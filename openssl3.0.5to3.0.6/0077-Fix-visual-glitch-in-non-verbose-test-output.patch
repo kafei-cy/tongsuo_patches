@@ -1,0 +1,53 @@
+From 625849ef3834d66d59559648420e4506cb1f3671 Mon Sep 17 00:00:00 2001
+From: Bernd Edlinger <bernd.edlinger@hotmail.de>
+Date: Tue, 24 May 2022 18:48:02 +0200
+Subject: [PATCH 077/209] Fix visual glitch in non-verbose test output
+
+This fixes a glitch in the non-verbose test output
+$ make test
+[...]
+80-test_ciphername.t .... ok
+80-test_cmp_http.t ...... 5/?
+80-test_cmp_http.t ...... ok   611
+80-test_cms.t ........... ok
+80-test_cmsapi.t ........ ok
+
+Reviewed-by: Tomas Mraz <tomas@openssl.org>
+Reviewed-by: Matt Caswell <matt@openssl.org>
+(Merged from https://github.com/openssl/openssl/pull/18401)
+
+(cherry picked from commit 128d1c3c0a12fe68175a460e06daf1e0d940f681)
+---
+ test/recipes/80-test_cmp_http.t | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)
+
+diff --git a/test/recipes/80-test_cmp_http.t b/test/recipes/80-test_cmp_http.t
+index 92f11e8ac8..beb3b7a136 100644
+--- a/test/recipes/80-test_cmp_http.t
++++ b/test/recipes/80-test_cmp_http.t
+@@ -170,7 +170,7 @@ sub test_cmp_http_aspect {
+ # from $BLDTOP/test-runs/test_cmp_http and prepending the input files by SRCTOP.
+ 
+ indir data_dir() => sub {
+-    plan tests => @server_configurations * @all_aspects
++    plan tests => 1 + @server_configurations * @all_aspects
+         + (grep(/^Mock$/, @server_configurations)
+            && grep(/^certstatus$/, @all_aspects));
+ 
+@@ -196,6 +196,7 @@ indir data_dir() => sub {
+                 };
+             };
+             stop_mock_server($pid) if $pid;
++            ok(1, "killing mock server");
+           }
+         }
+     };
+@@ -293,4 +294,5 @@ sub stop_mock_server {
+     my $pid = $_[0];
+     print "Killing mock server with pid=$pid\n";
+     kill('KILL', $pid);
++    waitpid($pid, 0);
+ }
+-- 
+2.34.1
+

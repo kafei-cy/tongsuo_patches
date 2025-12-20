@@ -1,0 +1,48 @@
+From ae8a8f06190c96b4252685ba2bf293893200af83 Mon Sep 17 00:00:00 2001
+From: "Dr. David von Oheimb" <David.von.Oheimb@siemens.com>
+Date: Tue, 28 Jun 2022 11:30:50 +0200
+Subject: [PATCH 005/209] app_http_tls_cb(): fix crash on inconsistency w.r.t.
+ use of TLS
+
+This happens if use_ssl is not set but an SSL_CTX is provided.
+
+Reviewed-by: Tomas Mraz <tomas@openssl.org>
+Reviewed-by: Paul Dale <pauli@openssl.org>
+Reviewed-by: Hugo Landau <hlandau@openssl.org>
+(Merged from https://github.com/openssl/openssl/pull/18674)
+
+(cherry picked from commit 96e13a1679872d879683346c1e09ca227f77efb0)
+---
+ apps/lib/apps.c | 9 ++++++++-
+ 1 file changed, 8 insertions(+), 1 deletion(-)
+
+diff --git a/apps/lib/apps.c b/apps/lib/apps.c
+index 7e6d902409..8b952a1b03 100644
+--- a/apps/lib/apps.c
++++ b/apps/lib/apps.c
+@@ -2458,7 +2458,9 @@ BIO *app_http_tls_cb(BIO *bio, void *arg, int connect, int detail)
+     APP_HTTP_TLS_INFO *info = (APP_HTTP_TLS_INFO *)arg;
+     SSL_CTX *ssl_ctx = info->ssl_ctx;
+ 
+-    if (connect && detail) { /* connecting with TLS */
++    if (ssl_ctx == NULL) /* not using TLS */
++        return bio;
++    if (connect) {
+         SSL *ssl;
+         BIO *sbio = NULL;
+ 
+@@ -2538,6 +2540,11 @@ ASN1_VALUE *app_http_get_asn1(const char *url, const char *proxy,
+                        "missing SSL_CTX");
+         goto end;
+     }
++    if (!use_ssl && ssl_ctx != NULL) {
++        ERR_raise_data(ERR_LIB_HTTP, ERR_R_PASSED_INVALID_ARGUMENT,
++                       "SSL_CTX given but use_ssl == 0");
++        goto end;
++    }
+ 
+     info.server = server;
+     info.port = port;
+-- 
+2.34.1
+

@@ -1,0 +1,33 @@
+From d3cc10eb0ee31a3950bb310c8201614fb076f759 Mon Sep 17 00:00:00 2001
+From: Pauli <pauli@openssl.org>
+Date: Tue, 19 Jul 2022 11:04:32 +1000
+Subject: [PATCH 056/209] Coverity 1507372: explicit null dereference
+
+Reviewed-by: Tomas Mraz <tomas@openssl.org>
+Reviewed-by: Dmitry Belyavskiy <beldmit@gmail.com>
+(Merged from https://github.com/openssl/openssl/pull/18822)
+
+(cherry picked from commit d768f853bb05b5a49a2aeb5b5702776834e68d06)
+---
+ test/evp_extra_test2.c | 5 ++---
+ 1 file changed, 2 insertions(+), 3 deletions(-)
+
+diff --git a/test/evp_extra_test2.c b/test/evp_extra_test2.c
+index 75072885c2..a17afc5ff3 100644
+--- a/test/evp_extra_test2.c
++++ b/test/evp_extra_test2.c
+@@ -346,9 +346,8 @@ static int test_dh_tofrom_data_select(void)
+           && TEST_int_gt(EVP_PKEY_generate(gctx, &key), 0)
+           && TEST_true(do_pkey_tofrom_data_select(key, "DHX"));
+ # ifndef OPENSSL_NO_DEPRECATED_3_0
+-    dhkey = EVP_PKEY_get0_DH(key);
+-    ret = ret && TEST_ptr(dhkey);
+-    ret = ret && TEST_ptr(privkey = DH_get0_priv_key(dhkey))
++    ret = ret && TEST_ptr(dhkey = EVP_PKEY_get0_DH(key))
++              && TEST_ptr(privkey = DH_get0_priv_key(dhkey))
+               && TEST_int_le(BN_num_bits(privkey), 225);
+ # endif
+     EVP_PKEY_free(key);
+-- 
+2.34.1
+

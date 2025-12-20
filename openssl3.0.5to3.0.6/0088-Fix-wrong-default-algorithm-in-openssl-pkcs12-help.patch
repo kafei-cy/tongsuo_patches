@@ -1,0 +1,36 @@
+From f5c73318935450b4082b587eff98fa47c96755ad Mon Sep 17 00:00:00 2001
+From: Arne Schwabe <arne@rfc2549.org>
+Date: Thu, 28 Jul 2022 16:51:58 +0200
+Subject: [PATCH 088/209] Fix wrong default algorithm in openssl pkcs12 help
+
+The default that pkcs12 -export uses is SHA256 and not SHA1.
+
+CLA: Trivial
+
+Reviewed-by: Todd Short <todd.short@me.com>
+Reviewed-by: Paul Dale <pauli@openssl.org>
+Reviewed-by: Dmitry Belyavskiy <beldmit@gmail.com>
+Reviewed-by: Tomas Mraz <tomas@openssl.org>
+(Merged from https://github.com/openssl/openssl/pull/18904)
+
+(cherry picked from commit 72a85c17aae602e881c917c3f6e93bd7f7260093)
+---
+ apps/pkcs12.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/apps/pkcs12.c b/apps/pkcs12.c
+index dcb173f201..e8230d461e 100644
+--- a/apps/pkcs12.c
++++ b/apps/pkcs12.c
+@@ -143,7 +143,7 @@ const OPTIONS pkcs12_options[] = {
+      "Encrypt output with 3DES (default PBES2 with PBKDF2 and AES-256 CBC)"},
+ #endif
+     {"macalg", OPT_MACALG, 's',
+-     "Digest algorithm to use in MAC (default SHA1)"},
++     "Digest algorithm to use in MAC (default SHA256)"},
+     {"iter", OPT_ITER, 'p', "Specify the iteration count for encryption and MAC"},
+     {"noiter", OPT_NOITER, '-', "Don't use encryption iteration"},
+     {"nomaciter", OPT_NOMACITER, '-', "Don't use MAC iteration)"},
+-- 
+2.34.1
+

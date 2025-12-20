@@ -1,0 +1,34 @@
+From c09ce497e557ecf8ee44f4cb849955698b424027 Mon Sep 17 00:00:00 2001
+From: Shi Pujin <shipujin.t@gmail.com>
+Date: Fri, 15 Jul 2022 15:14:07 +0800
+Subject: [PATCH 047/209] Add loongarch64 target
+
+Reviewed-by: Richard Levitte <levitte@openssl.org>
+Reviewed-by: Tomas Mraz <tomas@openssl.org>
+Reviewed-by: Hugo Landau <hlandau@openssl.org>
+(Merged from https://github.com/openssl/openssl/pull/18807)
+---
+ Configurations/10-main.conf | 7 +++++++
+ 1 file changed, 7 insertions(+)
+
+diff --git a/Configurations/10-main.conf b/Configurations/10-main.conf
+index 66bc81dfb4..c824f4ed4a 100644
+--- a/Configurations/10-main.conf
++++ b/Configurations/10-main.conf
+@@ -818,6 +818,13 @@ my %targets = (
+         perlasm_scheme   => "linux64",
+     },
+ 
++    # loongarch64 below refers to contemporary LoongArch Architecture
++    # specifications,
++    "linux64-loongarch64" => {
++        inherit_from     => [ "linux-generic64"],
++        perlasm_scheme   => "linux64",
++    },
++
+     #### IA-32 targets...
+     #### These two targets are a bit aged and are to be used on older Linux
+     #### machines where gcc doesn't understand -m32 and -m64
+-- 
+2.34.1
+

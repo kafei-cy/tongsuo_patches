@@ -1,0 +1,35 @@
+From 6e2f619d138a20e80d69fbebe3b8f16d1eaa997c Mon Sep 17 00:00:00 2001
+From: Patrik Sevallius <patrik.sevallius@assaabloy.com>
+Date: Sun, 18 Sep 2022 12:24:56 +0200
+Subject: [PATCH 166/209] Update documentation, standard input is expected to
+ be in binary format too
+
+CLA: trivial
+
+Reviewed-by: Richard Levitte <levitte@openssl.org>
+Reviewed-by: Tomas Mraz <tomas@openssl.org>
+Reviewed-by: Hugo Landau <hlandau@openssl.org>
+(Merged from https://github.com/openssl/openssl/pull/19234)
+
+(cherry picked from commit 054189bf7a9e68a7374744e7eaea344ba1784e68)
+---
+ doc/man1/openssl-mac.pod.in | 3 +--
+ 1 file changed, 1 insertion(+), 2 deletions(-)
+
+diff --git a/doc/man1/openssl-mac.pod.in b/doc/man1/openssl-mac.pod.in
+index e76e185e08..452c546637 100644
+--- a/doc/man1/openssl-mac.pod.in
++++ b/doc/man1/openssl-mac.pod.in
+@@ -35,8 +35,7 @@ Print a usage message.
+ 
+ Input filename to calculate a MAC for, or standard input by default.
+ Standard input is used if the filename is '-'.
+-Files are expected to be in binary format, standard input uses hexadecimal text
+-format.
++Files and standard input are expected to be in binary format.
+ 
+ =item B<-out> I<filename>
+ 
+-- 
+2.34.1
+

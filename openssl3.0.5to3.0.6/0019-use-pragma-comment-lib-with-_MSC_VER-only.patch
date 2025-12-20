@@ -1,0 +1,43 @@
+From 174954c9934b7031340be06b9b2c3a14edb83dd1 Mon Sep 17 00:00:00 2001
+From: Viktor Szakats <commit@vsz.me>
+Date: Sun, 3 Jul 2022 22:30:06 +0000
+Subject: [PATCH 019/209] use #pragma comment(lib) with _MSC_VER only
+
+Avoid this warning when compiled with llvm/gcc + mingw-w64 and
+`USE_BCRYPTGENRANDOM` enabled:
+
+```
+../providers/implementations/rands/seeding/rand_win.c:31:11: warning: unknown pragma ignored [-Wunknown-pragmas]
+          ^
+1 warning generated.
+```
+
+CLA: trivial
+
+Reviewed-by: Hugo Landau <hlandau@openssl.org>
+Reviewed-by: Tomas Mraz <tomas@openssl.org>
+(Merged from https://github.com/openssl/openssl/pull/18709)
+
+(cherry picked from commit 695cb63c744bab090144a86949b68324ee3094d6)
+---
+ providers/implementations/rands/seeding/rand_win.c | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)
+
+diff --git a/providers/implementations/rands/seeding/rand_win.c b/providers/implementations/rands/seeding/rand_win.c
+index 704705425a..a21b74dd86 100644
+--- a/providers/implementations/rands/seeding/rand_win.c
++++ b/providers/implementations/rands/seeding/rand_win.c
+@@ -28,7 +28,9 @@
+ 
+ # ifdef USE_BCRYPTGENRANDOM
+ #  include <bcrypt.h>
+-#  pragma comment(lib, "bcrypt.lib")
++#  ifdef _MSC_VER
++#   pragma comment(lib, "bcrypt.lib")
++#  endif
+ #  ifndef STATUS_SUCCESS
+ #   define STATUS_SUCCESS ((NTSTATUS)0x00000000L)
+ #  endif
+-- 
+2.34.1
+

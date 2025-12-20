@@ -1,0 +1,42 @@
+From 9ab1c7612ccadba86949c5ebbf4ecc9f32432af7 Mon Sep 17 00:00:00 2001
+From: Kazuki Yamaguchi <k@rhe.jp>
+Date: Fri, 30 Sep 2022 20:33:08 +0900
+Subject: [PATCH 200/209] Fix error propagatation in BN_check_prime()
+
+BN_check_prime() is supposed to return 0 for a composite number and -1
+on error. Properly translate the return value of the internal function
+ossl_bn_miller_rabin_is_prime(), where 0 means an error.
+
+The confusion prevented BN_GENCB callbacks from aborting the primality
+test or key generation routines utilizing this.
+
+Reviewed-by: Tomas Mraz <tomas@openssl.org>
+Reviewed-by: Nicola Tuveri <nic.tuv@gmail.com>
+Reviewed-by: Paul Dale <pauli@openssl.org>
+(Merged from https://github.com/openssl/openssl/pull/19314)
+
+(cherry picked from commit 0b3867634f74f6cb7b60b3a0adde396421207214)
+---
+ crypto/bn/bn_prime.c | 5 +++--
+ 1 file changed, 3 insertions(+), 2 deletions(-)
+
+diff --git a/crypto/bn/bn_prime.c b/crypto/bn/bn_prime.c
+index 9e2f6861a5..54f7ca611f 100644
+--- a/crypto/bn/bn_prime.c
++++ b/crypto/bn/bn_prime.c
+@@ -308,9 +308,10 @@ static int bn_is_prime_int(const BIGNUM *w, int checks, BN_CTX *ctx,
+         goto err;
+ #endif
+ 
+-    ret = ossl_bn_miller_rabin_is_prime(w, checks, ctx, cb, 0, &status);
+-    if (!ret)
++    if (!ossl_bn_miller_rabin_is_prime(w, checks, ctx, cb, 0, &status)) {
++        ret = -1;
+         goto err;
++    }
+     ret = (status == BN_PRIMETEST_PROBABLY_PRIME);
+ err:
+ #ifndef FIPS_MODULE
+-- 
+2.34.1
+

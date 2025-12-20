@@ -1,0 +1,31 @@
+From 8d222dd9ec5f1542035b55395c7d7a4b42d618b0 Mon Sep 17 00:00:00 2001
+From: xkernel <xkernel.wang@foxmail.com>
+Date: Mon, 11 Jul 2022 15:21:09 +0800
+Subject: [PATCH 029/209] add a check for the return of OBJ_new_nid()
+
+Reviewed-by: Tomas Mraz <tomas@openssl.org>
+Reviewed-by: Paul Dale <pauli@openssl.org>
+(Merged from https://github.com/openssl/openssl/pull/18773)
+
+(cherry picked from commit a0ff8e413e94ba46720a4bf3a5032c50531c526c)
+---
+ crypto/objects/obj_dat.c | 3 +++
+ 1 file changed, 3 insertions(+)
+
+diff --git a/crypto/objects/obj_dat.c b/crypto/objects/obj_dat.c
+index 653cc9ad94..227f72df15 100644
+--- a/crypto/objects/obj_dat.c
++++ b/crypto/objects/obj_dat.c
+@@ -713,6 +713,9 @@ int OBJ_create(const char *oid, const char *sn, const char *ln)
+     }
+ 
+     tmpoid->nid = OBJ_new_nid(1);
++    if (tmpoid->nid == NID_undef)
++        goto err;
++
+     tmpoid->sn = (char *)sn;
+     tmpoid->ln = (char *)ln;
+ 
+-- 
+2.34.1
+

@@ -1,0 +1,36 @@
+From 6b9d582d49353750f36c14dd20f5f962e7d52d3b Mon Sep 17 00:00:00 2001
+From: Tomas Mraz <tomas@openssl.org>
+Date: Thu, 29 Sep 2022 13:00:45 +0200
+Subject: [PATCH 203/209] Fix regression in i2d_re_X509_REQ_tbs()
+
+This fixes regression from commit 8e39049. There is also no point
+in setting the modified flag after just calling i2d.
+
+Fixes #19297
+
+Reviewed-by: Hugo Landau <hlandau@openssl.org>
+Reviewed-by: David von Oheimb <david.von.oheimb@siemens.com>
+(Merged from https://github.com/openssl/openssl/pull/19299)
+
+(cherry picked from commit 928f15e71b0bccabb10cbdcbb9b2d4e85eeb5906)
+---
+ crypto/x509/x509_req.c | 4 +---
+ 1 file changed, 1 insertion(+), 3 deletions(-)
+
+diff --git a/crypto/x509/x509_req.c b/crypto/x509/x509_req.c
+index ad48f34a30..9a6872a8a2 100644
+--- a/crypto/x509/x509_req.c
++++ b/crypto/x509/x509_req.c
+@@ -326,8 +326,6 @@ int i2d_re_X509_REQ_tbs(X509_REQ *req, unsigned char **pp)
+         ERR_raise(ERR_LIB_X509, ERR_R_PASSED_NULL_PARAMETER);
+         return 0;
+     }
+-    if (!i2d_X509_REQ_INFO(&req->req_info, pp))
+-        return 0;
+     req->req_info.enc.modified = 1;
+-    return 1;
++    return i2d_X509_REQ_INFO(&req->req_info, pp);
+ }
+-- 
+2.34.1
+

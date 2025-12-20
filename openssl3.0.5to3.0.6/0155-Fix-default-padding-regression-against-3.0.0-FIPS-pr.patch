@@ -1,0 +1,32 @@
+From e520991371cab8418995586df55f5ab3dfd3d044 Mon Sep 17 00:00:00 2001
+From: Pauli <pauli@openssl.org>
+Date: Tue, 13 Sep 2022 11:23:03 +1000
+Subject: [PATCH 155/209] Fix default padding regression against 3.0.0 FIPS
+ provider
+
+Reviewed-by: Matt Caswell <matt@openssl.org>
+Reviewed-by: Tomas Mraz <tomas@openssl.org>
+Reviewed-by: Shane Lontis <shane.lontis@oracle.com>
+(Merged from https://github.com/openssl/openssl/pull/19201)
+
+(cherry picked from commit 9684335839fcdeac06d21b06628c4c37117b5478)
+---
+ test/recipes/30-test_evp_data/evppkey_ffdhe.txt | 2 ++
+ 1 file changed, 2 insertions(+)
+
+diff --git a/test/recipes/30-test_evp_data/evppkey_ffdhe.txt b/test/recipes/30-test_evp_data/evppkey_ffdhe.txt
+index 2dc732bfcb..b6b1a8e8a0 100644
+--- a/test/recipes/30-test_evp_data/evppkey_ffdhe.txt
++++ b/test/recipes/30-test_evp_data/evppkey_ffdhe.txt
+@@ -105,6 +105,8 @@ CEKAlg=id-aes128-wrap
+ Ctrl = dh_pad:1
+ SharedSecret=89A249DF4EE9033B89C2B4E52072A736D94F51143A1ED5C8F1E91FCBEBE09654
+ 
++# FIPS(3.0.0): allows the padding to be set, later versions do not #17859
++FIPSversion = >3.0.0
+ Derive=ffdhe2048-2
+ PeerKey=ffdhe2048-1-pub
+ KDFType=X942KDF-ASN1
+-- 
+2.34.1
+

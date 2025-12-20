@@ -1,0 +1,47 @@
+From 004a574b31ac766de69087c1f8ad818c85178e2d Mon Sep 17 00:00:00 2001
+From: EasySec <easy.sec@free.fr>
+Date: Tue, 12 Apr 2022 00:15:51 +0200
+Subject: [PATCH 003/209] Fix typos in SSL_CTX_use_certificate.pod file
+
+Reviewed-by: Tomas Mraz <tomas@openssl.org>
+Reviewed-by: Paul Dale <pauli@openssl.org>
+Reviewed-by: Hugo Landau <hlandau@openssl.org>
+(Merged from https://github.com/openssl/openssl/pull/18087)
+
+(cherry picked from commit a97931955da72c39287a860155ffe071a3125f9f)
+---
+ doc/man3/SSL_CTX_use_certificate.pod | 11 ++++++-----
+ 1 file changed, 6 insertions(+), 5 deletions(-)
+
+diff --git a/doc/man3/SSL_CTX_use_certificate.pod b/doc/man3/SSL_CTX_use_certificate.pod
+index f08656bb85..3989766c9c 100644
+--- a/doc/man3/SSL_CTX_use_certificate.pod
++++ b/doc/man3/SSL_CTX_use_certificate.pod
+@@ -92,10 +92,10 @@ SSL_CTX_use_PrivateKey() adds B<pkey> as private key to B<ctx>.
+ SSL_CTX_use_RSAPrivateKey() adds the private key B<rsa> of type RSA
+ to B<ctx>. SSL_use_PrivateKey() adds B<pkey> as private key to B<ssl>;
+ SSL_use_RSAPrivateKey() adds B<rsa> as private key of type RSA to B<ssl>.
+-If a certificate has already been set and the private does not belong
+-to the certificate an error is returned. To change a certificate, private
+-key pair the new certificate needs to be set with SSL_use_certificate()
+-or SSL_CTX_use_certificate() before setting the private key with
++If a certificate has already been set and the private key does not belong
++to the certificate an error is returned. To change a [certificate/private-key]
++pair, the new certificate needs to be set first with SSL_use_certificate() or
++SSL_CTX_use_certificate() before setting the private key with
+ SSL_CTX_use_PrivateKey() or SSL_use_PrivateKey().
+ 
+ SSL_CTX_use_cert_and_key() and SSL_use_cert_and_key() assign the X.509
+@@ -149,7 +149,8 @@ Files of type SSL_FILETYPE_PEM can contain more than one item.
+ 
+ SSL_CTX_use_certificate_chain_file() adds the first certificate found
+ in the file to the certificate store. The other certificates are added
+-to the store of chain certificates using L<SSL_CTX_add1_chain_cert(3)>. Note: versions of OpenSSL before 1.0.2 only had a single
++to the store of chain certificates using L<SSL_CTX_add1_chain_cert(3)>.
++Note: versions of OpenSSL before 1.0.2 only had a single
+ certificate chain store for all certificate types, OpenSSL 1.0.2 and later
+ have a separate chain store for each type. SSL_CTX_use_certificate_chain_file()
+ should be used instead of the SSL_CTX_use_certificate_file() function in order
+-- 
+2.34.1
+

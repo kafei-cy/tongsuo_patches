@@ -1,0 +1,338 @@
+From acb39e29c39aef9eefd44214d43ed9498828576d Mon Sep 17 00:00:00 2001
+From: "Dr. David von Oheimb" <David.von.Oheimb@siemens.com>
+Date: Sun, 7 Aug 2022 07:08:28 +0200
+Subject: [PATCH 162/209] stack.c: add missing direct error reporting and
+ improve coding style
+
+Doing so, had to fix sloppiness in using the stack API in crypto/conf/conf_def.c,
+ssl/ssl_ciph.c, ssl/statem/statem_srvr.c, and mostly in test/helpers/ssltestlib.c.
+
+Reviewed-by: Tomas Mraz <tomas@openssl.org>
+Reviewed-by: Shane Lontis <shane.lontis@oracle.com>
+(Merged from https://github.com/openssl/openssl/pull/18918)
+
+(cherry picked from commit 30eba7f35983a917f1007bce45040c0af3442e42)
+---
+ crypto/conf/conf_def.c    |  2 +-
+ crypto/stack/stack.c      | 94 ++++++++++++++++++++++++++++++---------
+ ssl/ssl_ciph.c            |  3 +-
+ ssl/ssl_lib.c             |  3 +-
+ ssl/statem/statem_srvr.c  |  2 +-
+ test/helpers/ssltestlib.c | 13 +++---
+ 6 files changed, 88 insertions(+), 29 deletions(-)
+
+diff --git a/crypto/conf/conf_def.c b/crypto/conf/conf_def.c
+index b5d6668f42..97c9fbc280 100644
+--- a/crypto/conf/conf_def.c
++++ b/crypto/conf/conf_def.c
+@@ -296,7 +296,7 @@ static int def_load_bio(CONF *conf, BIO *in, long *line)
+             }
+ #endif
+             /* no more files in directory, continue with processing parent */
+-            if ((parent = sk_BIO_pop(biosk)) == NULL) {
++            if (sk_BIO_num(biosk) < 1 || (parent = sk_BIO_pop(biosk)) == NULL) {
+                 /* everything processed get out of the loop */
+                 break;
+             } else {
+diff --git a/crypto/stack/stack.c b/crypto/stack/stack.c
+index 3d8e4746cf..9942848d88 100644
+--- a/crypto/stack/stack.c
++++ b/crypto/stack/stack.c
+@@ -19,8 +19,7 @@
+  */
+ static const int min_nodes = 4;
+ static const int max_nodes = SIZE_MAX / sizeof(void *) < INT_MAX
+-                             ? (int)(SIZE_MAX / sizeof(void *))
+-                             : INT_MAX;
++    ? (int)(SIZE_MAX / sizeof(void *)) : INT_MAX;
+ 
+ struct stack_st {
+     int num;
+@@ -30,7 +29,8 @@ struct stack_st {
+     OPENSSL_sk_compfunc comp;
+ };
+ 
+-OPENSSL_sk_compfunc OPENSSL_sk_set_cmp_func(OPENSSL_STACK *sk, OPENSSL_sk_compfunc c)
++OPENSSL_sk_compfunc OPENSSL_sk_set_cmp_func(OPENSSL_STACK *sk,
++                                            OPENSSL_sk_compfunc c)
+ {
+     OPENSSL_sk_compfunc old = sk->comp;
+ 
+@@ -65,7 +65,8 @@ OPENSSL_STACK *OPENSSL_sk_dup(const OPENSSL_STACK *sk)
+     }
+ 
+     /* duplicate |sk->data| content */
+-    if ((ret->data = OPENSSL_malloc(sizeof(*ret->data) * sk->num_alloc)) == NULL)
++    ret->data = OPENSSL_malloc(sizeof(*ret->data) * sk->num_alloc);
++    if (ret->data == NULL)
+         goto err;
+     memcpy(ret->data, sk->data, sizeof(void *) * sk->num);
+     return ret;
+@@ -77,8 +78,8 @@ OPENSSL_STACK *OPENSSL_sk_dup(const OPENSSL_STACK *sk)
+ }
+ 
+ OPENSSL_STACK *OPENSSL_sk_deep_copy(const OPENSSL_STACK *sk,
+-                             OPENSSL_sk_copyfunc copy_func,
+-                             OPENSSL_sk_freefunc free_func)
++                                    OPENSSL_sk_copyfunc copy_func,
++                                    OPENSSL_sk_freefunc free_func)
+ {
+     OPENSSL_STACK *ret;
+     int i;
+@@ -175,8 +176,10 @@ static int sk_reserve(OPENSSL_STACK *st, int n, int exact)
+     int num_alloc;
+ 
+     /* Check to see the reservation isn't exceeding the hard limit */
+-    if (n > max_nodes - st->num)
++    if (n > max_nodes - st->num) {
++        ERR_raise(ERR_LIB_CRYPTO, CRYPTO_R_TOO_MANY_RECORDS);
+         return 0;
++    }
+ 
+     /* Figure out the new size */
+     num_alloc = st->num + n;
+@@ -201,15 +204,19 @@ static int sk_reserve(OPENSSL_STACK *st, int n, int exact)
+         if (num_alloc <= st->num_alloc)
+             return 1;
+         num_alloc = compute_growth(num_alloc, st->num_alloc);
+-        if (num_alloc == 0)
++        if (num_alloc == 0) {
++            ERR_raise(ERR_LIB_CRYPTO, CRYPTO_R_TOO_MANY_RECORDS);
+             return 0;
++        }
+     } else if (num_alloc == st->num_alloc) {
+         return 1;
+     }
+ 
+     tmpdata = OPENSSL_realloc((void *)st->data, sizeof(void *) * num_alloc);
+-    if (tmpdata == NULL)
++    if (tmpdata == NULL) {
++        ERR_raise(ERR_LIB_CRYPTO, ERR_R_MALLOC_FAILURE);
+         return 0;
++    }
+ 
+     st->data = tmpdata;
+     st->num_alloc = num_alloc;
+@@ -220,8 +227,10 @@ OPENSSL_STACK *OPENSSL_sk_new_reserve(OPENSSL_sk_compfunc c, int n)
+ {
+     OPENSSL_STACK *st = OPENSSL_zalloc(sizeof(OPENSSL_STACK));
+ 
+-    if (st == NULL)
++    if (st == NULL) {
++        ERR_raise(ERR_LIB_CRYPTO, ERR_R_MALLOC_FAILURE);
+         return NULL;
++    }
+ 
+     st->comp = c;
+ 
+@@ -238,8 +247,10 @@ OPENSSL_STACK *OPENSSL_sk_new_reserve(OPENSSL_sk_compfunc c, int n)
+ 
+ int OPENSSL_sk_reserve(OPENSSL_STACK *st, int n)
+ {
+-    if (st == NULL)
++    if (st == NULL) {
++        ERR_raise(ERR_LIB_CRYPTO, ERR_R_PASSED_NULL_PARAMETER);
+         return 0;
++    }
+ 
+     if (n < 0)
+         return 1;
+@@ -248,8 +259,14 @@ int OPENSSL_sk_reserve(OPENSSL_STACK *st, int n)
+ 
+ int OPENSSL_sk_insert(OPENSSL_STACK *st, const void *data, int loc)
+ {
+-    if (st == NULL || st->num == max_nodes)
++    if (st == NULL) {
++        ERR_raise(ERR_LIB_CRYPTO, ERR_R_PASSED_NULL_PARAMETER);
+         return 0;
++    }
++    if (st->num == max_nodes) {
++        ERR_raise(ERR_LIB_CRYPTO, CRYPTO_R_TOO_MANY_RECORDS);
++        return 0;
++    }
+ 
+     if (!sk_reserve(st, 1, 0))
+         return 0;
+@@ -271,8 +288,8 @@ static ossl_inline void *internal_delete(OPENSSL_STACK *st, int loc)
+     const void *ret = st->data[loc];
+ 
+     if (loc != st->num - 1)
+-         memmove(&st->data[loc], &st->data[loc + 1],
+-                 sizeof(st->data[0]) * (st->num - loc - 1));
++        memmove(&st->data[loc], &st->data[loc + 1],
++                sizeof(st->data[0]) * (st->num - loc - 1));
+     st->num--;
+ 
+     return (void *)ret;
+@@ -290,8 +307,15 @@ void *OPENSSL_sk_delete_ptr(OPENSSL_STACK *st, const void *p)
+ 
+ void *OPENSSL_sk_delete(OPENSSL_STACK *st, int loc)
+ {
+-    if (st == NULL || loc < 0 || loc >= st->num)
++    if (st == NULL) {
++        ERR_raise(ERR_LIB_X509, ERR_R_PASSED_NULL_PARAMETER);
++        return NULL;
++    }
++    if (loc < 0 || loc >= st->num) {
++        ERR_raise_data(ERR_LIB_X509, ERR_R_PASSED_INVALID_ARGUMENT,
++                       "loc=%d", loc);
+         return NULL;
++    }
+ 
+     return internal_delete(st, loc);
+ }
+@@ -375,21 +399,37 @@ int OPENSSL_sk_unshift(OPENSSL_STACK *st, const void *data)
+ 
+ void *OPENSSL_sk_shift(OPENSSL_STACK *st)
+ {
+-    if (st == NULL || st->num == 0)
++    if (st == NULL) {
++        ERR_raise(ERR_LIB_X509, ERR_R_PASSED_NULL_PARAMETER);
+         return NULL;
++    }
++    if (st->num == 0) {
++        ERR_raise(ERR_LIB_X509, ERR_R_PASSED_INVALID_ARGUMENT);
++        return NULL;
++    }
+     return internal_delete(st, 0);
+ }
+ 
+ void *OPENSSL_sk_pop(OPENSSL_STACK *st)
+ {
+-    if (st == NULL || st->num == 0)
++    if (st == NULL) {
++        ERR_raise(ERR_LIB_X509, ERR_R_PASSED_NULL_PARAMETER);
++        return NULL;
++    }
++    if (st->num == 0) {
++        ERR_raise(ERR_LIB_X509, ERR_R_PASSED_INVALID_ARGUMENT);
+         return NULL;
++    }
+     return internal_delete(st, st->num - 1);
+ }
+ 
+ void OPENSSL_sk_zero(OPENSSL_STACK *st)
+ {
+-    if (st == NULL || st->num == 0)
++    if (st == NULL) {
++        ERR_raise(ERR_LIB_X509, ERR_R_PASSED_NULL_PARAMETER);
++        return;
++    }
++    if (st->num == 0)
+         return;
+     memset(st->data, 0, sizeof(*st->data) * st->num);
+     st->num = 0;
+@@ -422,15 +462,29 @@ int OPENSSL_sk_num(const OPENSSL_STACK *st)
+ 
+ void *OPENSSL_sk_value(const OPENSSL_STACK *st, int i)
+ {
+-    if (st == NULL || i < 0 || i >= st->num)
++    if (st == NULL) {
++        ERR_raise(ERR_LIB_X509, ERR_R_PASSED_NULL_PARAMETER);
++        return NULL;
++    }
++    if (i < 0 || i >= st->num) {
++        ERR_raise_data(ERR_LIB_X509, ERR_R_PASSED_INVALID_ARGUMENT,
++                       "i=%d", i);
+         return NULL;
++    }
+     return (void *)st->data[i];
+ }
+ 
+ void *OPENSSL_sk_set(OPENSSL_STACK *st, int i, const void *data)
+ {
+-    if (st == NULL || i < 0 || i >= st->num)
++    if (st == NULL) {
++        ERR_raise(ERR_LIB_X509, ERR_R_PASSED_NULL_PARAMETER);
+         return NULL;
++    }
++    if (i < 0 || i >= st->num) {
++        ERR_raise_data(ERR_LIB_X509, ERR_R_PASSED_INVALID_ARGUMENT,
++                       "i=%d", i);
++        return NULL;
++    }
+     st->data[i] = data;
+     st->sorted = 0;
+     return (void *)st->data[i];
+diff --git a/ssl/ssl_ciph.c b/ssl/ssl_ciph.c
+index 942ab5c6db..726c45044a 100644
+--- a/ssl/ssl_ciph.c
++++ b/ssl/ssl_ciph.c
+@@ -532,7 +532,8 @@ int ssl_cipher_get_evp(SSL_CTX *ctx, const SSL_SESSION *s,
+         ctmp.id = s->compress_meth;
+         if (ssl_comp_methods != NULL) {
+             i = sk_SSL_COMP_find(ssl_comp_methods, &ctmp);
+-            *comp = sk_SSL_COMP_value(ssl_comp_methods, i);
++            if (i >= 0)
++                *comp = sk_SSL_COMP_value(ssl_comp_methods, i);
+         }
+         /* If were only interested in comp then return success */
+         if ((enc == NULL) && (md == NULL))
+diff --git a/ssl/ssl_lib.c b/ssl/ssl_lib.c
+index 75ef563f1f..f32074b585 100644
+--- a/ssl/ssl_lib.c
++++ b/ssl/ssl_lib.c
+@@ -4987,7 +4987,8 @@ static int ct_move_scts(STACK_OF(SCT) **dst, STACK_OF(SCT) *src,
+         }
+     }
+ 
+-    while ((sct = sk_SCT_pop(src)) != NULL) {
++    while (sk_SCT_num(src) > 0) {
++        sct = sk_SCT_pop(src);
+         if (SCT_set_source(sct, origin) != 1)
+             goto err;
+ 
+diff --git a/ssl/statem/statem_srvr.c b/ssl/statem/statem_srvr.c
+index 5626e4ea2a..c62ccc628c 100644
+--- a/ssl/statem/statem_srvr.c
++++ b/ssl/statem/statem_srvr.c
+@@ -3551,7 +3551,7 @@ MSG_PROCESS_RETURN tls_process_client_certificate(SSL *s, PACKET *pkt)
+     }
+ 
+     X509_free(s->session->peer);
+-    s->session->peer = sk_X509_shift(sk);
++    s->session->peer = sk_X509_num(sk) == 0 ? NULL: sk_X509_shift(sk);
+     s->session->verify_result = s->verify_result;
+ 
+     sk_X509_pop_free(s->session->peer_chain, X509_free);
+diff --git a/test/helpers/ssltestlib.c b/test/helpers/ssltestlib.c
+index 9bb6590c18..24df80e0e9 100644
+--- a/test/helpers/ssltestlib.c
++++ b/test/helpers/ssltestlib.c
+@@ -350,8 +350,9 @@ static int mempacket_test_read(BIO *bio, char *out, int outl)
+     unsigned int seq, offset, len, epoch;
+ 
+     BIO_clear_retry_flags(bio);
+-    thispkt = sk_MEMPACKET_value(ctx->pkts, 0);
+-    if (thispkt == NULL || thispkt->num != ctx->currpkt) {
++    if (sk_MEMPACKET_num(ctx->pkts) <= 0
++        || (thispkt = sk_MEMPACKET_value(ctx->pkts, 0)) == NULL
++        || thispkt->num != ctx->currpkt) {
+         /* Probably run out of data */
+         BIO_set_retry_read(bio);
+         return -1;
+@@ -502,7 +503,8 @@ int mempacket_test_inject(BIO *bio, const char *in, int inl, int pktnum,
+         thispkt->type = type;
+     }
+ 
+-    for(i = 0; (looppkt = sk_MEMPACKET_value(ctx->pkts, i)) != NULL; i++) {
++    for (i = 0; i < sk_MEMPACKET_num(ctx->pkts); i++) {
++        looppkt = sk_MEMPACKET_value(ctx->pkts, i);
+         /* Check if we found the right place to insert this packet */
+         if (looppkt->num > thispkt->num) {
+             if (sk_MEMPACKET_insert(ctx->pkts, thispkt, i) == 0)
+@@ -518,8 +520,9 @@ int mempacket_test_inject(BIO *bio, const char *in, int inl, int pktnum,
+             ctx->lastpkt++;
+             do {
+                 i++;
+-                nextpkt = sk_MEMPACKET_value(ctx->pkts, i);
+-                if (nextpkt != NULL && nextpkt->num == ctx->lastpkt)
++                if (i < sk_MEMPACKET_num(ctx->pkts)
++                        && (nextpkt = sk_MEMPACKET_value(ctx->pkts, i)) != NULL
++                        && nextpkt->num == ctx->lastpkt)
+                     ctx->lastpkt++;
+                 else
+                     return inl;
+-- 
+2.34.1
+

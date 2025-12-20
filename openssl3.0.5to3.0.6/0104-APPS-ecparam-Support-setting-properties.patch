@@ -1,0 +1,105 @@
+From 9bd968d42e77e2e7e00756cc7bef0817bf8322e1 Mon Sep 17 00:00:00 2001
+From: Clemens Lang <cllang@redhat.com>
+Date: Fri, 1 Jul 2022 15:22:34 +0200
+Subject: [PATCH 104/209] APPS: ecparam: Support setting properties
+
+The -provider and -propquery options did not work on ecparam. Fix this
+and add tests that check that operations that would usually fail with
+the FIPS provider work when run with
+
+| -provider default -propquery '?fips!=yes'
+
+See also 30b2c3592e8511b60d44f93eb657a1ecb3662c08, which previously
+fixed the same problem in dsaparam and gendsa. See also the initial
+report in https://bugzilla.redhat.com/show_bug.cgi?id=2094956.
+
+Signed-off-by: Clemens Lang <cllang@redhat.com>
+
+Reviewed-by: Tomas Mraz <tomas@openssl.org>
+Reviewed-by: Dmitry Belyavskiy <beldmit@gmail.com>
+(Merged from https://github.com/openssl/openssl/pull/18717)
+
+(cherry picked from commit 2b8f687d7627a4b15bba6a820825944185980376)
+---
+ apps/ecparam.c                 | 12 ++++++++----
+ test/recipes/15-test_ecparam.t | 20 +++++++++++++++++++-
+ 2 files changed, 27 insertions(+), 5 deletions(-)
+
+diff --git a/apps/ecparam.c b/apps/ecparam.c
+index 5d869cfd14..9e9ad13683 100644
+--- a/apps/ecparam.c
++++ b/apps/ecparam.c
+@@ -230,9 +230,11 @@ int ecparam_main(int argc, char **argv)
+         *p = OSSL_PARAM_construct_end();
+ 
+         if (OPENSSL_strcasecmp(curve_name, "SM2") == 0)
+-            gctx_params = EVP_PKEY_CTX_new_from_name(NULL, "sm2", NULL);
++            gctx_params = EVP_PKEY_CTX_new_from_name(app_get0_libctx(), "sm2",
++                                                     app_get0_propq());
+         else
+-            gctx_params = EVP_PKEY_CTX_new_from_name(NULL, "ec", NULL);
++            gctx_params = EVP_PKEY_CTX_new_from_name(app_get0_libctx(), "ec",
++                                                     app_get0_propq());
+         if (gctx_params == NULL
+             || EVP_PKEY_keygen_init(gctx_params) <= 0
+             || EVP_PKEY_CTX_set_params(gctx_params, params) <= 0
+@@ -283,7 +285,8 @@ int ecparam_main(int argc, char **argv)
+                 BIO_printf(bio_err, "unable to set check_type\n");
+                 goto end;
+         }
+-        pctx = EVP_PKEY_CTX_new_from_pkey(NULL, params_key, NULL);
++        pctx = EVP_PKEY_CTX_new_from_pkey(app_get0_libctx(), params_key,
++                                          app_get0_propq());
+         if (pctx == NULL || EVP_PKEY_param_check(pctx) <= 0) {
+             BIO_printf(bio_err, "failed\n");
+             goto end;
+@@ -313,7 +316,8 @@ int ecparam_main(int argc, char **argv)
+          *    EVP_PKEY_CTX_set_group_name(gctx, curvename);
+          *    EVP_PKEY_keygen(gctx, &key) <= 0)
+          */
+-        gctx_key = EVP_PKEY_CTX_new_from_pkey(NULL, params_key, NULL);
++        gctx_key = EVP_PKEY_CTX_new_from_pkey(app_get0_libctx(), params_key,
++                                              app_get0_propq());
+         if (EVP_PKEY_keygen_init(gctx_key) <= 0
+             || EVP_PKEY_keygen(gctx_key, &key) <= 0) {
+             BIO_printf(bio_err, "unable to generate key\n");
+diff --git a/test/recipes/15-test_ecparam.t b/test/recipes/15-test_ecparam.t
+index 34efe7adb0..17ee9e2d98 100644
+--- a/test/recipes/15-test_ecparam.t
++++ b/test/recipes/15-test_ecparam.t
+@@ -119,7 +119,7 @@ subtest "Check pkeyparam does not change the parameter file on output" => sub {
+ subtest "Check loading of fips and non-fips params" => sub {
+     plan skip_all => "FIPS is disabled"
+         if $no_fips;
+-    plan tests => 3;
++    plan tests => 6;
+ 
+     my $fipsconf = srctop_file("test", "fips-and-base.cnf");
+     my $defaultconf = srctop_file("test", "default.cnf");
+@@ -141,5 +141,23 @@ subtest "Check loading of fips and non-fips params" => sub {
+                 '-check'])),
+        "Fail loading named non-fips curve");
+ 
++    ok(run(app(['openssl', 'ecparam',
++                '-provider', 'default',
++                '-propquery', '?fips!=yes',
++                '-in', data_file('valid', 'secp112r1-named.pem'),
++                '-check'])),
++       "Loading named non-fips curve in FIPS mode with non-FIPS property".
++       " query");
++
++    ok(!run(app(['openssl', 'ecparam',
++                '-genkey', '-name', 'secp112r1'])),
++       "Fail generating key for named non-fips curve");
++
++    ok(run(app(['openssl', 'ecparam',
++                '-provider', 'default',
++                '-propquery', '?fips!=yes',
++                '-genkey', '-name', 'secp112r1'])),
++       "Generating key for named non-fips curve with non-FIPS property query");
++
+     $ENV{OPENSSL_CONF} = $defaultconf;
+ };
+-- 
+2.34.1
+

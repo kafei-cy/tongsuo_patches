@@ -1,0 +1,63 @@
+From f6b6356fdbee336fa2169643ca3e9ad3db19caea Mon Sep 17 00:00:00 2001
+From: slontis <shane.lontis@oracle.com>
+Date: Thu, 7 Jul 2022 15:03:08 +1000
+Subject: [PATCH 024/209] Fix memory leak in EVP_PKEY_get1_encoded_public_key.
+
+Occurs if a failure happens after the malloc call in the second call to
+EVP_PKEY_get_octet_string_param().
+
+Detected by PR #18355
+
+Some calling code assumes that nothing is allocated in the returned
+pointer if there was a failure. Other calling code always trys freeing.
+The third case is in ecdh_cms_encrypt() where it does not check the
+return value. I am assuming this change is ok since the legacy path in
+EVP_PKEY_get1_encoded_public_key() also does not return the pointer on
+failure.
+
+Reviewed-by: Hugo Landau <hlandau@openssl.org>
+Reviewed-by: Tomas Mraz <tomas@openssl.org>
+(Merged from https://github.com/openssl/openssl/pull/18739)
+
+(cherry picked from commit 4e9a4997c540e64647d4e1708a1dbda51fb59a68)
+---
+ crypto/evp/p_lib.c | 11 ++++++++---
+ 1 file changed, 8 insertions(+), 3 deletions(-)
+
+diff --git a/crypto/evp/p_lib.c b/crypto/evp/p_lib.c
+index 8d2eee11f1..aef63128f9 100644
+--- a/crypto/evp/p_lib.c
++++ b/crypto/evp/p_lib.c
+@@ -1389,6 +1389,7 @@ size_t EVP_PKEY_get1_encoded_public_key(EVP_PKEY *pkey, unsigned char **ppub)
+ 
+     if (pkey != NULL && evp_pkey_is_provided(pkey)) {
+         size_t return_size = OSSL_PARAM_UNMODIFIED;
++        unsigned char *buf;
+ 
+         /*
+          * We know that this is going to fail, but it will give us a size
+@@ -1400,14 +1401,18 @@ size_t EVP_PKEY_get1_encoded_public_key(EVP_PKEY *pkey, unsigned char **ppub)
+         if (return_size == OSSL_PARAM_UNMODIFIED)
+             return 0;
+ 
+-        *ppub = OPENSSL_malloc(return_size);
+-        if (*ppub == NULL)
++        *ppub = NULL;
++        buf = OPENSSL_malloc(return_size);
++        if (buf == NULL)
+             return 0;
+ 
+         if (!EVP_PKEY_get_octet_string_param(pkey,
+                                              OSSL_PKEY_PARAM_ENCODED_PUBLIC_KEY,
+-                                             *ppub, return_size, NULL))
++                                             buf, return_size, NULL)) {
++            OPENSSL_free(buf);
+             return 0;
++        }
++        *ppub = buf;
+         return return_size;
+     }
+ 
+-- 
+2.34.1
+

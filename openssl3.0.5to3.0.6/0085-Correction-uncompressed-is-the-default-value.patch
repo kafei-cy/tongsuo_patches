@@ -1,0 +1,36 @@
+From a1598fb98e93fdf947327561071341012acc5c99 Mon Sep 17 00:00:00 2001
+From: GregoryTrzonkowski <gregory.trzonkowski@gmail.com>
+Date: Wed, 27 Jul 2022 11:43:25 +0200
+Subject: [PATCH 085/209] Correction: uncompressed is the default value
+
+CLA: trivial
+
+The description was incorrect. The uncompressed is the default value.
+
+Reviewed-by: Tomas Mraz <tomas@openssl.org>
+Reviewed-by: Paul Dale <pauli@openssl.org>
+(Merged from https://github.com/openssl/openssl/pull/18889)
+
+(cherry picked from commit df274c334c523f7375d5aa60ff4b9a846c3e2a6c)
+---
+ doc/man1/openssl-ec.pod.in | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/doc/man1/openssl-ec.pod.in b/doc/man1/openssl-ec.pod.in
+index 8696701257..f6f1e3882e 100644
+--- a/doc/man1/openssl-ec.pod.in
++++ b/doc/man1/openssl-ec.pod.in
+@@ -118,8 +118,8 @@ a public key.
+ =item B<-conv_form> I<arg>
+ 
+ This specifies how the points on the elliptic curve are converted
+-into octet strings. Possible values are: B<compressed> (the default
+-value), B<uncompressed> and B<hybrid>. For more information regarding
++into octet strings. Possible values are: B<compressed>, B<uncompressed> (the
++default value) and B<hybrid>. For more information regarding
+ the point conversion forms please read the X9.62 standard.
+ B<Note> Due to patent issues the B<compressed> option is disabled
+ by default for binary curves and can be enabled by defining
+-- 
+2.34.1
+

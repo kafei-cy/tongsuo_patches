@@ -1,0 +1,35 @@
+From 0f0634bc8cf8a6d82a2110a6e983cf92032115c9 Mon Sep 17 00:00:00 2001
+From: Matt Caswell <matt@openssl.org>
+Date: Mon, 15 Aug 2022 12:07:37 +0100
+Subject: [PATCH 116/209] Ensure we build ub sanitizer builds with -DPEDANTIC
+
+Otherwise we may get spurious results from ub sanitizer. For example we
+assume we can tolerate some unaligned write without this define that ub
+sanitizer will complain about.
+
+Reviewed-by: Dmitry Belyavskiy <beldmit@gmail.com>
+Reviewed-by: Paul Dale <pauli@openssl.org>
+Reviewed-by: Hugo Landau <hlandau@openssl.org>
+(Merged from https://github.com/openssl/openssl/pull/18983)
+
+(cherry picked from commit 17b94de3df327e6619e52529e345a340d4a0a100)
+---
+ .github/workflows/ci.yml | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/.github/workflows/ci.yml b/.github/workflows/ci.yml
+index 29a502a8d7..533f3bbec6 100644
+--- a/.github/workflows/ci.yml
++++ b/.github/workflows/ci.yml
+@@ -144,7 +144,7 @@ jobs:
+     steps:
+     - uses: actions/checkout@v2
+     - name: config
+-      run: ./config --banner=Configured --debug enable-asan enable-ubsan enable-rc5 enable-md2 enable-ec_nistp_64_gcc_128 enable-fips -DFUZZING_BUILD_MODE_UNSAFE_FOR_PRODUCTION && perl configdata.pm --dump
++      run: ./config --banner=Configured --debug enable-asan enable-ubsan enable-rc5 enable-md2 enable-ec_nistp_64_gcc_128 enable-fips -DFUZZING_BUILD_MODE_UNSAFE_FOR_PRODUCTION -DPEDANTIC && perl configdata.pm --dump
+     - name: make
+       run: make -s -j4
+     - name: make test
+-- 
+2.34.1
+

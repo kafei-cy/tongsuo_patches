@@ -1,0 +1,494 @@
+From ddb81a94ac8af145750940c20999ac952165bf10 Mon Sep 17 00:00:00 2001
+From: Richard Levitte <levitte@openssl.org>
+Date: Thu, 14 Apr 2022 17:52:12 +0200
+Subject: [PATCH 057/209] "Reserve" the method store when constructing methods
+
+Introducing the concept of reserving the store where a number of
+provided operation methods are to be stored.
+
+This avoids racing when constructing provided methods, which is
+especially pertinent when multiple threads are trying to fetch the
+same method, or even any implementation for the same given operation
+type.
+
+This introduces a |biglock| in OSSL_METHOD_STORE, which is separate
+from the |lock| which is used for more internal and finer grained
+locking.
+
+Fixes #18152
+
+Reviewed-by: Hugo Landau <hlandau@openssl.org>
+Reviewed-by: Tomas Mraz <tomas@openssl.org>
+(Merged from https://github.com/openssl/openssl/pull/18153)
+
+(cherry picked from commit e1eafe8c87612a94552e9ad5df56c489cb6f0ff2)
+---
+ crypto/core_algorithm.c             | 26 +++++++++++++---
+ crypto/core_fetch.c                 | 47 ++++++++++++++++++-----------
+ crypto/encode_decode/decoder_meth.c | 24 +++++++++++++++
+ crypto/encode_decode/encoder_meth.c | 24 +++++++++++++++
+ crypto/evp/evp_fetch.c              | 24 +++++++++++++++
+ crypto/property/property.c          | 39 ++++++++++++++++++------
+ crypto/store/store_meth.c           | 24 +++++++++++++++
+ include/internal/core.h             |  6 ++++
+ include/internal/property.h         |  4 +++
+ 9 files changed, 186 insertions(+), 32 deletions(-)
+
+diff --git a/crypto/core_algorithm.c b/crypto/core_algorithm.c
+index 1c1cd8ff31..c245c814d9 100644
+--- a/crypto/core_algorithm.c
++++ b/crypto/core_algorithm.c
+@@ -18,8 +18,10 @@ struct algorithm_data_st {
+     int operation_id;            /* May be zero for finding them all */
+     int (*pre)(OSSL_PROVIDER *, int operation_id, int no_store, void *data,
+                int *result);
++    int (*reserve_store)(int no_store, void *data);
+     void (*fn)(OSSL_PROVIDER *, const OSSL_ALGORITHM *, int no_store,
+                void *data);
++    int (*unreserve_store)(void *data);
+     int (*post)(OSSL_PROVIDER *, int operation_id, int no_store, void *data,
+                 int *result);
+     void *data;
+@@ -43,6 +45,10 @@ static int algorithm_do_map(OSSL_PROVIDER *provider, const OSSL_ALGORITHM *map,
+     struct algorithm_data_st *data = cbdata;
+     int ret = 0;
+ 
++    if (!data->reserve_store(no_store, data->data))
++        /* Error, bail out! */
++        return -1;
++
+     /* Do we fulfill pre-conditions? */
+     if (data->pre == NULL) {
+         /* If there is no pre-condition function, assume "yes" */
+@@ -50,7 +56,8 @@ static int algorithm_do_map(OSSL_PROVIDER *provider, const OSSL_ALGORITHM *map,
+     } else if (!data->pre(provider, cur_operation, no_store, data->data,
+                           &ret)) {
+         /* Error, bail out! */
+-        return -1;
++        ret = -1;
++        goto end;
+     }
+ 
+     /*
+@@ -58,8 +65,10 @@ static int algorithm_do_map(OSSL_PROVIDER *provider, const OSSL_ALGORITHM *map,
+      * but do continue with the next.  This simply means that another thread
+      * got to it first.
+      */
+-    if (ret == 0)
+-        return 1;
++    if (ret == 0) {
++        ret = 1;
++        goto end;
++    }
+ 
+     if (map != NULL) {
+         const OSSL_ALGORITHM *thismap;
+@@ -75,9 +84,12 @@ static int algorithm_do_map(OSSL_PROVIDER *provider, const OSSL_ALGORITHM *map,
+     } else if (!data->post(provider, cur_operation, no_store, data->data,
+                            &ret)) {
+         /* Error, bail out! */
+-        return -1;
++        ret = -1;
+     }
+ 
++ end:
++    data->unreserve_store(data->data);
++
+     return ret;
+ }
+ 
+@@ -103,7 +115,7 @@ static int algorithm_do_this(OSSL_PROVIDER *provider, void *cbdata)
+          cur_operation++) {
+         int no_store = 0;        /* Assume caching is ok */
+         const OSSL_ALGORITHM *map = NULL;
+-        int ret;
++        int ret = 0;
+ 
+         map = ossl_provider_query_operation(provider, cur_operation,
+                                             &no_store);
+@@ -126,9 +138,11 @@ void ossl_algorithm_do_all(OSSL_LIB_CTX *libctx, int operation_id,
+                            OSSL_PROVIDER *provider,
+                            int (*pre)(OSSL_PROVIDER *, int operation_id,
+                                       int no_store, void *data, int *result),
++                           int (*reserve_store)(int no_store, void *data),
+                            void (*fn)(OSSL_PROVIDER *provider,
+                                       const OSSL_ALGORITHM *algo,
+                                       int no_store, void *data),
++                           int (*unreserve_store)(void *data),
+                            int (*post)(OSSL_PROVIDER *, int operation_id,
+                                        int no_store, void *data, int *result),
+                            void *data)
+@@ -138,7 +152,9 @@ void ossl_algorithm_do_all(OSSL_LIB_CTX *libctx, int operation_id,
+     cbdata.libctx = libctx;
+     cbdata.operation_id = operation_id;
+     cbdata.pre = pre;
++    cbdata.reserve_store = reserve_store;
+     cbdata.fn = fn;
++    cbdata.unreserve_store = unreserve_store;
+     cbdata.post = post;
+     cbdata.data = data;
+ 
+diff --git a/crypto/core_fetch.c b/crypto/core_fetch.c
+index 7a8ef0a5e8..38db36ee1f 100644
+--- a/crypto/core_fetch.c
++++ b/crypto/core_fetch.c
+@@ -31,6 +31,31 @@ static int is_temporary_method_store(int no_store, void *cbdata)
+     return no_store && !data->force_store;
+ }
+ 
++static int ossl_method_construct_reserve_store(int no_store, void *cbdata)
++{
++    struct construct_data_st *data = cbdata;
++
++    if (is_temporary_method_store(no_store, data) && data->store == NULL) {
++        /*
++         * If we have been told not to store the method "permanently", we
++         * ask for a temporary store, and store the method there.
++         * The owner of |data->mcm| is completely responsible for managing
++         * that temporary store.
++         */
++        if ((data->store = data->mcm->get_tmp_store(data->mcm_data)) == NULL)
++            return 0;
++    }
++
++    return data->mcm->lock_store(data->store, data->mcm_data);
++}
++
++static int ossl_method_construct_unreserve_store(void *cbdata)
++{
++    struct construct_data_st *data = cbdata;
++
++    return data->mcm->unlock_store(data->store, data->mcm_data);
++}
++
+ static int ossl_method_construct_precondition(OSSL_PROVIDER *provider,
+                                               int operation_id, int no_store,
+                                               void *cbdata, int *result)
+@@ -95,24 +120,8 @@ static void ossl_method_construct_this(OSSL_PROVIDER *provider,
+      * It is *expected* that the put function increments the refcnt
+      * of the passed method.
+      */
+-
+-    if (!is_temporary_method_store(no_store, data)) {
+-        /* If we haven't been told not to store, add to the global store */
+-        data->mcm->put(NULL, method, provider, algo->algorithm_names,
+-                       algo->property_definition, data->mcm_data);
+-    } else {
+-        /*
+-         * If we have been told not to store the method "permanently", we
+-         * ask for a temporary store, and store the method there.
+-         * The owner of |data->mcm| is completely responsible for managing
+-         * that temporary store.
+-         */
+-        if ((data->store = data->mcm->get_tmp_store(data->mcm_data)) == NULL)
+-            return;
+-
+-        data->mcm->put(data->store, method, provider, algo->algorithm_names,
+-                       algo->property_definition, data->mcm_data);
+-    }
++    data->mcm->put(data->store, method, provider, algo->algorithm_names,
++                   algo->property_definition, data->mcm_data);
+ 
+     /* refcnt-- because we're dropping the reference */
+     data->mcm->destruct(method, data->mcm_data);
+@@ -143,7 +152,9 @@ void *ossl_method_construct(OSSL_LIB_CTX *libctx, int operation_id,
+     cbdata.mcm_data = mcm_data;
+     ossl_algorithm_do_all(libctx, operation_id, provider,
+                           ossl_method_construct_precondition,
++                          ossl_method_construct_reserve_store,
+                           ossl_method_construct_this,
++                          ossl_method_construct_unreserve_store,
+                           ossl_method_construct_postcondition,
+                           &cbdata);
+ 
+diff --git a/crypto/encode_decode/decoder_meth.c b/crypto/encode_decode/decoder_meth.c
+index 12f23a6193..56899a9269 100644
+--- a/crypto/encode_decode/decoder_meth.c
++++ b/crypto/encode_decode/decoder_meth.c
+@@ -124,6 +124,28 @@ static OSSL_METHOD_STORE *get_decoder_store(OSSL_LIB_CTX *libctx)
+                                  &decoder_store_method);
+ }
+ 
++static int reserve_decoder_store(void *store, void *data)
++{
++    struct decoder_data_st *methdata = data;
++
++    if (store == NULL
++        && (store = get_decoder_store(methdata->libctx)) == NULL)
++        return 0;
++
++    return ossl_method_lock_store(store);
++}
++
++static int unreserve_decoder_store(void *store, void *data)
++{
++    struct decoder_data_st *methdata = data;
++
++    if (store == NULL
++        && (store = get_decoder_store(methdata->libctx)) == NULL)
++        return 0;
++
++    return ossl_method_unlock_store(store);
++}
++
+ /* Get decoder methods from a store, or put one in */
+ static void *get_decoder_from_store(void *store, const OSSL_PROVIDER **prov,
+                                     void *data)
+@@ -374,6 +396,8 @@ inner_ossl_decoder_fetch(struct decoder_data_st *methdata, int id,
+         || !ossl_method_store_cache_get(store, NULL, id, propq, &method)) {
+         OSSL_METHOD_CONSTRUCT_METHOD mcm = {
+             get_tmp_decoder_store,
++            reserve_decoder_store,
++            unreserve_decoder_store,
+             get_decoder_from_store,
+             put_decoder_in_store,
+             construct_decoder,
+diff --git a/crypto/encode_decode/encoder_meth.c b/crypto/encode_decode/encoder_meth.c
+index 9418ddf3d5..89e7b6abf8 100644
+--- a/crypto/encode_decode/encoder_meth.c
++++ b/crypto/encode_decode/encoder_meth.c
+@@ -124,6 +124,28 @@ static OSSL_METHOD_STORE *get_encoder_store(OSSL_LIB_CTX *libctx)
+                                  &encoder_store_method);
+ }
+ 
++static int reserve_encoder_store(void *store, void *data)
++{
++    struct encoder_data_st *methdata = data;
++
++    if (store == NULL
++        && (store = get_encoder_store(methdata->libctx)) == NULL)
++        return 0;
++
++    return ossl_method_lock_store(store);
++}
++
++static int unreserve_encoder_store(void *store, void *data)
++{
++    struct encoder_data_st *methdata = data;
++
++    if (store == NULL
++        && (store = get_encoder_store(methdata->libctx)) == NULL)
++        return 0;
++
++    return ossl_method_unlock_store(store);
++}
++
+ /* Get encoder methods from a store, or put one in */
+ static void *get_encoder_from_store(void *store, const OSSL_PROVIDER **prov,
+                                     void *data)
+@@ -384,6 +406,8 @@ inner_ossl_encoder_fetch(struct encoder_data_st *methdata, int id,
+         || !ossl_method_store_cache_get(store, NULL, id, propq, &method)) {
+         OSSL_METHOD_CONSTRUCT_METHOD mcm = {
+             get_tmp_encoder_store,
++            reserve_encoder_store,
++            unreserve_encoder_store,
+             get_encoder_from_store,
+             put_encoder_in_store,
+             construct_encoder,
+diff --git a/crypto/evp/evp_fetch.c b/crypto/evp/evp_fetch.c
+index 90d6a4e6d4..aafd927e63 100644
+--- a/crypto/evp/evp_fetch.c
++++ b/crypto/evp/evp_fetch.c
+@@ -83,6 +83,28 @@ static OSSL_METHOD_STORE *get_evp_method_store(OSSL_LIB_CTX *libctx)
+                                  &evp_method_store_method);
+ }
+ 
++static int reserve_evp_method_store(void *store, void *data)
++{
++    struct evp_method_data_st *methdata = data;
++
++    if (store == NULL
++        && (store = get_evp_method_store(methdata->libctx)) == NULL)
++        return 0;
++
++    return ossl_method_lock_store(store);
++}
++
++static int unreserve_evp_method_store(void *store, void *data)
++{
++    struct evp_method_data_st *methdata = data;
++
++    if (store == NULL
++        && (store = get_evp_method_store(methdata->libctx)) == NULL)
++        return 0;
++
++    return ossl_method_unlock_store(store);
++}
++
+ /*
+  * To identify the method in the EVP method store, we mix the name identity
+  * with the operation identity, under the assumption that we don't have more
+@@ -303,6 +325,8 @@ inner_evp_generic_fetch(struct evp_method_data_st *methdata,
+         || !ossl_method_store_cache_get(store, prov, meth_id, propq, &method)) {
+         OSSL_METHOD_CONSTRUCT_METHOD mcm = {
+             get_tmp_evp_method_store,
++            reserve_evp_method_store,
++            unreserve_evp_method_store,
+             get_evp_method_from_store,
+             put_evp_method_in_store,
+             construct_evp_method,
+diff --git a/crypto/property/property.c b/crypto/property/property.c
+index 790abfd13b..dec0bdb45e 100644
+--- a/crypto/property/property.c
++++ b/crypto/property/property.c
+@@ -62,7 +62,19 @@ typedef struct {
+ struct ossl_method_store_st {
+     OSSL_LIB_CTX *ctx;
+     SPARSE_ARRAY_OF(ALGORITHM) *algs;
++    /*
++     * Lock to protect the |algs| array from concurrent writing, when
++     * individual implementations or queries are inserted.  This is used
++     * by the appropriate functions here.
++     */
+     CRYPTO_RWLOCK *lock;
++    /*
++     * Lock to reserve the whole store.  This is used when fetching a set
++     * of algorithms, via these functions, found in crypto/core_fetch.c:
++     * ossl_method_construct_reserve_store()
++     * ossl_method_construct_unreserve_store()
++     */
++    CRYPTO_RWLOCK *biglock;
+ 
+     /* query cache specific values */
+ 
+@@ -238,13 +250,10 @@ OSSL_METHOD_STORE *ossl_method_store_new(OSSL_LIB_CTX *ctx)
+     res = OPENSSL_zalloc(sizeof(*res));
+     if (res != NULL) {
+         res->ctx = ctx;
+-        if ((res->algs = ossl_sa_ALGORITHM_new()) == NULL) {
+-            OPENSSL_free(res);
+-            return NULL;
+-        }
+-        if ((res->lock = CRYPTO_THREAD_lock_new()) == NULL) {
+-            ossl_sa_ALGORITHM_free(res->algs);
+-            OPENSSL_free(res);
++        if ((res->algs = ossl_sa_ALGORITHM_new()) == NULL
++            || (res->lock = CRYPTO_THREAD_lock_new()) == NULL
++            || (res->biglock = CRYPTO_THREAD_lock_new()) == NULL) {
++            ossl_method_store_free(res);
+             return NULL;
+         }
+     }
+@@ -254,13 +263,25 @@ OSSL_METHOD_STORE *ossl_method_store_new(OSSL_LIB_CTX *ctx)
+ void ossl_method_store_free(OSSL_METHOD_STORE *store)
+ {
+     if (store != NULL) {
+-        ossl_sa_ALGORITHM_doall_arg(store->algs, &alg_cleanup, store);
++        if (store->algs != NULL)
++            ossl_sa_ALGORITHM_doall_arg(store->algs, &alg_cleanup, store);
+         ossl_sa_ALGORITHM_free(store->algs);
+         CRYPTO_THREAD_lock_free(store->lock);
++        CRYPTO_THREAD_lock_free(store->biglock);
+         OPENSSL_free(store);
+     }
+ }
+ 
++int ossl_method_lock_store(OSSL_METHOD_STORE *store)
++{
++    return store != NULL ? CRYPTO_THREAD_write_lock(store->biglock) : 0;
++}
++
++int ossl_method_unlock_store(OSSL_METHOD_STORE *store)
++{
++    return store != NULL ? CRYPTO_THREAD_unlock(store->biglock) : 0;
++}
++
+ static ALGORITHM *ossl_method_store_retrieve(OSSL_METHOD_STORE *store, int nid)
+ {
+     return ossl_sa_ALGORITHM_get(store->algs, nid);
+@@ -268,7 +289,7 @@ static ALGORITHM *ossl_method_store_retrieve(OSSL_METHOD_STORE *store, int nid)
+ 
+ static int ossl_method_store_insert(OSSL_METHOD_STORE *store, ALGORITHM *alg)
+ {
+-        return ossl_sa_ALGORITHM_set(store->algs, alg->nid, alg);
++    return ossl_sa_ALGORITHM_set(store->algs, alg->nid, alg);
+ }
+ 
+ int ossl_method_store_add(OSSL_METHOD_STORE *store, const OSSL_PROVIDER *prov,
+diff --git a/crypto/store/store_meth.c b/crypto/store/store_meth.c
+index 999d4c5e9f..a5b0d1b095 100644
+--- a/crypto/store/store_meth.c
++++ b/crypto/store/store_meth.c
+@@ -127,6 +127,28 @@ static OSSL_METHOD_STORE *get_loader_store(OSSL_LIB_CTX *libctx)
+                                 &loader_store_method);
+ }
+ 
++static int reserve_loader_store(void *store, void *data)
++{
++    struct loader_data_st *methdata = data;
++
++    if (store == NULL
++        && (store = get_loader_store(methdata->libctx)) == NULL)
++        return 0;
++
++    return ossl_method_lock_store(store);
++}
++
++static int unreserve_loader_store(void *store, void *data)
++{
++    struct loader_data_st *methdata = data;
++
++    if (store == NULL
++        && (store = get_loader_store(methdata->libctx)) == NULL)
++        return 0;
++
++    return ossl_method_unlock_store(store);
++}
++
+ /* Get loader methods from a store, or put one in */
+ static void *get_loader_from_store(void *store, const OSSL_PROVIDER **prov,
+                                    void *data)
+@@ -313,6 +335,8 @@ inner_loader_fetch(struct loader_data_st *methdata, int id,
+         || !ossl_method_store_cache_get(store, NULL, id, propq, &method)) {
+         OSSL_METHOD_CONSTRUCT_METHOD mcm = {
+             get_tmp_loader_store,
++            reserve_loader_store,
++            unreserve_loader_store,
+             get_loader_from_store,
+             put_loader_in_store,
+             construct_loader,
+diff --git a/include/internal/core.h b/include/internal/core.h
+index 48e1ba465a..03adb66bd3 100644
+--- a/include/internal/core.h
++++ b/include/internal/core.h
+@@ -30,6 +30,10 @@
+ typedef struct ossl_method_construct_method_st {
+     /* Get a temporary store */
+     void *(*get_tmp_store)(void *data);
++    /* Reserve the appropriate method store */
++    int (*lock_store)(void *store, void *data);
++    /* Unreserve the appropriate method store */
++    int (*unlock_store)(void *store, void *data);
+     /* Get an already existing method from a store */
+     void *(*get)(void *store, const OSSL_PROVIDER **prov, void *data);
+     /* Store a method in a store */
+@@ -50,9 +54,11 @@ void ossl_algorithm_do_all(OSSL_LIB_CTX *libctx, int operation_id,
+                            OSSL_PROVIDER *provider,
+                            int (*pre)(OSSL_PROVIDER *, int operation_id,
+                                       int no_store, void *data, int *result),
++                           int (*reserve_store)(int no_store, void *data),
+                            void (*fn)(OSSL_PROVIDER *provider,
+                                       const OSSL_ALGORITHM *algo,
+                                       int no_store, void *data),
++                           int (*unreserve_store)(void *data),
+                            int (*post)(OSSL_PROVIDER *, int operation_id,
+                                        int no_store, void *data, int *result),
+                            void *data);
+diff --git a/include/internal/property.h b/include/internal/property.h
+index 7e9a397a3b..d09274d0c9 100644
+--- a/include/internal/property.h
++++ b/include/internal/property.h
+@@ -52,6 +52,10 @@ int64_t ossl_property_get_number_value(const OSSL_PROPERTY_DEFINITION *prop);
+ /* Implementation store functions */
+ OSSL_METHOD_STORE *ossl_method_store_new(OSSL_LIB_CTX *ctx);
+ void ossl_method_store_free(OSSL_METHOD_STORE *store);
++
++int ossl_method_lock_store(OSSL_METHOD_STORE *store);
++int ossl_method_unlock_store(OSSL_METHOD_STORE *store);
++
+ int ossl_method_store_add(OSSL_METHOD_STORE *store, const OSSL_PROVIDER *prov,
+                           int nid, const char *properties, void *method,
+                           int (*method_up_ref)(void *),
+-- 
+2.34.1
+

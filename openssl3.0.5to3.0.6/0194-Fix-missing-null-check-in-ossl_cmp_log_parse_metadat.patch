@@ -1,0 +1,39 @@
+From 9bedeb9a739cf2fb4bf25f9ce51b3e4aabde6ab4 Mon Sep 17 00:00:00 2001
+From: Graham Woodward <graham.woodward@ibm.com>
+Date: Tue, 27 Sep 2022 13:21:10 +0100
+Subject: [PATCH 194/209] Fix missing null check in
+ ossl_cmp_log_parse_metadata()
+
+Don't add 1 if strchr returns NULL
+
+Fixes #19279
+
+Reviewed-by: David von Oheimb <david.von.oheimb@siemens.com>
+Reviewed-by: Hugo Landau <hlandau@openssl.org>
+Reviewed-by: Tomas Mraz <tomas@openssl.org>
+Reviewed-by: Matt Caswell <matt@openssl.org>
+(Merged from https://github.com/openssl/openssl/pull/19282)
+
+(cherry picked from commit b85d53c1670e47273827bba508daff310c3263ab)
+---
+ crypto/cmp/cmp_util.c | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/crypto/cmp/cmp_util.c b/crypto/cmp/cmp_util.c
+index ed611d64dd..d7b6cab594 100644
+--- a/crypto/cmp/cmp_util.c
++++ b/crypto/cmp/cmp_util.c
+@@ -101,8 +101,8 @@ const char *ossl_cmp_log_parse_metadata(const char *buf,
+                     *file = OPENSSL_strndup(p_file, p_line - 1 - p_file);
+                     /* no real problem if OPENSSL_strndup() returns NULL */
+                     *line = (int)line_number;
+-                    msg = strchr(p_level, ':') + 1;
+-                    if (*msg == ' ')
++                    msg = strchr(p_level, ':');
++                    if (msg != NULL && *++msg == ' ')
+                         msg++;
+                 }
+             }
+-- 
+2.34.1
+

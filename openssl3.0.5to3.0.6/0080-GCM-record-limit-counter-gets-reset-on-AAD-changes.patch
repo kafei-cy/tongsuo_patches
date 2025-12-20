@@ -1,0 +1,61 @@
+From 1f6eb7b9799d3a8b8ebc071f5fbd17b11c914b8f Mon Sep 17 00:00:00 2001
+From: Pauli <pauli@openssl.org>
+Date: Mon, 25 Jul 2022 16:07:26 +1000
+Subject: [PATCH 080/209] GCM: record limit counter gets reset on AAD changes
+
+It shouldn't be.  This moves the reset to the init function instead and only
+does the reset on a key change.
+
+Reviewed-by: Hugo Landau <hlandau@openssl.org>
+Reviewed-by: Tomas Mraz <tomas@openssl.org>
+(Merged from https://github.com/openssl/openssl/pull/18860)
+
+(cherry picked from commit 3ebcb2fff56bda788ab1f363eb0023715018a4e5)
+---
+ providers/implementations/ciphers/ciphercommon_gcm.c | 9 ++++++++-
+ 1 file changed, 8 insertions(+), 1 deletion(-)
+
+diff --git a/providers/implementations/ciphers/ciphercommon_gcm.c b/providers/implementations/ciphers/ciphercommon_gcm.c
+index c4301f6b82..23f28abf95 100644
+--- a/providers/implementations/ciphers/ciphercommon_gcm.c
++++ b/providers/implementations/ciphers/ciphercommon_gcm.c
+@@ -25,6 +25,10 @@ static int gcm_cipher_internal(PROV_GCM_CTX *ctx, unsigned char *out,
+                                size_t *padlen, const unsigned char *in,
+                                size_t len);
+ 
++/*
++ * Called from EVP_CipherInit when there is currently no context via
++ * the new_ctx() function
++ */
+ void ossl_gcm_initctx(void *provctx, PROV_GCM_CTX *ctx, size_t keybits,
+                       const PROV_GCM_HW *hw)
+ {
+@@ -38,6 +42,9 @@ void ossl_gcm_initctx(void *provctx, PROV_GCM_CTX *ctx, size_t keybits,
+     ctx->libctx = PROV_LIBCTX_OF(provctx);
+ }
+ 
++/*
++ * Called by EVP_CipherInit via the _einit and _dinit functions
++ */
+ static int gcm_init(void *vctx, const unsigned char *key, size_t keylen,
+                     const unsigned char *iv, size_t ivlen,
+                     const OSSL_PARAM params[], int enc)
+@@ -66,6 +73,7 @@ static int gcm_init(void *vctx, const unsigned char *key, size_t keylen,
+         }
+         if (!ctx->hw->setkey(ctx, key, ctx->keylen))
+             return 0;
++        ctx->tls_enc_records = 0;
+     }
+     return ossl_gcm_set_ctx_params(ctx, params);
+ }
+@@ -447,7 +455,6 @@ static int gcm_tls_init(PROV_GCM_CTX *dat, unsigned char *aad, size_t aad_len)
+     buf = dat->buf;
+     memcpy(buf, aad, aad_len);
+     dat->tls_aad_len = aad_len;
+-    dat->tls_enc_records = 0;
+ 
+     len = buf[aad_len - 2] << 8 | buf[aad_len - 1];
+     /* Correct length for explicit iv. */
+-- 
+2.34.1
+

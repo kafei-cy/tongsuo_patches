@@ -1,0 +1,97 @@
+From be52cfec4974c47d8c5579928b774a43c9264883 Mon Sep 17 00:00:00 2001
+From: Clemens Lang <cllang@redhat.com>
+Date: Fri, 1 Jul 2022 15:35:22 +0200
+Subject: [PATCH 105/209] APPS: pkeyparam: Support setting properties
+
+The -provider and -propquery options did not work on pkeyparam. Fix this
+and add tests that check that operations that would usually fail with
+the FIPS provider work when run with
+
+| -provider default -propquery '?fips!=yes'
+
+See also 30b2c3592e8511b60d44f93eb657a1ecb3662c08, which previously
+fixed the same problem in dsaparam and gendsa. See also the initial
+report in https://bugzilla.redhat.com/show_bug.cgi?id=2094956.
+
+Signed-off-by: Clemens Lang <cllang@redhat.com>
+
+Reviewed-by: Tomas Mraz <tomas@openssl.org>
+Reviewed-by: Dmitry Belyavskiy <beldmit@gmail.com>
+(Merged from https://github.com/openssl/openssl/pull/18717)
+
+(cherry picked from commit 0185538799803a1a98823f42ac2402ede04f56da)
+---
+ apps/pkeyparam.c               |  9 +++++++--
+ test/recipes/15-test_ecparam.t | 15 ++++++++++++++-
+ 2 files changed, 21 insertions(+), 3 deletions(-)
+
+diff --git a/apps/pkeyparam.c b/apps/pkeyparam.c
+index 45647341ce..9f38c19cb8 100644
+--- a/apps/pkeyparam.c
++++ b/apps/pkeyparam.c
+@@ -101,7 +101,8 @@ int pkeyparam_main(int argc, char **argv)
+     out = bio_open_default(outfile, 'w', FORMAT_PEM);
+     if (out == NULL)
+         goto end;
+-    pkey = PEM_read_bio_Parameters(in, NULL);
++    pkey = PEM_read_bio_Parameters_ex(in, NULL, app_get0_libctx(),
++                                      app_get0_propq());
+     if (pkey == NULL) {
+         BIO_printf(bio_err, "Error reading parameters\n");
+         ERR_print_errors(bio_err);
+@@ -109,7 +110,11 @@ int pkeyparam_main(int argc, char **argv)
+     }
+ 
+     if (check) {
+-        ctx = EVP_PKEY_CTX_new(pkey, e);
++        if (e == NULL)
++            ctx = EVP_PKEY_CTX_new_from_pkey(app_get0_libctx(), pkey,
++                                             app_get0_propq());
++        else
++            ctx = EVP_PKEY_CTX_new(pkey, e);
+         if (ctx == NULL) {
+             ERR_print_errors(bio_err);
+             goto end;
+diff --git a/test/recipes/15-test_ecparam.t b/test/recipes/15-test_ecparam.t
+index 17ee9e2d98..37bf620f35 100644
+--- a/test/recipes/15-test_ecparam.t
++++ b/test/recipes/15-test_ecparam.t
+@@ -119,7 +119,7 @@ subtest "Check pkeyparam does not change the parameter file on output" => sub {
+ subtest "Check loading of fips and non-fips params" => sub {
+     plan skip_all => "FIPS is disabled"
+         if $no_fips;
+-    plan tests => 6;
++    plan tests => 8;
+ 
+     my $fipsconf = srctop_file("test", "fips-and-base.cnf");
+     my $defaultconf = srctop_file("test", "default.cnf");
+@@ -141,6 +141,11 @@ subtest "Check loading of fips and non-fips params" => sub {
+                 '-check'])),
+        "Fail loading named non-fips curve");
+ 
++    ok(!run(app(['openssl', 'pkeyparam',
++                '-in', data_file('valid', 'secp112r1-named.pem'),
++                '-check'])),
++       "Fail loading named non-fips curve using pkeyparam");
++
+     ok(run(app(['openssl', 'ecparam',
+                 '-provider', 'default',
+                 '-propquery', '?fips!=yes',
+@@ -149,6 +154,14 @@ subtest "Check loading of fips and non-fips params" => sub {
+        "Loading named non-fips curve in FIPS mode with non-FIPS property".
+        " query");
+ 
++    ok(run(app(['openssl', 'pkeyparam',
++                '-provider', 'default',
++                '-propquery', '?fips!=yes',
++                '-in', data_file('valid', 'secp112r1-named.pem'),
++                '-check'])),
++       "Loading named non-fips curve in FIPS mode with non-FIPS property".
++       " query using pkeyparam");
++
+     ok(!run(app(['openssl', 'ecparam',
+                 '-genkey', '-name', 'secp112r1'])),
+        "Fail generating key for named non-fips curve");
+-- 
+2.34.1
+

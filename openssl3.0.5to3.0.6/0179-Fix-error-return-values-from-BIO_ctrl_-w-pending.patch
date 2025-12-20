@@ -1,0 +1,71 @@
+From 6db9d09f520e0137300cd11c82541cb31b47fc72 Mon Sep 17 00:00:00 2001
+From: Tomas Mraz <tomas@openssl.org>
+Date: Mon, 19 Sep 2022 10:36:21 +0200
+Subject: [PATCH 179/209] Fix error return values from BIO_ctrl_(w)pending()
+
+Reviewed-by: Hugo Landau <hlandau@openssl.org>
+Reviewed-by: Matt Caswell <matt@openssl.org>
+Reviewed-by: Paul Dale <pauli@openssl.org>
+(Merged from https://github.com/openssl/openssl/pull/19240)
+
+(cherry picked from commit e9809f8a09147bc27f974caa908b04439c006625)
+---
+ crypto/bio/bio_lib.c  | 12 ++++++++++--
+ doc/man3/BIO_ctrl.pod |  7 ++++++-
+ 2 files changed, 16 insertions(+), 3 deletions(-)
+
+diff --git a/crypto/bio/bio_lib.c b/crypto/bio/bio_lib.c
+index b5454f14b2..8831debc76 100644
+--- a/crypto/bio/bio_lib.c
++++ b/crypto/bio/bio_lib.c
+@@ -620,12 +620,20 @@ long BIO_callback_ctrl(BIO *b, int cmd, BIO_info_cb *fp)
+  */
+ size_t BIO_ctrl_pending(BIO *bio)
+ {
+-    return BIO_ctrl(bio, BIO_CTRL_PENDING, 0, NULL);
++    long ret = BIO_ctrl(bio, BIO_CTRL_PENDING, 0, NULL);
++
++    if (ret < 0)
++        ret = 0;
++    return (size_t)ret;
+ }
+ 
+ size_t BIO_ctrl_wpending(BIO *bio)
+ {
+-    return BIO_ctrl(bio, BIO_CTRL_WPENDING, 0, NULL);
++    long ret = BIO_ctrl(bio, BIO_CTRL_WPENDING, 0, NULL);
++
++    if (ret < 0)
++        ret = 0;
++    return (size_t)ret;
+ }
+ 
+ /* put the 'bio' on the end of b's list of operators */
+diff --git a/doc/man3/BIO_ctrl.pod b/doc/man3/BIO_ctrl.pod
+index d07d8db614..ce31b2254c 100644
+--- a/doc/man3/BIO_ctrl.pod
++++ b/doc/man3/BIO_ctrl.pod
+@@ -100,7 +100,9 @@ BIO_get_close() returns the close flag value: BIO_CLOSE or BIO_NOCLOSE. It also
+ returns other negative values if an error occurs.
+ 
+ BIO_pending(), BIO_ctrl_pending(), BIO_wpending() and BIO_ctrl_wpending()
+-return the amount of pending data.
++return the amount of pending data. BIO_pending() and BIO_wpending() return
++negative value or 0 on error. BIO_ctrl_pending() and BIO_ctrl_wpending() return
++0 on error.
+ 
+ BIO_get_ktls_send() returns 1 if the BIO is using the Kernel TLS data-path for
+ sending. Otherwise, it returns zero.
+@@ -139,6 +141,9 @@ particular a return value of 0 can be returned if an operation is not
+ supported, if an error occurred, if EOF has not been reached and in
+ the case of BIO_seek() on a file BIO for a successful operation.
+ 
++In older versions of OpenSSL the BIO_ctrl_pending() and
++BIO_ctrl_wpending() could return values greater than INT_MAX on error.
++
+ =head1 HISTORY
+ 
+ The BIO_get_ktls_send() and BIO_get_ktls_recv() macros were added in
+-- 
+2.34.1
+

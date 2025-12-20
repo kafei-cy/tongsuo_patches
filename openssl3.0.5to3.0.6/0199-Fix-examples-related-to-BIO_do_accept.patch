@@ -1,0 +1,59 @@
+From 8447b5680c2211ad359346fb2f02a5830efc8c5e Mon Sep 17 00:00:00 2001
+From: Daniel Fiala <daniel@openssl.org>
+Date: Mon, 3 Oct 2022 05:19:25 +0200
+Subject: [PATCH 199/209] Fix examples related to BIO_do_accept
+
+Fixes openssl#8825
+
+Reviewed-by: Tomas Mraz <tomas@openssl.org>
+Reviewed-by: Paul Dale <pauli@openssl.org>
+(Merged from https://github.com/openssl/openssl/pull/19329)
+
+(cherry picked from commit 47cd0e5b1f98fb88d6d8337f7ec0e16bb83cea32)
+---
+ doc/man3/BIO_f_ssl.pod    | 9 ++++++++-
+ doc/man3/BIO_s_accept.pod | 2 +-
+ 2 files changed, 9 insertions(+), 2 deletions(-)
+
+diff --git a/doc/man3/BIO_f_ssl.pod b/doc/man3/BIO_f_ssl.pod
+index c6dc53c105..365168646a 100644
+--- a/doc/man3/BIO_f_ssl.pod
++++ b/doc/man3/BIO_f_ssl.pod
+@@ -243,13 +243,20 @@ a client and also echoes the request to standard output.
+  BIO_set_accept_bios(acpt, sbio);
+  out = BIO_new_fp(stdout, BIO_NOCLOSE);
+ 
+- /* Setup accept BIO */
++ /* First call to BIO_do_accept() sets up accept BIO */
+  if (BIO_do_accept(acpt) <= 0) {
+      fprintf(stderr, "Error setting up accept BIO\n");
+      ERR_print_errors_fp(stderr);
+      exit(1);
+  }
+ 
++/* Second call to BIO_do_accept() waits for incoming connection */
++ if (BIO_do_accept(acpt) <= 0) {
++    fprintf(stderr, "Error accepting connection\n");
++    ERR_print_errors_fp(stderr);
++    exit(1);
++ }
++
+  /* We only want one connection so remove and free accept BIO */
+  sbio = BIO_pop(acpt);
+  BIO_free_all(acpt);
+diff --git a/doc/man3/BIO_s_accept.pod b/doc/man3/BIO_s_accept.pod
+index c3826a609f..f6df26a52d 100644
+--- a/doc/man3/BIO_s_accept.pod
++++ b/doc/man3/BIO_s_accept.pod
+@@ -189,7 +189,7 @@ down each and finally closes both down.
+ 
+  BIO *abio, *cbio, *cbio2;
+ 
+- /* First call to BIO_accept() sets up accept BIO */
++ /* First call to BIO_do_accept() sets up accept BIO */
+  abio = BIO_new_accept("4444");
+  if (BIO_do_accept(abio) <= 0) {
+      fprintf(stderr, "Error setting up accept\n");
+-- 
+2.34.1
+

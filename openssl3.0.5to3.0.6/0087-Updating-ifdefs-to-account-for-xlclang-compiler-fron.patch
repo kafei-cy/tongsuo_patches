@@ -1,0 +1,45 @@
+From bc1f7ad6c7c8c5eb2f15641fe2e5422e1031bc5c Mon Sep 17 00:00:00 2001
+From: Rob Mc Gee <RobertM@magnitude.com>
+Date: Wed, 27 Jul 2022 15:30:51 -0700
+Subject: [PATCH 087/209] Updating ifdefs to account for xlclang compiler
+ frontend on AIX.
+
+The fallback DEP works fine there. XLC should be unaffected.
+
+CLA: trivial
+
+Reviewed-by: Todd Short <todd.short@me.com>
+Reviewed-by: Paul Dale <pauli@openssl.org>
+Reviewed-by: Tomas Mraz <tomas@openssl.org>
+(Merged from https://github.com/openssl/openssl/pull/18892)
+
+(cherry picked from commit df1e33bc8ae67573a3f3488eff82e02fc0310203)
+---
+ providers/fips/self_test.c | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/providers/fips/self_test.c b/providers/fips/self_test.c
+index 346d7eff66..80d048a847 100644
+--- a/providers/fips/self_test.c
++++ b/providers/fips/self_test.c
+@@ -104,7 +104,7 @@ BOOL WINAPI DllMain(HINSTANCE hinstDLL, DWORD fdwReason, LPVOID lpvReserved)
+     return TRUE;
+ }
+ 
+-#elif defined(__GNUC__)
++#elif defined(__GNUC__) && !defined(_AIX)
+ # undef DEP_INIT_ATTRIBUTE
+ # undef DEP_FINI_ATTRIBUTE
+ # define DEP_INIT_ATTRIBUTE static __attribute__((constructor))
+@@ -114,7 +114,7 @@ BOOL WINAPI DllMain(HINSTANCE hinstDLL, DWORD fdwReason, LPVOID lpvReserved)
+ # pragma init(init)
+ # pragma fini(cleanup)
+ 
+-#elif defined(_AIX)
++#elif defined(_AIX) && !defined(__GNUC__)
+ void _init(void);
+ void _cleanup(void);
+ # pragma init(_init)
+-- 
+2.34.1
+

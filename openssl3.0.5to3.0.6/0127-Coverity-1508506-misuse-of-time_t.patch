@@ -1,0 +1,177 @@
+From ec47c3060bd3b7c3e75dbcfada113de9d94de747 Mon Sep 17 00:00:00 2001
+From: Pauli <pauli@openssl.org>
+Date: Tue, 16 Aug 2022 11:05:02 +1000
+Subject: [PATCH 127/209] Coverity 1508506: misuse of time_t
+
+Fixes a bug in the cookie code which would have caused problems for ten
+minutes before and after the lower 32 bits of time_t rolled over.
+
+Reviewed-by: Ben Kaduk <kaduk@mit.edu>
+Reviewed-by: Matt Caswell <matt@openssl.org>
+(Merged from https://github.com/openssl/openssl/pull/19023)
+---
+ crypto/packet.c              |  6 +++---
+ include/internal/packet.h    | 37 +++++++++++++++++++++++++++++++++++-
+ ssl/statem/extensions_srvr.c | 14 +++++++-------
+ 3 files changed, 46 insertions(+), 11 deletions(-)
+
+diff --git a/crypto/packet.c b/crypto/packet.c
+index 09f6a9cea9..a9eb1ec4e4 100644
+--- a/crypto/packet.c
++++ b/crypto/packet.c
+@@ -207,7 +207,7 @@ int WPACKET_set_flags(WPACKET *pkt, unsigned int flags)
+ }
+ 
+ /* Store the |value| of length |len| at location |data| */
+-static int put_value(unsigned char *data, size_t value, size_t len)
++static int put_value(unsigned char *data, uint64_t value, size_t len)
+ {
+     if (data == NULL)
+         return 1;
+@@ -379,12 +379,12 @@ int WPACKET_start_sub_packet(WPACKET *pkt)
+     return WPACKET_start_sub_packet_len__(pkt, 0);
+ }
+ 
+-int WPACKET_put_bytes__(WPACKET *pkt, unsigned int val, size_t size)
++int WPACKET_put_bytes__(WPACKET *pkt, uint64_t val, size_t size)
+ {
+     unsigned char *data;
+ 
+     /* Internal API, so should not fail */
+-    if (!ossl_assert(size <= sizeof(unsigned int))
++    if (!ossl_assert(size <= sizeof(uint64_t))
+             || !WPACKET_allocate_bytes(pkt, size, &data)
+             || !put_value(data, val, size))
+         return 0;
+diff --git a/include/internal/packet.h b/include/internal/packet.h
+index 170997db60..b7bb59d7ae 100644
+--- a/include/internal/packet.h
++++ b/include/internal/packet.h
+@@ -228,6 +228,28 @@ __owur static ossl_inline int PACKET_peek_net_4(const PACKET *pkt,
+     return 1;
+ }
+ 
++/*
++ * Peek ahead at 8 bytes in network order from |pkt| and store the value in
++ * |*data|
++ */
++__owur static ossl_inline int PACKET_peek_net_8(const PACKET *pkt,
++                                                uint64_t *data)
++{
++    if (PACKET_remaining(pkt) < 8)
++        return 0;
++
++    *data = ((uint64_t)(*pkt->curr)) << 56;
++    *data |= ((uint64_t)(*(pkt->curr + 1))) << 48;
++    *data |= ((uint64_t)(*(pkt->curr + 2))) << 40;
++    *data |= ((uint64_t)(*(pkt->curr + 3))) << 32;
++    *data |= ((uint64_t)(*(pkt->curr + 4))) << 24;
++    *data |= ((uint64_t)(*(pkt->curr + 5))) << 16;
++    *data |= ((uint64_t)(*(pkt->curr + 6))) << 8;
++    *data |= *(pkt->curr + 7);
++
++    return 1;
++}
++
+ /* Equivalent of n2l */
+ /* Get 4 bytes in network order from |pkt| and store the value in |*data| */
+ __owur static ossl_inline int PACKET_get_net_4(PACKET *pkt, unsigned long *data)
+@@ -252,6 +274,17 @@ __owur static ossl_inline int PACKET_get_net_4_len(PACKET *pkt, size_t *data)
+     return ret;
+ }
+ 
++/* Get 8 bytes in network order from |pkt| and store the value in |*data| */
++__owur static ossl_inline int PACKET_get_net_8(PACKET *pkt, uint64_t *data)
++{
++    if (!PACKET_peek_net_8(pkt, data))
++        return 0;
++
++    packet_forward(pkt, 8);
++
++    return 1;
++}
++
+ /* Peek ahead at 1 byte from |pkt| and store the value in |*data| */
+ __owur static ossl_inline int PACKET_peek_1(const PACKET *pkt,
+                                             unsigned int *data)
+@@ -833,7 +866,7 @@ int WPACKET_sub_reserve_bytes__(WPACKET *pkt, size_t len,
+  * 1 byte will fail. Don't call this directly. Use the convenience macros below
+  * instead.
+  */
+-int WPACKET_put_bytes__(WPACKET *pkt, unsigned int val, size_t bytes);
++int WPACKET_put_bytes__(WPACKET *pkt, uint64_t val, size_t bytes);
+ 
+ /*
+  * Convenience macros for calling WPACKET_put_bytes with different
+@@ -847,6 +880,8 @@ int WPACKET_put_bytes__(WPACKET *pkt, unsigned int val, size_t bytes);
+     WPACKET_put_bytes__((pkt), (val), 3)
+ #define WPACKET_put_bytes_u32(pkt, val) \
+     WPACKET_put_bytes__((pkt), (val), 4)
++#define WPACKET_put_bytes_u64(pkt, val) \
++    WPACKET_put_bytes__((pkt), (val), 8)
+ 
+ /* Set a maximum size that we will not allow the WPACKET to grow beyond */
+ int WPACKET_set_max_size(WPACKET *pkt, size_t maxsize);
+diff --git a/ssl/statem/extensions_srvr.c b/ssl/statem/extensions_srvr.c
+index 6b1bf9a913..15c4e8af9e 100644
+--- a/ssl/statem/extensions_srvr.c
++++ b/ssl/statem/extensions_srvr.c
+@@ -12,16 +12,16 @@
+ #include "statem_local.h"
+ #include "internal/cryptlib.h"
+ 
+-#define COOKIE_STATE_FORMAT_VERSION     0
++#define COOKIE_STATE_FORMAT_VERSION     1
+ 
+ /*
+  * 2 bytes for packet length, 2 bytes for format version, 2 bytes for
+  * protocol version, 2 bytes for group id, 2 bytes for cipher id, 1 byte for
+- * key_share present flag, 4 bytes for timestamp, 2 bytes for the hashlen,
++ * key_share present flag, 8 bytes for timestamp, 2 bytes for the hashlen,
+  * EVP_MAX_MD_SIZE for transcript hash, 1 byte for app cookie length, app cookie
+  * length bytes, SHA256_DIGEST_LENGTH bytes for the HMAC of the whole thing.
+  */
+-#define MAX_COOKIE_SIZE (2 + 2 + 2 + 2 + 2 + 1 + 4 + 2 + EVP_MAX_MD_SIZE + 1 \
++#define MAX_COOKIE_SIZE (2 + 2 + 2 + 2 + 2 + 1 + 8 + 2 + EVP_MAX_MD_SIZE + 1 \
+                          + SSL_COOKIE_LENGTH + SHA256_DIGEST_LENGTH)
+ 
+ /*
+@@ -690,7 +690,7 @@ int tls_parse_ctos_cookie(SSL *s, PACKET *pkt, unsigned int context, X509 *x,
+     unsigned char hmac[SHA256_DIGEST_LENGTH];
+     unsigned char hrr[MAX_HRR_SIZE];
+     size_t rawlen, hmaclen, hrrlen, ciphlen;
+-    unsigned long tm, now;
++    uint64_t tm, now;
+ 
+     /* Ignore any cookie if we're not set up to verify it */
+     if (s->ctx->verify_stateless_cookie_cb == NULL
+@@ -791,7 +791,7 @@ int tls_parse_ctos_cookie(SSL *s, PACKET *pkt, unsigned int context, X509 *x,
+     }
+ 
+     if (!PACKET_get_1(&cookie, &key_share)
+-            || !PACKET_get_net_4(&cookie, &tm)
++            || !PACKET_get_net_8(&cookie, &tm)
+             || !PACKET_get_length_prefixed_2(&cookie, &chhash)
+             || !PACKET_get_length_prefixed_1(&cookie, &appcookie)
+             || PACKET_remaining(&cookie) != SHA256_DIGEST_LENGTH) {
+@@ -800,7 +800,7 @@ int tls_parse_ctos_cookie(SSL *s, PACKET *pkt, unsigned int context, X509 *x,
+     }
+ 
+     /* We tolerate a cookie age of up to 10 minutes (= 60 * 10 seconds) */
+-    now = (unsigned long)time(NULL);
++    now = time(NULL);
+     if (tm > now || (now - tm) > 600) {
+         /* Cookie is stale. Ignore it */
+         return 1;
+@@ -1740,7 +1740,7 @@ EXT_RETURN tls_construct_stoc_cookie(SSL *s, WPACKET *pkt, unsigned int context,
+                                               &ciphlen)
+                /* Is there a key_share extension present in this HRR? */
+             || !WPACKET_put_bytes_u8(pkt, s->s3.peer_tmp == NULL)
+-            || !WPACKET_put_bytes_u32(pkt, (unsigned int)time(NULL))
++            || !WPACKET_put_bytes_u64(pkt, time(NULL))
+             || !WPACKET_start_sub_packet_u16(pkt)
+             || !WPACKET_reserve_bytes(pkt, EVP_MAX_MD_SIZE, &hashval1)) {
+         SSLfatal(s, SSL_AD_INTERNAL_ERROR, ERR_R_INTERNAL_ERROR);
+-- 
+2.34.1
+

@@ -1,0 +1,126 @@
+From d40de2cc04b9a1b1adf42d9f2218a224e4d14de4 Mon Sep 17 00:00:00 2001
+From: Daniel Fiala <daniel@openssl.org>
+Date: Wed, 21 Sep 2022 15:29:51 +0200
+Subject: [PATCH 178/209] Clear incorrectly reported errors in
+ d2i_CMS_ContentInfo
+
+Fixes openssl#19003
+
+Reviewed-by: Paul Dale <pauli@openssl.org>
+Reviewed-by: Tomas Mraz <tomas@openssl.org>
+(Merged from https://github.com/openssl/openssl/pull/19255)
+
+(cherry picked from commit 678b489a2ae8af289cef939a538235686b448c0e)
+---
+ crypto/cms/cms_lib.c |  5 +++-
+ test/cmsapitest.c    | 54 ++++++++++++++++++++++++++++++++++++++++----
+ 2 files changed, 54 insertions(+), 5 deletions(-)
+
+diff --git a/crypto/cms/cms_lib.c b/crypto/cms/cms_lib.c
+index 4ad9302910..4aeb542eda 100644
+--- a/crypto/cms/cms_lib.c
++++ b/crypto/cms/cms_lib.c
+@@ -34,8 +34,11 @@ CMS_ContentInfo *d2i_CMS_ContentInfo(CMS_ContentInfo **a,
+                                           (CMS_ContentInfo_it()),
+                                           ossl_cms_ctx_get0_libctx(ctx),
+                                           ossl_cms_ctx_get0_propq(ctx));
+-    if (ci != NULL)
++    if (ci != NULL) {
++        ERR_set_mark();
+         ossl_cms_resolve_libctx(ci);
++        ERR_pop_to_mark();
++    }
+     return ci;
+ }
+ 
+diff --git a/test/cmsapitest.c b/test/cmsapitest.c
+index b40089becd..a19fb0683c 100644
+--- a/test/cmsapitest.c
++++ b/test/cmsapitest.c
+@@ -289,18 +289,63 @@ static int test_d2i_CMS_bio_NULL(void)
+     return ret;
+ }
+ 
+-static int test_d2i_CMS_bio_file_encrypted_data(void)
++static unsigned char *read_all(BIO *bio, long *p_len)
++{
++    const int step = 256;
++    unsigned char *buf = NULL;
++    unsigned char *tmp = NULL;
++    int ret;
++
++    *p_len = 0;
++    for (;;) {
++        tmp = OPENSSL_realloc(buf, *p_len + step);
++        if (tmp == NULL)
++            break;
++        buf = tmp;
++        ret = BIO_read(bio, buf + *p_len, step);
++        if (ret < 0)
++            break;
++
++        *p_len += ret;
++
++        if (ret < step)
++            return buf;
++    }
++
++    /* Error */
++    OPENSSL_free(buf);
++    *p_len = 0;
++    return NULL;
++}
++
++static int test_d2i_CMS_decode(const int idx)
+ {
+     BIO *bio = NULL;
+     CMS_ContentInfo *cms = NULL;
++    unsigned char *buf = NULL;
++    const unsigned char *tmp = NULL;
++    long buf_len = 0;
+     int ret = 0;
+ 
+     ERR_clear_error();
+ 
+-    if (!TEST_ptr(bio = BIO_new_file(derin, "r"))
+-      || !TEST_ptr(cms = d2i_CMS_bio(bio, NULL)))
++    if (!TEST_ptr(bio = BIO_new_file(derin, "r")))
+       goto end;
+ 
++    switch (idx) {
++    case 0:
++        if (!TEST_ptr(cms = d2i_CMS_bio(bio, NULL)))
++            goto end;
++        break;
++    case 1:
++        if (!TEST_ptr(buf = read_all(bio, &buf_len)))
++            goto end;
++        tmp = buf;
++        if (!TEST_ptr(cms = d2i_CMS_ContentInfo(NULL, &tmp, buf_len)))
++            goto end;
++        break;
++    }
++
+     if (!TEST_int_eq(ERR_peek_error(), 0))
+         goto end;
+ 
+@@ -308,6 +353,7 @@ static int test_d2i_CMS_bio_file_encrypted_data(void)
+ end:
+     CMS_ContentInfo_free(cms);
+     BIO_free(bio);
++    OPENSSL_free(buf);
+ 
+     return ret;
+ }
+@@ -357,7 +403,7 @@ int setup_tests(void)
+     ADD_TEST(test_encrypt_decrypt_aes_192_gcm);
+     ADD_TEST(test_encrypt_decrypt_aes_256_gcm);
+     ADD_TEST(test_d2i_CMS_bio_NULL);
+-    ADD_TEST(test_d2i_CMS_bio_file_encrypted_data);
++    ADD_ALL_TESTS(test_d2i_CMS_decode, 2);
+     return 1;
+ }
+ 
+-- 
+2.34.1
+

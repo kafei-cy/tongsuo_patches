@@ -1,0 +1,190 @@
+From cc750a9a81e24d46076b5de0b700aec478c2bd13 Mon Sep 17 00:00:00 2001
+From: Dmitry Belyavskiy <beldmit@gmail.com>
+Date: Wed, 27 Jul 2022 12:15:07 +0200
+Subject: [PATCH 090/209] Check that IV length is not less than zero
+
+As EVP_CIPHER_CTX_get_iv_length indicates failure with -1, this error
+should be processed. Also the result of this function shouldn't be
+assigned to an unsigned variable.
+
+Reviewed-by: Paul Dale <pauli@openssl.org>
+Reviewed-by: Tomas Mraz <tomas@openssl.org>
+Reviewed-by: Hugo Landau <hlandau@openssl.org>
+
+Signed-off-by: Dmitry Belyavskiy <beldmit@gmail.com>
+
+Reviewed-by: Matt Caswell <matt@openssl.org>
+(Merged from https://github.com/openssl/openssl/pull/18922)
+---
+ crypto/cms/cms_enc.c           |  5 +++++
+ crypto/cms/cms_pwri.c          |  4 ++++
+ ssl/ktls.c                     |  5 ++++-
+ ssl/record/rec_layer_d1.c      |  4 ++++
+ ssl/record/rec_layer_s3.c      |  4 ++++
+ ssl/record/ssl3_record_tls13.c |  7 ++++++-
+ ssl/statem/statem_srvr.c       |  4 ++++
+ ssl/t1_lib.c                   | 15 ++++++++++-----
+ 8 files changed, 41 insertions(+), 7 deletions(-)
+
+diff --git a/crypto/cms/cms_enc.c b/crypto/cms/cms_enc.c
+index a896148dd8..150b9ee4e1 100644
+--- a/crypto/cms/cms_enc.c
++++ b/crypto/cms/cms_enc.c
+@@ -83,6 +83,11 @@ BIO *ossl_cms_EncryptedContent_init_bio(CMS_EncryptedContentInfo *ec,
+         calg->algorithm = OBJ_nid2obj(EVP_CIPHER_CTX_get_type(ctx));
+         /* Generate a random IV if we need one */
+         ivlen = EVP_CIPHER_CTX_get_iv_length(ctx);
++        if (ivlen < 0) {
++            ERR_raise(ERR_LIB_CMS, ERR_R_EVP_LIB);
++            goto err;
++        }
++
+         if (ivlen > 0) {
+             if (RAND_bytes_ex(libctx, iv, ivlen, 0) <= 0)
+                 goto err;
+diff --git a/crypto/cms/cms_pwri.c b/crypto/cms/cms_pwri.c
+index 380240561f..1f73cb1008 100644
+--- a/crypto/cms/cms_pwri.c
++++ b/crypto/cms/cms_pwri.c
+@@ -96,6 +96,10 @@ CMS_RecipientInfo *CMS_add0_recipient_password(CMS_ContentInfo *cms,
+     }
+ 
+     ivlen = EVP_CIPHER_CTX_get_iv_length(ctx);
++    if (ivlen < 0) {
++        ERR_raise(ERR_LIB_CMS, ERR_R_EVP_LIB);
++        goto err;
++    }
+ 
+     if (ivlen > 0) {
+         if (RAND_bytes_ex(ossl_cms_ctx_get0_libctx(cms_ctx), iv, ivlen, 0) <= 0)
+diff --git a/ssl/ktls.c b/ssl/ktls.c
+index 79d980959e..2b32170530 100644
+--- a/ssl/ktls.c
++++ b/ssl/ktls.c
+@@ -66,8 +66,11 @@ int ktls_configure_crypto(const SSL *s, const EVP_CIPHER *c, EVP_CIPHER_CTX *dd,
+     case SSL_AES128GCM:
+     case SSL_AES256GCM:
+         crypto_info->cipher_algorithm = CRYPTO_AES_NIST_GCM_16;
+-        if (s->version == TLS1_3_VERSION)
++        if (s->version == TLS1_3_VERSION) {
+             crypto_info->iv_len = EVP_CIPHER_CTX_get_iv_length(dd);
++            if (crypto_info->iv_len < 0)
++                return 0;
++        }
+         else
+             crypto_info->iv_len = EVP_GCM_TLS_FIXED_IV_LEN;
+         break;
+diff --git a/ssl/record/rec_layer_d1.c b/ssl/record/rec_layer_d1.c
+index 7cf3169c39..7f3d1a7f0d 100644
+--- a/ssl/record/rec_layer_d1.c
++++ b/ssl/record/rec_layer_d1.c
+@@ -874,6 +874,10 @@ int do_dtls1_write(SSL *s, int type, const unsigned char *buf,
+         int mode = EVP_CIPHER_CTX_get_mode(s->enc_write_ctx);
+         if (mode == EVP_CIPH_CBC_MODE) {
+             eivlen = EVP_CIPHER_CTX_get_iv_length(s->enc_write_ctx);
++            if (eivlen < 0) {
++                SSLfatal(s, SSL_AD_INTERNAL_ERROR, SSL_R_LIBRARY_BUG);
++                return -1;
++            }
+             if (eivlen <= 1)
+                 eivlen = 0;
+         }
+diff --git a/ssl/record/rec_layer_s3.c b/ssl/record/rec_layer_s3.c
+index d26437f026..e8b5654c1e 100644
+--- a/ssl/record/rec_layer_s3.c
++++ b/ssl/record/rec_layer_s3.c
+@@ -832,6 +832,10 @@ int do_ssl3_write(SSL *s, int type, const unsigned char *buf,
+         int mode = EVP_CIPHER_CTX_get_mode(s->enc_write_ctx);
+         if (mode == EVP_CIPH_CBC_MODE) {
+             eivlen = EVP_CIPHER_CTX_get_iv_length(s->enc_write_ctx);
++            if (eivlen < 0) {
++                SSLfatal(s, SSL_AD_INTERNAL_ERROR, SSL_R_LIBRARY_BUG);
++                goto err;
++	    }
+             if (eivlen <= 1)
+                 eivlen = 0;
+         } else if (mode == EVP_CIPH_GCM_MODE) {
+diff --git a/ssl/record/ssl3_record_tls13.c b/ssl/record/ssl3_record_tls13.c
+index 8671b610e7..45eefcede0 100644
+--- a/ssl/record/ssl3_record_tls13.c
++++ b/ssl/record/ssl3_record_tls13.c
+@@ -25,7 +25,8 @@ int tls13_enc(SSL *s, SSL3_RECORD *recs, size_t n_recs, int sending,
+ {
+     EVP_CIPHER_CTX *ctx;
+     unsigned char iv[EVP_MAX_IV_LENGTH], recheader[SSL3_RT_HEADER_LENGTH];
+-    size_t ivlen, taglen, offset, loop, hdrlen;
++    size_t taglen, offset, loop, hdrlen;
++    int ivlen;
+     unsigned char *staticiv;
+     unsigned char *seq;
+     int lenu, lenf;
+@@ -62,6 +63,10 @@ int tls13_enc(SSL *s, SSL3_RECORD *recs, size_t n_recs, int sending,
+     }
+ 
+     ivlen = EVP_CIPHER_CTX_get_iv_length(ctx);
++    if (ivlen < 0) {
++        SSLfatal(s, SSL_AD_INTERNAL_ERROR, ERR_R_INTERNAL_ERROR);
++        return 0;
++    }
+ 
+     if (s->early_data_state == SSL_EARLY_DATA_WRITING
+             || s->early_data_state == SSL_EARLY_DATA_WRITE_RETRY) {
+diff --git a/ssl/statem/statem_srvr.c b/ssl/statem/statem_srvr.c
+index 79f9832083..5626e4ea2a 100644
+--- a/ssl/statem/statem_srvr.c
++++ b/ssl/statem/statem_srvr.c
+@@ -3772,6 +3772,10 @@ static int construct_stateless_ticket(SSL *s, WPACKET *pkt, uint32_t age_add,
+             goto err;
+         }
+         iv_len = EVP_CIPHER_CTX_get_iv_length(ctx);
++        if (iv_len < 0) {
++            SSLfatal(s, SSL_AD_INTERNAL_ERROR, ERR_R_INTERNAL_ERROR);
++            goto err;
++        }
+     } else {
+         EVP_CIPHER *cipher = EVP_CIPHER_fetch(s->ctx->libctx, "AES-256-CBC",
+                                               s->ctx->propq);
+diff --git a/ssl/t1_lib.c b/ssl/t1_lib.c
+index 48a0b7f6e5..51c2283db9 100644
+--- a/ssl/t1_lib.c
++++ b/ssl/t1_lib.c
+@@ -1785,7 +1785,7 @@ SSL_TICKET_STATUS tls_decrypt_ticket(SSL *s, const unsigned char *etick,
+     SSL_SESSION *sess = NULL;
+     unsigned char *sdec;
+     const unsigned char *p;
+-    int slen, renew_ticket = 0, declen;
++    int slen, ivlen, renew_ticket = 0, declen;
+     SSL_TICKET_STATUS ret = SSL_TICKET_FATAL_ERR_OTHER;
+     size_t mlen;
+     unsigned char tick_hmac[EVP_MAX_MD_SIZE];
+@@ -1898,9 +1898,14 @@ SSL_TICKET_STATUS tls_decrypt_ticket(SSL *s, const unsigned char *etick,
+         goto end;
+     }
+ 
++    ivlen = EVP_CIPHER_CTX_get_iv_length(ctx);
++    if (ivlen < 0) {
++        ret = SSL_TICKET_FATAL_ERR_OTHER;
++        goto end;
++    }
++
+     /* Sanity check ticket length: must exceed keyname + IV + HMAC */
+-    if (eticklen <=
+-        TLSEXT_KEYNAME_LENGTH + EVP_CIPHER_CTX_get_iv_length(ctx) + mlen) {
++    if (eticklen <= TLSEXT_KEYNAME_LENGTH + ivlen + mlen) {
+         ret = SSL_TICKET_NO_DECRYPT;
+         goto end;
+     }
+@@ -1918,8 +1923,8 @@ SSL_TICKET_STATUS tls_decrypt_ticket(SSL *s, const unsigned char *etick,
+     }
+     /* Attempt to decrypt session data */
+     /* Move p after IV to start of encrypted ticket, update length */
+-    p = etick + TLSEXT_KEYNAME_LENGTH + EVP_CIPHER_CTX_get_iv_length(ctx);
+-    eticklen -= TLSEXT_KEYNAME_LENGTH + EVP_CIPHER_CTX_get_iv_length(ctx);
++    p = etick + TLSEXT_KEYNAME_LENGTH + ivlen;
++    eticklen -= TLSEXT_KEYNAME_LENGTH + ivlen;
+     sdec = OPENSSL_malloc(eticklen);
+     if (sdec == NULL || EVP_DecryptUpdate(ctx, sdec, &slen, p,
+                                           (int)eticklen) <= 0) {
+-- 
+2.34.1
+

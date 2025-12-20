@@ -1,0 +1,59 @@
+From ed37a881f450a07520084f4cd8bfaed294d31141 Mon Sep 17 00:00:00 2001
+From: Juergen Christ <jchrist@linux.ibm.com>
+Date: Wed, 7 Sep 2022 15:01:17 +0200
+Subject: [PATCH 145/209] s390x: fix ecx derive
+
+Derivation via ecx-methods did not properly set the length.  Make the code
+more similar to common code and set the length property.
+
+Signed-off-by: Juergen Christ <jchrist@linux.ibm.com>
+
+Reviewed-by: Tomas Mraz <tomas@openssl.org>
+Reviewed-by: Paul Dale <pauli@openssl.org>
+Reviewed-by: Hugo Landau <hlandau@openssl.org>
+(Merged from https://github.com/openssl/openssl/pull/19158)
+
+(cherry picked from commit 3cca05cc194c0528865deea57d9e60ca3fb0e5d3)
+---
+ crypto/ec/ecx_meth.c | 16 ++++++----------
+ 1 file changed, 6 insertions(+), 10 deletions(-)
+
+diff --git a/crypto/ec/ecx_meth.c b/crypto/ec/ecx_meth.c
+index bd72006c84..4e32210bf4 100644
+--- a/crypto/ec/ecx_meth.c
++++ b/crypto/ec/ecx_meth.c
+@@ -1160,12 +1160,10 @@ static int s390x_pkey_ecx_derive25519(EVP_PKEY_CTX *ctx, unsigned char *key,
+ {
+     const unsigned char *privkey, *pubkey;
+ 
+-    if (!validate_ecx_derive(ctx, key, keylen, &privkey, &pubkey))
++    if (!validate_ecx_derive(ctx, key, keylen, &privkey, &pubkey)
++        || (key != NULL
++            && s390x_x25519_mul(key, privkey, pubkey) == 0))
+         return 0;
+-
+-    if (key != NULL)
+-        return s390x_x25519_mul(key, pubkey, privkey);
+-
+     *keylen = X25519_KEYLEN;
+     return 1;
+ }
+@@ -1175,12 +1173,10 @@ static int s390x_pkey_ecx_derive448(EVP_PKEY_CTX *ctx, unsigned char *key,
+ {
+     const unsigned char *privkey, *pubkey;
+ 
+-    if (!validate_ecx_derive(ctx, key, keylen, &privkey, &pubkey))
++    if (!validate_ecx_derive(ctx, key, keylen, &privkey, &pubkey)
++        || (key != NULL
++            && s390x_x448_mul(key, pubkey, privkey) == 0))
+         return 0;
+-
+-    if (key != NULL)
+-        return s390x_x448_mul(key, pubkey, privkey);
+-
+     *keylen = X448_KEYLEN;
+     return 1;
+ }
+-- 
+2.34.1
+
