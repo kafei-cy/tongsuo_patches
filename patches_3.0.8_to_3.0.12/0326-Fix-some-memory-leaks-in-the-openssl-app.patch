@@ -1,0 +1,145 @@
+From 296fc3ca5011cf6c9e332f5da46e6b80e9bc60ac Mon Sep 17 00:00:00 2001
+From: Bernd Edlinger <bernd.edlinger@hotmail.de>
+Date: Mon, 11 Sep 2023 06:38:31 +0200
+Subject: [PATCH 326/381] Fix some memory leaks in the openssl app
+
+In some error cases the normal cleanup did not
+happen, but instead an exit(1) which caused some
+memory leaks, as reported in #22049.
+
+Reviewed-by: Tom Cosgrove <tom.cosgrove@arm.com>
+Reviewed-by: Nicola Tuveri <nic.tuv@gmail.com>
+(Merged from https://github.com/openssl/openssl/pull/22055)
+
+(cherry picked from commit 8c040c086ca11a519975c58961a5dc933aa6524a)
+---
+ apps/dgst.c     | 2 ++
+ apps/dhparam.c  | 2 ++
+ apps/dsaparam.c | 2 ++
+ apps/gendsa.c   | 2 ++
+ apps/genpkey.c  | 2 ++
+ apps/genrsa.c   | 2 ++
+ apps/lib/apps.c | 8 ++++----
+ apps/req.c      | 2 ++
+ 8 files changed, 18 insertions(+), 4 deletions(-)
+
+diff --git a/apps/dgst.c b/apps/dgst.c
+index e12389197d..3f02af0d57 100644
+--- a/apps/dgst.c
++++ b/apps/dgst.c
+@@ -320,6 +320,8 @@ int dgst_main(int argc, char **argv)
+         sigkey = app_keygen(mac_ctx, mac_name, 0, 0 /* not verbose */);
+         /* Verbose output would make external-tests gost-engine fail */
+         EVP_PKEY_CTX_free(mac_ctx);
++        if (sigkey == NULL)
++            goto end;
+     }
+ 
+     if (hmac_key != NULL) {
+diff --git a/apps/dhparam.c b/apps/dhparam.c
+index 43906cea56..c4b5559ef8 100644
+--- a/apps/dhparam.c
++++ b/apps/dhparam.c
+@@ -222,6 +222,8 @@ int dhparam_main(int argc, char **argv)
+         }
+ 
+         tmppkey = app_paramgen(ctx, alg);
++        if (tmppkey == NULL)
++            goto end;
+         EVP_PKEY_CTX_free(ctx);
+         ctx = NULL;
+         if (dsaparam) {
+diff --git a/apps/dsaparam.c b/apps/dsaparam.c
+index b5555282be..cb3f9d9eaf 100644
+--- a/apps/dsaparam.c
++++ b/apps/dsaparam.c
+@@ -218,6 +218,8 @@ int dsaparam_main(int argc, char **argv)
+             goto end;
+         }
+         pkey = app_keygen(ctx, "DSA", numbits, verbose);
++        if (pkey == NULL)
++            goto end;
+         assert(private);
+         if (outformat == FORMAT_ASN1)
+             i = i2d_PrivateKey_bio(out, pkey);
+diff --git a/apps/gendsa.c b/apps/gendsa.c
+index 27feb793fe..34f7af377d 100644
+--- a/apps/gendsa.c
++++ b/apps/gendsa.c
+@@ -146,6 +146,8 @@ int gendsa_main(int argc, char **argv)
+         goto end;
+     }
+     pkey = app_keygen(ctx, "DSA", nbits, verbose);
++    if (pkey == NULL)
++        goto end;
+ 
+     assert(private);
+     if (!PEM_write_bio_PrivateKey(out, pkey, enc, NULL, 0, NULL, passout)) {
+diff --git a/apps/genpkey.c b/apps/genpkey.c
+index d00754eeac..8774a4ee28 100644
+--- a/apps/genpkey.c
++++ b/apps/genpkey.c
+@@ -183,6 +183,8 @@ int genpkey_main(int argc, char **argv)
+ 
+     pkey = do_param ? app_paramgen(ctx, algname)
+                     : app_keygen(ctx, algname, 0, 0 /* not verbose */);
++    if (pkey == NULL)
++        goto end;
+ 
+     if (do_param) {
+         rv = PEM_write_bio_Parameters(out, pkey);
+diff --git a/apps/genrsa.c b/apps/genrsa.c
+index 4436b7fa17..390a5d72a7 100644
+--- a/apps/genrsa.c
++++ b/apps/genrsa.c
+@@ -203,6 +203,8 @@ opthelp:
+         goto end;
+     }
+     pkey = app_keygen(ctx, "RSA", num, verbose);
++    if (pkey == NULL)
++        goto end;
+ 
+     if (verbose) {
+         BIGNUM *e = NULL;
+diff --git a/apps/lib/apps.c b/apps/lib/apps.c
+index 572f6a3f8f..9de518f383 100644
+--- a/apps/lib/apps.c
++++ b/apps/lib/apps.c
+@@ -3359,8 +3359,8 @@ EVP_PKEY *app_keygen(EVP_PKEY_CTX *ctx, const char *alg, int bits, int verbose)
+         BIO_printf(bio_err, "Warning: generating random key material may take a long time\n"
+                    "if the system has a poor entropy source\n");
+     if (EVP_PKEY_keygen(ctx, &res) <= 0)
+-        app_bail_out("%s: Error generating %s key\n", opt_getprog(),
+-                     alg != NULL ? alg : "asymmetric");
++        BIO_printf(bio_err, "%s: Error generating %s key\n", opt_getprog(),
++                   alg != NULL ? alg : "asymmetric");
+     return res;
+ }
+ 
+@@ -3372,8 +3372,8 @@ EVP_PKEY *app_paramgen(EVP_PKEY_CTX *ctx, const char *alg)
+         BIO_printf(bio_err, "Warning: generating random key parameters may take a long time\n"
+                    "if the system has a poor entropy source\n");
+     if (EVP_PKEY_paramgen(ctx, &res) <= 0)
+-        app_bail_out("%s: Generating %s key parameters failed\n",
+-                     opt_getprog(), alg != NULL ? alg : "asymmetric");
++        BIO_printf(bio_err, "%s: Generating %s key parameters failed\n",
++                   opt_getprog(), alg != NULL ? alg : "asymmetric");
+     return res;
+ }
+ 
+diff --git a/apps/req.c b/apps/req.c
+index 926f0796bc..41191803ae 100644
+--- a/apps/req.c
++++ b/apps/req.c
+@@ -685,6 +685,8 @@ int req_main(int argc, char **argv)
+         EVP_PKEY_CTX_set_app_data(genctx, bio_err);
+ 
+         pkey = app_keygen(genctx, keyalgstr, newkey_len, verbose);
++        if (pkey == NULL)
++            goto end;
+ 
+         EVP_PKEY_CTX_free(genctx);
+         genctx = NULL;
+-- 
+2.34.1
+

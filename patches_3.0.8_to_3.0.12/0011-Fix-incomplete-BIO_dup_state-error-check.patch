@@ -1,0 +1,38 @@
+From 6ed7004d24994477c423665c03b2535a8126c1be Mon Sep 17 00:00:00 2001
+From: ndossche <niels.dossche@ugent.be>
+Date: Thu, 2 Feb 2023 14:02:34 +0100
+Subject: [PATCH 011/381] Fix incomplete BIO_dup_state() error check
+
+BIO_dup_state() returns an error code <= 0 according to my analysis tool
+and the documentation. Currently only == 0 is checked. Fix it by
+changing the check condition.
+
+CLA: trivial
+
+Reviewed-by: Hugo Landau <hlandau@openssl.org>
+Reviewed-by: Tomas Mraz <tomas@openssl.org>
+Reviewed-by: Todd Short <todd.short@me.com>
+(Merged from https://github.com/openssl/openssl/pull/20194)
+
+(cherry picked from commit 89601c72471a4b6bbb9e877f5c54f20eceba5f01)
+(cherry picked from commit cf3cf2ba81f803f283f40ff93cb19d2b8142dacd)
+---
+ crypto/bio/bio_lib.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/crypto/bio/bio_lib.c b/crypto/bio/bio_lib.c
+index ecc16a5ee3..1f4de8e8e3 100644
+--- a/crypto/bio/bio_lib.c
++++ b/crypto/bio/bio_lib.c
+@@ -784,7 +784,7 @@ BIO *BIO_dup_chain(BIO *in)
+         /* This will let SSL_s_sock() work with stdin/stdout */
+         new_bio->num = bio->num;
+ 
+-        if (!BIO_dup_state(bio, (char *)new_bio)) {
++        if (BIO_dup_state(bio, (char *)new_bio) <= 0) {
+             BIO_free(new_bio);
+             goto err;
+         }
+-- 
+2.34.1
+

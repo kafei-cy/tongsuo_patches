@@ -1,0 +1,101 @@
+From b6407c151932365fb889aa96ee127b848824a709 Mon Sep 17 00:00:00 2001
+From: Tomas Mraz <tomas@openssl.org>
+Date: Wed, 8 Mar 2023 11:17:31 +0100
+Subject: [PATCH 064/381] Fix size_t/int mismatch in cms_ec.c and rsa_sig.c
+
+Fixes #20435
+
+Reviewed-by: Shane Lontis <shane.lontis@oracle.com>
+Reviewed-by: Paul Dale <pauli@openssl.org>
+(Merged from https://github.com/openssl/openssl/pull/20457)
+
+(cherry picked from commit 0ad18226d00e57419239c6d1b3e29dcc8960f355)
+---
+ crypto/cms/cms_dh.c                           | 2 +-
+ crypto/cms/cms_ec.c                           | 8 ++++++--
+ providers/implementations/signature/rsa_sig.c | 9 ++++++---
+ 3 files changed, 13 insertions(+), 6 deletions(-)
+
+diff --git a/crypto/cms/cms_dh.c b/crypto/cms/cms_dh.c
+index 7cc36f835f..2c0712b41a 100644
+--- a/crypto/cms/cms_dh.c
++++ b/crypto/cms/cms_dh.c
+@@ -309,7 +309,7 @@ static int dh_cms_encrypt(CMS_RecipientInfo *ri)
+      */
+     penc = NULL;
+     penclen = i2d_X509_ALGOR(wrap_alg, &penc);
+-    if (penc == NULL || penclen == 0)
++    if (penclen <= 0)
+         goto err;
+     wrap_str = ASN1_STRING_new();
+     if (wrap_str == NULL)
+diff --git a/crypto/cms/cms_ec.c b/crypto/cms/cms_ec.c
+index 42b713752d..176c7eb62c 100644
+--- a/crypto/cms/cms_ec.c
++++ b/crypto/cms/cms_ec.c
+@@ -8,6 +8,7 @@
+  */
+ 
+ #include <assert.h>
++#include <limits.h>
+ #include <openssl/cms.h>
+ #include <openssl/err.h>
+ #include <openssl/decoder.h>
+@@ -257,7 +258,7 @@ static int ecdh_cms_encrypt(CMS_RecipientInfo *ri)
+     ASN1_STRING *wrap_str;
+     ASN1_OCTET_STRING *ukm;
+     unsigned char *penc = NULL;
+-    size_t penclen;
++    int penclen;
+     int rv = 0;
+     int ecdh_nid, kdf_type, kdf_nid, wrap_nid;
+     const EVP_MD *kdf_md;
+@@ -274,8 +275,11 @@ static int ecdh_cms_encrypt(CMS_RecipientInfo *ri)
+     /* Is everything uninitialised? */
+     if (aoid == OBJ_nid2obj(NID_undef)) {
+         /* Set the key */
++        size_t enckeylen;
+ 
+         penclen = EVP_PKEY_get1_encoded_public_key(pkey, &penc);
++        if (penclen > INT_MAX || penclen == 0)
++            goto err;
+         ASN1_STRING_set0(pubkey, penc, penclen);
+         pubkey->flags &= ~(ASN1_STRING_FLAG_BITS_LEFT | 0x07);
+         pubkey->flags |= ASN1_STRING_FLAG_BITS_LEFT;
+@@ -358,7 +362,7 @@ static int ecdh_cms_encrypt(CMS_RecipientInfo *ri)
+      * of another AlgorithmIdentifier.
+      */
+     penclen = i2d_X509_ALGOR(wrap_alg, &penc);
+-    if (penc == NULL || penclen == 0)
++    if (penclen <= 0)
+         goto err;
+     wrap_str = ASN1_STRING_new();
+     if (wrap_str == NULL)
+diff --git a/providers/implementations/signature/rsa_sig.c b/providers/implementations/signature/rsa_sig.c
+index 6fa9db38db..34b0c2ba90 100644
+--- a/providers/implementations/signature/rsa_sig.c
++++ b/providers/implementations/signature/rsa_sig.c
+@@ -823,14 +823,17 @@ static int rsa_verify(void *vprsactx, const unsigned char *sig, size_t siglen,
+             return 0;
+         }
+     } else {
++        int ret;
++
+         if (!setup_tbuf(prsactx))
+             return 0;
+-        rslen = RSA_public_decrypt(siglen, sig, prsactx->tbuf, prsactx->rsa,
+-                                   prsactx->pad_mode);
+-        if (rslen <= 0) {
++        ret = RSA_public_decrypt(siglen, sig, prsactx->tbuf, prsactx->rsa,
++                                 prsactx->pad_mode);
++        if (ret <= 0) {
+             ERR_raise(ERR_LIB_PROV, ERR_R_RSA_LIB);
+             return 0;
+         }
++        rslen = (size_t)ret;
+     }
+ 
+     if ((rslen != tbslen) || memcmp(tbs, prsactx->tbuf, rslen))
+-- 
+2.34.1
+

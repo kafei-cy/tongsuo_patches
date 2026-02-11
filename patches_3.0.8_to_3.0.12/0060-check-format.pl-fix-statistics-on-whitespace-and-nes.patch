@@ -1,0 +1,39 @@
+From 2bdc60cbe9e6baa37d6fa68e80c024d23c050528 Mon Sep 17 00:00:00 2001
+From: "Dr. David von Oheimb" <David.von.Oheimb@siemens.com>
+Date: Wed, 30 Nov 2022 21:11:48 +0100
+Subject: [PATCH 060/381] check-format.pl: fix statistics on whitespace and
+ nesting issues
+
+Reviewed-by: Tomas Mraz <tomas@openssl.org>
+Reviewed-by: Tom Cosgrove <tom.cosgrove@arm.com>
+Reviewed-by: David von Oheimb <david.von.oheimb@siemens.com>
+(Merged from https://github.com/openssl/openssl/pull/20254)
+---
+ util/check-format.pl | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/util/check-format.pl b/util/check-format.pl
+index 21ecaf0aa6..afae3d4a76 100755
+--- a/util/check-format.pl
++++ b/util/check-format.pl
+@@ -301,14 +301,14 @@ sub report_flexibly {
+     my $line = shift;
+     my $msg = shift;
+     my $contents = shift;
+-    my $report_SPC = $msg =~ /space/;
++    my $report_SPC = $msg =~ /space|blank/;
+     return if $report_SPC && $sloppy_SPC;
+ 
+     print "$ARGV:$line:$msg:$contents" unless $self_test;
+     $num_reports_line++;
+     $num_reports++;
+-    $num_indent_reports++ if $msg =~ m/indent/;
+-    $num_nesting_issues++ if $msg =~ m/#if nesting/;
++    $num_indent_reports++ if $msg =~ m/:indent /;
++    $num_nesting_issues++ if $msg =~ m/ nesting indent /;
+     $num_syntax_issues++  if $msg =~ m/unclosed|unexpected/;
+     $num_SPC_reports++    if $report_SPC;
+     $num_length_reports++ if $msg =~ m/length/;
+-- 
+2.34.1
+

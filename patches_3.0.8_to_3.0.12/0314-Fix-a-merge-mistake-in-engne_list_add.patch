@@ -1,0 +1,33 @@
+From 7f81dec985b830db348eb025927f2cd0406b7b7e Mon Sep 17 00:00:00 2001
+From: Bernd Edlinger <bernd.edlinger@hotmail.de>
+Date: Fri, 15 Sep 2023 09:56:01 +0200
+Subject: [PATCH 314/381] Fix a merge mistake in engne_list_add
+
+master version increments the struct_ref early
+and needs to decrement the struct_ref on error,
+while 3.1 and 3.0 increment the struct_ref later.
+
+Reviewed-by: Tom Cosgrove <tom.cosgrove@arm.com>
+Reviewed-by: Matt Caswell <matt@openssl.org>
+(Merged from https://github.com/openssl/openssl/pull/22115)
+
+(cherry picked from commit bb67dff95aeb21047b95f92c5119cb63e75cfd2f)
+---
+ crypto/engine/eng_list.c | 1 -
+ 1 file changed, 1 deletion(-)
+
+diff --git a/crypto/engine/eng_list.c b/crypto/engine/eng_list.c
+index d3bd0c0dc2..d9e620dc58 100644
+--- a/crypto/engine/eng_list.c
++++ b/crypto/engine/eng_list.c
+@@ -82,7 +82,6 @@ static int engine_list_add(ENGINE *e)
+          * The first time the list allocates, we should register the cleanup.
+          */
+         if (!engine_cleanup_add_last(engine_list_cleanup)) {
+-            CRYPTO_DOWN_REF(&e->struct_ref, &ref);
+             ERR_raise(ERR_LIB_ENGINE, ENGINE_R_INTERNAL_LIST_ERROR);
+             return 0;
+         }
+-- 
+2.34.1
+

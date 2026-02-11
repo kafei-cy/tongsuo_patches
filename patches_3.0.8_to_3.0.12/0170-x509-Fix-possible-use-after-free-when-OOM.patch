@@ -1,0 +1,67 @@
+From cebcb914d46825e9b7aa9305819c36ea3da277b7 Mon Sep 17 00:00:00 2001
+From: Clemens Lang <cllang@redhat.com>
+Date: Wed, 24 May 2023 12:22:25 +0200
+Subject: [PATCH 170/381] x509: Fix possible use-after-free when OOM
+
+ossl_policy_level_add_node() first adds the new node to the level->nodes
+stack, and then attempts to add extra data if extra_data is true. If
+memory allocation or adding the extra data to tree->extra_data fails,
+the allocated node (that has already been added to the level->nodes
+stack) is freed using ossl_policy_node_free(), which leads to
+a potential use after free.
+
+Additionally, the tree's node count and the parent's child count would
+not be updated, despite the new node being added.
+
+Fix this by either performing the function's purpose completely, or not
+at all by reverting the changes on error.
+
+Signed-off-by: Clemens Lang <cllang@redhat.com>
+
+Reviewed-by: Dmitry Belyavskiy <beldmit@gmail.com>
+Reviewed-by: Matt Caswell <matt@openssl.org>
+Reviewed-by: Bernd Edlinger <bernd.edlinger@hotmail.de>
+Reviewed-by: Tomas Mraz <tomas@openssl.org>
+(Merged from https://github.com/openssl/openssl/pull/21040)
+
+(cherry picked from commit de53817ec386ea9e943d8f33716945dd9dbe1f31)
+---
+ crypto/x509/pcy_node.c | 12 ++++++++++--
+ 1 file changed, 10 insertions(+), 2 deletions(-)
+
+diff --git a/crypto/x509/pcy_node.c b/crypto/x509/pcy_node.c
+index 450f95a655..d7593a54c7 100644
+--- a/crypto/x509/pcy_node.c
++++ b/crypto/x509/pcy_node.c
+@@ -100,11 +100,11 @@ X509_POLICY_NODE *ossl_policy_level_add_node(X509_POLICY_LEVEL *level,
+             tree->extra_data = sk_X509_POLICY_DATA_new_null();
+         if (tree->extra_data == NULL){
+             ERR_raise(ERR_LIB_X509V3, ERR_R_MALLOC_FAILURE);
+-            goto node_error;
++            goto extra_data_error;
+         }
+         if (!sk_X509_POLICY_DATA_push(tree->extra_data, data)) {
+             ERR_raise(ERR_LIB_X509V3, ERR_R_MALLOC_FAILURE);
+-            goto node_error;
++            goto extra_data_error;
+         }
+     }
+ 
+@@ -114,6 +114,14 @@ X509_POLICY_NODE *ossl_policy_level_add_node(X509_POLICY_LEVEL *level,
+ 
+     return node;
+ 
++ extra_data_error:
++    if (level != NULL) {
++        if (level->anyPolicy == node)
++            level->anyPolicy = NULL;
++        else
++            (void) sk_X509_POLICY_NODE_pop(level->nodes);
++    }
++
+  node_error:
+     ossl_policy_node_free(node);
+     return NULL;
+-- 
+2.34.1
+

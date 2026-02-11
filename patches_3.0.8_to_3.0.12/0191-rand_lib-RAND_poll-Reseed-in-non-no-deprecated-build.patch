@@ -1,0 +1,54 @@
+From bb13f852e9610835b0003e3d26fda0531a3e2b95 Mon Sep 17 00:00:00 2001
+From: Mike Kasick <mike@kasick.org>
+Date: Fri, 9 Jun 2023 13:40:16 -0400
+Subject: [PATCH 191/381] rand_lib: RAND_poll: Reseed in non-"no-deprecated"
+ builds.
+
+In a non-"no-deprecated" libcrypto build with a default configuration,
+RAND_get_rand_method() == RAND_OpenSSL() and so needs to fall through to
+the RAND_seed call (used in "no-deprecated" builds) to perform a reseed.
+
+CLA: trivial
+
+Reviewed-by: Tomas Mraz <tomas@openssl.org>
+Reviewed-by: Paul Dale <pauli@openssl.org>
+(Merged from https://github.com/openssl/openssl/pull/21167)
+
+(cherry picked from commit cc343d047c147e0a395fb101efbe9dedf458aa17)
+---
+ crypto/rand/rand_lib.c | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)
+
+diff --git a/crypto/rand/rand_lib.c b/crypto/rand/rand_lib.c
+index 0fcf4fe3bc..5fde214448 100644
+--- a/crypto/rand/rand_lib.c
++++ b/crypto/rand/rand_lib.c
+@@ -120,6 +120,8 @@ void RAND_keep_random_devices_open(int keep)
+  */
+ int RAND_poll(void)
+ {
++    static const char salt[] = "polling";
++
+ # ifndef OPENSSL_NO_DEPRECATED_3_0
+     const RAND_METHOD *meth = RAND_get_rand_method();
+     int ret = meth == RAND_OpenSSL();
+@@ -148,14 +150,12 @@ int RAND_poll(void)
+         ret = 1;
+      err:
+         ossl_rand_pool_free(pool);
++        return ret;
+     }
+-    return ret;
+-# else
+-    static const char salt[] = "polling";
++# endif
+ 
+     RAND_seed(salt, sizeof(salt));
+     return 1;
+-# endif
+ }
+ 
+ # ifndef OPENSSL_NO_DEPRECATED_3_0
+-- 
+2.34.1
+

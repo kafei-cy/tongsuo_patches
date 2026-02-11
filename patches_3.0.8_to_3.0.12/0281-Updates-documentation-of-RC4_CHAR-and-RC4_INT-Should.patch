@@ -1,0 +1,42 @@
+From 1f17156ba4f04b9b93f053cf64c0cd5c3ee14946 Mon Sep 17 00:00:00 2001
+From: Frederik Wedel-Heinen <frederik.wedel-heinen@dencrypt.dk>
+Date: Fri, 7 Jul 2023 13:17:11 +0200
+Subject: [PATCH 281/381] Updates documentation of RC4_CHAR and RC4_INT: Should
+ not be used for new configuration targets
+
+Fixes: #21358
+
+CLA: trivial
+
+Reviewed-by: Paul Dale <pauli@openssl.org>
+Reviewed-by: Hugo Landau <hlandau@openssl.org>
+Reviewed-by: Tomas Mraz <tomas@openssl.org>
+(Merged from https://github.com/openssl/openssl/pull/21391)
+
+(cherry picked from commit c2a8226cba2757b251729620aedffeed23d73623)
+---
+ Configurations/README.md | 6 ++++++
+ 1 file changed, 6 insertions(+)
+
+diff --git a/Configurations/README.md b/Configurations/README.md
+index be8c394d08..de3d8bad8a 100644
+--- a/Configurations/README.md
++++ b/Configurations/README.md
+@@ -233,8 +233,14 @@ In each table entry, the following keys are significant:
+                                                 is ILP32;
+                            RC4_CHAR             RC4 key schedule is made
+                                                 up of 'unsigned char's;
++                                                Note: should not be used
++                                                for new configuration
++                                                targets
+                            RC4_INT              RC4 key schedule is made
+                                                 up of 'unsigned int's;
++                                                Note: should not be used
++                                                for new configuration
++                                                targets
+ 
+ [1] as part of the target configuration, one can have a key called
+   `inherit_from` that indicates what other configurations to inherit
+-- 
+2.34.1
+

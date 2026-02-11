@@ -1,0 +1,61 @@
+From 076243ec886ebead68f4ab53a8b61b5dc9c290bb Mon Sep 17 00:00:00 2001
+From: Amir Ayupov <fads93@gmail.com>
+Date: Wed, 12 Jul 2023 15:14:51 -0700
+Subject: [PATCH 217/381] Move Keccak rhotates tables to rodata
+
+rhotates tables are placed to .text section which confuses tools such as BOLT.
+Move them to rodata to unbreak and avoid polluting icache/iTLB with data.
+
+CLA: trivial
+
+Reviewed-by: Hugo Landau <hlandau@openssl.org>
+Reviewed-by: Paul Yang <kaishen.yy@antfin.com>
+Reviewed-by: Paul Dale <pauli@openssl.org>
+(Merged from https://github.com/openssl/openssl/pull/21440)
+
+(cherry picked from commit 2fd82c228363cfd16c5047a348e7c853defa42eb)
+---
+ crypto/sha/asm/keccak1600-avx2.pl     | 1 +
+ crypto/sha/asm/keccak1600-avx512.pl   | 1 +
+ crypto/sha/asm/keccak1600-avx512vl.pl | 1 +
+ 3 files changed, 3 insertions(+)
+
+diff --git a/crypto/sha/asm/keccak1600-avx2.pl b/crypto/sha/asm/keccak1600-avx2.pl
+index 84682289bf..4fa3f787fa 100755
+--- a/crypto/sha/asm/keccak1600-avx2.pl
++++ b/crypto/sha/asm/keccak1600-avx2.pl
+@@ -432,6 +432,7 @@ $code.=<<___;
+ 	ret
+ .size	SHA3_squeeze,.-SHA3_squeeze
+ 
++.section .rodata
+ .align	64
+ rhotates_left:
+ 	.quad	3,	18,	36,	41	# [2][0] [4][0] [1][0] [3][0]
+diff --git a/crypto/sha/asm/keccak1600-avx512.pl b/crypto/sha/asm/keccak1600-avx512.pl
+index 85d6e7ffe4..8bcf3a0804 100755
+--- a/crypto/sha/asm/keccak1600-avx512.pl
++++ b/crypto/sha/asm/keccak1600-avx512.pl
+@@ -486,6 +486,7 @@ SHA3_squeeze:
+ 	ret
+ .size	SHA3_squeeze,.-SHA3_squeeze
+ 
++.section .rodata
+ .align	64
+ theta_perm:
+ 	.quad	0, 1, 2, 3, 4, 5, 6, 7		# [not used]
+diff --git a/crypto/sha/asm/keccak1600-avx512vl.pl b/crypto/sha/asm/keccak1600-avx512vl.pl
+index 73e75f363f..da93faa539 100755
+--- a/crypto/sha/asm/keccak1600-avx512vl.pl
++++ b/crypto/sha/asm/keccak1600-avx512vl.pl
+@@ -349,6 +349,7 @@ $code.=<<___;
+ 	ret
+ .size	SHA3_squeeze,.-SHA3_squeeze
+ 
++.section .rodata
+ .align	64
+ rhotates_left:
+ 	.quad	3,	18,	36,	41	# [2][0] [4][0] [1][0] [3][0]
+-- 
+2.34.1
+

@@ -1,0 +1,55 @@
+From f2ade1527b44848081c8d16c9acdd9acc8847c6e Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?J=C3=B6rg=20Sommer?= <joerg@jo-so.de>
+Date: Thu, 15 Jun 2023 18:16:49 +0200
+Subject: [PATCH 209/381] openssl speed -multi -evp prints wrong algorithm name
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+When running `openssl speed -evp md5` the result shows `md5` as algorithm
+name. But when adding the option `-multi 2` it gives `evp` as algorithm
+name.
+
+Signed-off-by: Jörg Sommer <joerg@jo-so.de>
+
+Reviewed-by: Tom Cosgrove <tom.cosgrove@arm.com>
+Reviewed-by: Tomas Mraz <tomas@openssl.org>
+(Merged from https://github.com/openssl/openssl/pull/21216)
+
+(cherry picked from commit 33c09341bb081682535be0450ff6032df47ea141)
+---
+ apps/speed.c | 14 ++++++++++++--
+ 1 file changed, 12 insertions(+), 2 deletions(-)
+
+diff --git a/apps/speed.c b/apps/speed.c
+index addf7e3213..439c153dd2 100644
+--- a/apps/speed.c
++++ b/apps/speed.c
+@@ -3133,12 +3133,22 @@ skip_hmac:
+     }
+ 
+     for (k = 0; k < ALGOR_NUM; k++) {
++        const char *alg_name = names[k];
++
+         if (!doit[k])
+             continue;
++
++        if (k == D_EVP) {
++            if (evp_cipher == NULL)
++                alg_name = evp_md_name;
++            else if ((alg_name = EVP_CIPHER_get0_name(evp_cipher)) == NULL)
++                app_bail_out("failed to get name of cipher '%s'\n", evp_cipher);
++        }
++
+         if (mr)
+-            printf("+F:%u:%s", k, names[k]);
++            printf("+F:%u:%s", k, alg_name);
+         else
+-            printf("%-13s", names[k]);
++            printf("%-13s", alg_name);
+         for (testnum = 0; testnum < size_num; testnum++) {
+             if (results[k][testnum] > 10000 && !mr)
+                 printf(" %11.2fk", results[k][testnum] / 1e3);
+-- 
+2.34.1
+

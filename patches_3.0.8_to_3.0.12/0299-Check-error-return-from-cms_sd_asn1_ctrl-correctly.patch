@@ -1,0 +1,35 @@
+From 2482061d7ec07aeda149c69f4b0190b8826bb5bf Mon Sep 17 00:00:00 2001
+From: Pauli <pauli@openssl.org>
+Date: Thu, 7 Sep 2023 09:27:37 +1000
+Subject: [PATCH 299/381] Check error return from cms_sd_asn1_ctrl() correctly.
+
+Fixes #21986
+
+Reviewed-by: Tomas Mraz <tomas@openssl.org>
+Reviewed-by: Shane Lontis <shane.lontis@oracle.com>
+(Merged from https://github.com/openssl/openssl/pull/21988)
+
+(cherry picked from commit 00a413e2483257a17239cef5dde52df14926284c)
+---
+ crypto/cms/cms_sd.c | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/crypto/cms/cms_sd.c b/crypto/cms/cms_sd.c
+index 34c021bba6..626401add4 100644
+--- a/crypto/cms/cms_sd.c
++++ b/crypto/cms/cms_sd.c
+@@ -233,9 +233,9 @@ static int cms_sd_asn1_ctrl(CMS_SignerInfo *si, int cmd)
+     int i;
+ 
+     if (EVP_PKEY_is_a(pkey, "DSA") || EVP_PKEY_is_a(pkey, "EC"))
+-        return ossl_cms_ecdsa_dsa_sign(si, cmd);
++        return ossl_cms_ecdsa_dsa_sign(si, cmd) > 0;
+     else if (EVP_PKEY_is_a(pkey, "RSA") || EVP_PKEY_is_a(pkey, "RSA-PSS"))
+-        return ossl_cms_rsa_sign(si, cmd);
++        return ossl_cms_rsa_sign(si, cmd) > 0;
+ 
+     /* Something else? We'll give engines etc a chance to handle this */
+     if (pkey->ameth == NULL || pkey->ameth->pkey_ctrl == NULL)
+-- 
+2.34.1
+

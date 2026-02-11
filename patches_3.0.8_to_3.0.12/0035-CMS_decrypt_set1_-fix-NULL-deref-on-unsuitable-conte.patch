@@ -1,0 +1,69 @@
+From ceb767bea442a3f9d8a40a26df1f760b7142e616 Mon Sep 17 00:00:00 2001
+From: "Dr. David von Oheimb" <David.von.Oheimb@siemens.com>
+Date: Mon, 2 Jan 2023 13:05:08 +0100
+Subject: [PATCH 035/381] CMS_decrypt_set1_*(): fix NULL deref on unsuitable
+ content type
+
+Fixes #19975
+for CMS_decrypt_set1_pkey_and_peer() in the obvious way,
+and a related potential crash in CMS_decrypt_set1_password().
+
+The point is that the input might have an unexpected content type,
+so a guard is needed at both places after `ec` is obtained.
+
+Note that in CMS_decrypt_set1_pkey_and_peer() there was
+no such ec != NULL guard for
+```
+    if (ris != NULL)
+        debug = ec->debug;
+```
+maybe because it is implied here by ris != NULL.
+
+Reviewed-by: Tomas Mraz <tomas@openssl.org>
+Reviewed-by: Paul Dale <pauli@openssl.org>
+Reviewed-by: David von Oheimb <david.von.oheimb@siemens.com>
+(Merged from https://github.com/openssl/openssl/pull/20209)
+---
+ crypto/cms/cms_smime.c | 18 +++++++++++-------
+ 1 file changed, 11 insertions(+), 7 deletions(-)
+
+diff --git a/crypto/cms/cms_smime.c b/crypto/cms/cms_smime.c
+index 455021c29c..6ca3bead34 100644
+--- a/crypto/cms/cms_smime.c
++++ b/crypto/cms/cms_smime.c
+@@ -708,11 +708,13 @@ int CMS_decrypt_set1_pkey_and_peer(CMS_ContentInfo *cms, EVP_PKEY *pk,
+     CMS_EncryptedContentInfo *ec = ossl_cms_get0_env_enc_content(cms);
+ 
+     /* Prevent mem leak on earlier CMS_decrypt_set1_{pkey_and_peer,password} */
+-    OPENSSL_clear_free(ec->key, ec->keylen);
+-    ec->key = NULL;
+-    ec->keylen = 0;
++    if (ec != NULL) {
++        OPENSSL_clear_free(ec->key, ec->keylen);
++        ec->key = NULL;
++        ec->keylen = 0;
++    }
+ 
+-    if (ris != NULL)
++    if (ris != NULL && ec != NULL)
+         debug = ec->debug;
+ 
+     cms_pkey_ri_type = ossl_cms_pkey_get_ri_type(pk);
+@@ -826,9 +828,11 @@ int CMS_decrypt_set1_password(CMS_ContentInfo *cms,
+     CMS_EncryptedContentInfo *ec = ossl_cms_get0_env_enc_content(cms);
+ 
+     /* Prevent mem leak on earlier CMS_decrypt_set1_{pkey_and_peer,password} */
+-    OPENSSL_clear_free(ec->key, ec->keylen);
+-    ec->key = NULL;
+-    ec->keylen = 0;
++    if (ec != NULL) {
++        OPENSSL_clear_free(ec->key, ec->keylen);
++        ec->key = NULL;
++        ec->keylen = 0;
++    }
+ 
+     for (i = 0; i < sk_CMS_RecipientInfo_num(ris); i++) {
+         ri = sk_CMS_RecipientInfo_value(ris, i);
+-- 
+2.34.1
+

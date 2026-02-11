@@ -1,0 +1,36 @@
+From 8e122f4617a3aec8ec9c16443edb18142eb93c7f Mon Sep 17 00:00:00 2001
+From: Jakub Jelen <jjelen@redhat.com>
+Date: Wed, 23 Aug 2023 13:24:57 +0200
+Subject: [PATCH 283/381] doc: Avoid usage of non-existing constant
+
+CLA: trivial
+
+Fixes: #21809
+
+Signed-off-by: Jakub Jelen <jjelen@redhat.com>
+
+Reviewed-by: Tom Cosgrove <tom.cosgrove@arm.com>
+Reviewed-by: Tomas Mraz <tomas@openssl.org>
+(Merged from https://github.com/openssl/openssl/pull/21817)
+
+(cherry picked from commit de4661b23776dde80fe5832eea34c63d5e15a6e4)
+---
+ doc/man3/d2i_RSAPrivateKey.pod | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/doc/man3/d2i_RSAPrivateKey.pod b/doc/man3/d2i_RSAPrivateKey.pod
+index b4f5b46609..5156f0edb2 100644
+--- a/doc/man3/d2i_RSAPrivateKey.pod
++++ b/doc/man3/d2i_RSAPrivateKey.pod
+@@ -205,7 +205,7 @@ I<selection> and I<structure> as follows:
+ 
+ =item B<i2d_I<TYPE>PrivateKey>() translates into:
+ 
+- int selection = EVP_PKEY_PRIVATE_KEY;
++ int selection = EVP_PKEY_KEYPAIR;
+  const char *structure = "type-specific";
+ 
+ =item B<i2d_I<TYPE>PublicKey>() translates into:
+-- 
+2.34.1
+

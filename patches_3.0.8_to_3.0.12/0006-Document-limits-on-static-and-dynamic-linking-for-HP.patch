@@ -1,0 +1,50 @@
+From b26e64415c117d9f716d1efbbc4b8ea42028d032 Mon Sep 17 00:00:00 2001
+From: "Randall S. Becker" <rsbecker@nexbridge.com>
+Date: Wed, 21 Dec 2022 10:32:32 -0700
+Subject: [PATCH 006/381] Document limits on static and dynamic linking for HPE
+ NonStop platforms.
+
+Documentation is necessary as static and dynamic linking cause SIGSEGV
+during atexit() processing on the platform.
+
+Fixes: 19951
+
+Signed-off-by: Randall S. Becker <randall.becker@nexbridge.ca>
+
+Reviewed-by: Matt Caswell <matt@openssl.org>
+Reviewed-by: Tomas Mraz <tomas@openssl.org>
+(Merged from https://github.com/openssl/openssl/pull/19952)
+
+(cherry picked from commit e80518db6d52f9e6faec09df7c25f08a74e8aec2)
+---
+ NOTES-NONSTOP.md | 14 ++++++++++++++
+ 1 file changed, 14 insertions(+)
+
+diff --git a/NOTES-NONSTOP.md b/NOTES-NONSTOP.md
+index 627843babf..68438b9988 100644
+--- a/NOTES-NONSTOP.md
++++ b/NOTES-NONSTOP.md
+@@ -44,6 +44,20 @@ instead of `nsx` in the set above.
+ You cannot build for TNS/E for FIPS, so you must specify the `no-fips`
+ option to `./Configure`.
+ 
++Linking and Loading Considerations
++----------------------------------
++
++Because of how the NonStop Common Runtime Environment (CRE) works, there are
++restrictions on how programs can link and load with OpenSSL libraries.
++On current NonStop platforms, programs cannot both statically link OpenSSL
++libraries and dynamically load OpenSSL shared libraries concurrently. If this
++is done, there is a high probability of encountering a SIGSEGV condition
++relating to `atexit()` processing when a shared library is unloaded and when
++the program terminates. This limitation applies to all OpenSSL shared library
++components.
++
++A resolution to this situation is under investigation.
++
+ About Prefix and OpenSSLDir
+ ---------------------------
+ 
+-- 
+2.34.1
+

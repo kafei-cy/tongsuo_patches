@@ -1,0 +1,47 @@
+From 952fdbd10da950b5599965708e9661e28269e595 Mon Sep 17 00:00:00 2001
+From: Pauli <pauli@openssl.org>
+Date: Wed, 8 Mar 2023 10:09:11 +1100
+Subject: [PATCH 061/381] doc: document that prediction resistance comes with a
+ hidden cost
+
+In the default setup, using prediction resistance cascades to a reseeding
+of all DRBGs.  The cost for this will be excessive for highly threaded
+applications.
+
+Fixes #20414
+
+Reviewed-by: Tomas Mraz <tomas@openssl.org>
+Reviewed-by: Matthias St. Pierre <Matthias.St.Pierre@ncp-e.com>
+(Merged from https://github.com/openssl/openssl/pull/20452)
+
+(cherry picked from commit d90bd3468a9a8d2af6b821be50c1034e21d782ca)
+---
+ doc/man3/EVP_RAND.pod | 12 ++++++++++++
+ 1 file changed, 12 insertions(+)
+
+diff --git a/doc/man3/EVP_RAND.pod b/doc/man3/EVP_RAND.pod
+index a4d72b7043..23ca54ad6a 100644
+--- a/doc/man3/EVP_RAND.pod
++++ b/doc/man3/EVP_RAND.pod
+@@ -332,6 +332,18 @@ or the properties in the case of B<OSSL_RAND_PARAM_PROPERTIES>.
+ 
+ =head1 NOTES
+ 
++The use of a nonzero value for the I<prediction_resistance> argument to
++EVP_RAND_instantiate(), EVP_RAND_generate() or EVP_RAND_reseed() should
++be used sparingly.  In the default setup, this will cause all public and
++private DRBGs to be reseeded on next use.  Since, by default, public and
++private DRBGs are allocated on a per thread basis, this can result in
++significant overhead for highly multi-threaded applications.  For normal
++use-cases, the default "reseed_requests" and "reseed_time_interval"
++thresholds ensure sufficient prediction resistance over time and you
++can reduce those values if you think they are too high.  Explicitly
++requesting prediction resistance is intended for more special use-cases
++like generating long-term secrets.
++
+ An B<EVP_RAND_CTX> needs to have locking enabled if it acts as the parent of
+ more than one child and the children can be accessed concurrently.  This must
+ be done by explicitly calling EVP_RAND_enable_locking().
+-- 
+2.34.1
+

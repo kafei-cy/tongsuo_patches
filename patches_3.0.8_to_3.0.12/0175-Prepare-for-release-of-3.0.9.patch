@@ -1,0 +1,57 @@
+From de90e54bbe82e5be4fb9608b6f5c308bb837d355 Mon Sep 17 00:00:00 2001
+From: Tomas Mraz <tomas@openssl.org>
+Date: Tue, 30 May 2023 14:31:57 +0200
+Subject: [PATCH 175/381] Prepare for release of 3.0.9
+
+Reviewed-by: Richard Levitte <levitte@openssl.org>
+
+Release: yes
+---
+ CHANGES.md  | 2 +-
+ NEWS.md     | 2 +-
+ VERSION.dat | 4 ++--
+ 3 files changed, 4 insertions(+), 4 deletions(-)
+
+diff --git a/CHANGES.md b/CHANGES.md
+index 9378ed9c85..0fb1eb1f6a 100644
+--- a/CHANGES.md
++++ b/CHANGES.md
+@@ -28,7 +28,7 @@ breaking changes, and mappings for the large list of deprecated functions.
+ 
+ [Migration guide]: https://github.com/openssl/openssl/tree/master/doc/man7/migration_guide.pod
+ 
+-### Changes between 3.0.8 and 3.0.9 [xx XXX xxxx]
++### Changes between 3.0.8 and 3.0.9 [30 May 2023]
+ 
+  * Mitigate for the time it takes for `OBJ_obj2txt` to translate gigantic
+    OBJECT IDENTIFIER sub-identifiers to canonical numeric text form.
+diff --git a/NEWS.md b/NEWS.md
+index 7f83b1bfe8..10fbf5c948 100644
+--- a/NEWS.md
++++ b/NEWS.md
+@@ -18,7 +18,7 @@ OpenSSL Releases
+ OpenSSL 3.0
+ -----------
+ 
+-### Major changes between OpenSSL 3.0.8 and OpenSSL 3.0.9 [under development]
++### Major changes between OpenSSL 3.0.8 and OpenSSL 3.0.9 [30 May 2023]
+ 
+   * Mitigate for very slow `OBJ_obj2txt()` performance with gigantic OBJECT
+     IDENTIFIER sub-identities.  ([CVE-2023-2650])
+diff --git a/VERSION.dat b/VERSION.dat
+index a17a51f147..be1c292b2a 100644
+--- a/VERSION.dat
++++ b/VERSION.dat
+@@ -1,7 +1,7 @@
+ MAJOR=3
+ MINOR=0
+ PATCH=9
+-PRE_RELEASE_TAG=dev
++PRE_RELEASE_TAG=
+ BUILD_METADATA=
+-RELEASE_DATE="7 Feb 2023"
++RELEASE_DATE="30 May 2023"
+ SHLIB_VERSION=3
+-- 
+2.34.1
+

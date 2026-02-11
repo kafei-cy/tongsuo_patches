@@ -1,0 +1,66 @@
+From a24eaa828354ea71f9f09a6f565b9228012aecaf Mon Sep 17 00:00:00 2001
+From: Matt Caswell <matt@openssl.org>
+Date: Mon, 31 Jul 2023 12:56:47 +0100
+Subject: [PATCH 257/381] Add a test for PEM_read_bio_Parameters()
+
+We must not ask for a password when attempting to read parameters.
+
+Reviewed-by: Tim Hudson <tjh@openssl.org>
+Reviewed-by: Tomas Mraz <tomas@openssl.org>
+(Merged from https://github.com/openssl/openssl/pull/21603)
+
+(cherry picked from commit df3d609030bdb0868d1ccca14227bb6829ad954c)
+---
+ test/pemtest.c | 30 ++++++++++++++++++++++++++++++
+ 1 file changed, 30 insertions(+)
+
+diff --git a/test/pemtest.c b/test/pemtest.c
+index c8c88bf1f1..bf97098365 100644
+--- a/test/pemtest.c
++++ b/test/pemtest.c
+@@ -125,6 +125,35 @@ static int test_empty_payload(void)
+     return ret;
+ }
+ 
++static int test_protected_params(void)
++{
++    BIO *b;
++    static char *protectedpay =
++        "-----BEGIN RSA PRIVATE KEY-----\n"
++        "Proc-Type: 4,ENCRYPTED\n"
++        "DEK-Info: AES-256-CBC,4A44448ED28992710556549B35100CEA\n"
++        "\n"
++        "Xw3INxKeH+rUUF57mjATpvj6zknVhedwrlRmRvnwlLv5wqIy5Ae4UVLPh7SUswfC\n"
++        "-----END RSA PRIVATE KEY-----\n";
++    EVP_PKEY *pkey = NULL;
++    int ret = 0;
++
++    b = BIO_new_mem_buf(protectedpay, strlen(protectedpay));
++    if (!TEST_ptr(b))
++        return 0;
++
++    /* Expected to fail because we cannot decrypt protected PEM files */
++    pkey = PEM_read_bio_Parameters(b, NULL);
++    if (!TEST_ptr_null(pkey))
++        goto err;
++
++    ret = 1;
++ err:
++    EVP_PKEY_free(pkey);
++    BIO_free(b);
++    return ret;
++}
++
+ int setup_tests(void)
+ {
+     if (!TEST_ptr(pemfile = test_get_argument(0)))
+@@ -133,5 +162,6 @@ int setup_tests(void)
+     ADD_TEST(test_invalid);
+     ADD_TEST(test_cert_key_cert);
+     ADD_TEST(test_empty_payload);
++    ADD_TEST(test_protected_params);
+     return 1;
+ }
+-- 
+2.34.1
+

@@ -1,0 +1,47 @@
+From e4781ead87726eb4ac46841a9dc7966413a0782f Mon Sep 17 00:00:00 2001
+From: "Dr. David von Oheimb" <David.von.Oheimb@siemens.com>
+Date: Sun, 16 Jul 2023 14:55:35 +0200
+Subject: [PATCH 231/381] EVP_KDF.pod: extend text on 'salt' and 'info'
+ parameters
+
+Reviewed-by: Tomas Mraz <tomas@openssl.org>
+Reviewed-by: Paul Dale <pauli@openssl.org>
+(Merged from https://github.com/openssl/openssl/pull/21469)
+
+(cherry picked from commit 61c8146aa36b84afd9d83c87c9a01138979ffd60)
+---
+ doc/man3/EVP_KDF.pod | 11 ++++++++++-
+ 1 file changed, 10 insertions(+), 1 deletion(-)
+
+diff --git a/doc/man3/EVP_KDF.pod b/doc/man3/EVP_KDF.pod
+index 3b4e2b79aa..374318cbcf 100644
+--- a/doc/man3/EVP_KDF.pod
++++ b/doc/man3/EVP_KDF.pod
+@@ -191,7 +191,7 @@ For those KDF implementations that support it, this parameter sets the password.
+ 
+ =item "salt" (B<OSSL_KDF_PARAM_SALT>) <octet string>
+ 
+-Some KDF implementations can take a salt.
++Some KDF implementations can take a non-secret unique cryptographic salt.
+ For those KDF implementations that support it, this parameter sets the salt.
+ 
+ The default value, if any, is implementation dependent.
+@@ -227,6 +227,15 @@ Some KDF implementations require a key.
+ For those KDF implementations that support it, this octet string parameter
+ sets the key.
+ 
++=item "info" (B<OSSL_KDF_PARAM_INFO>) <octet string>
++
++Some KDF implementations, such as L<EVP_KDF-HKDF(7)>, take an 'info' parameter
++for binding the derived key material
++to application- and context-specific information.
++This parameter sets the info, fixed info, other info or shared info argument.
++You can specify this parameter multiple times, and each instance will
++be concatenated to form the final value.
++
+ =item "maclen" (B<OSSL_KDF_PARAM_MAC_SIZE>) <unsigned integer>
+ 
+ Used by implementations that use a MAC with a variable output size (KMAC).
+-- 
+2.34.1
+

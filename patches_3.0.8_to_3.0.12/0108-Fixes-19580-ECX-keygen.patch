@@ -1,0 +1,32 @@
+From 193797424500e88a71f85b29f9faf756c95335a4 Mon Sep 17 00:00:00 2001
+From: "Yuan, Shuai" <shuai.yuan@intel.com>
+Date: Tue, 4 Apr 2023 01:42:38 -0400
+Subject: [PATCH 108/381] Fixes #19580 ECX keygen
+
+Signed-off-by: Yuan, Shuai <shuai.yuan@intel.com>
+
+Reviewed-by: Tomas Mraz <tomas@openssl.org>
+Reviewed-by: Shane Lontis <shane.lontis@oracle.com>
+(Merged from https://github.com/openssl/openssl/pull/20680)
+
+(cherry picked from commit 40f4884990a1717755df366e2aa06d01a1affd63)
+---
+ crypto/ec/ecx_meth.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/crypto/ec/ecx_meth.c b/crypto/ec/ecx_meth.c
+index 4e32210bf4..07e197f3d5 100644
+--- a/crypto/ec/ecx_meth.c
++++ b/crypto/ec/ecx_meth.c
+@@ -712,7 +712,7 @@ const EVP_PKEY_ASN1_METHOD ossl_ed448_asn1_meth = {
+ static int pkey_ecx_keygen(EVP_PKEY_CTX *ctx, EVP_PKEY *pkey)
+ {
+     ECX_KEY *ecx = ossl_ecx_key_op(NULL, NULL, 0, ctx->pmeth->pkey_id,
+-                                   KEY_OP_PUBLIC, NULL, NULL);
++                                   KEY_OP_KEYGEN, NULL, NULL);
+ 
+     if (ecx != NULL) {
+         EVP_PKEY_assign(pkey, ctx->pmeth->pkey_id, ecx);
+-- 
+2.34.1
+

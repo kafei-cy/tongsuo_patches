@@ -1,0 +1,75 @@
+From 4e5602888da4053f38120dfd0df1c0ac33c967ed Mon Sep 17 00:00:00 2001
+From: Richard Levitte <levitte@openssl.org>
+Date: Fri, 3 Mar 2023 14:18:43 +0100
+Subject: [PATCH 051/381] DOCS: provider-keymgmt(7) - params for
+ EVP_PKEY_get_default_digest_{name,nid}()
+
+This describes them in detail in provider-keymgmt(7).
+
+Reviewed-by: Matt Caswell <matt@openssl.org>
+Reviewed-by: Paul Dale <pauli@openssl.org>
+(Merged from https://github.com/openssl/openssl/pull/20430)
+
+(cherry picked from commit ac57336cd258e0432ffa485615d11c7c7ecfe81a)
+---
+ doc/man7/EVP_PKEY-EC.pod      |  2 +-
+ doc/man7/provider-keymgmt.pod | 30 ++++++++++++++++++++++++++++++
+ 2 files changed, 31 insertions(+), 1 deletion(-)
+
+diff --git a/doc/man7/EVP_PKEY-EC.pod b/doc/man7/EVP_PKEY-EC.pod
+index 668a024014..e2fda923e2 100644
+--- a/doc/man7/EVP_PKEY-EC.pod
++++ b/doc/man7/EVP_PKEY-EC.pod
+@@ -142,7 +142,7 @@ Used for getting the EC public key X component.
+ 
+ Used for getting the EC public key Y component.
+ 
+-=item (B<OSSL_PKEY_PARAM_DEFAULT_DIGEST>) <UTF8 string>
++=item "default-digest" (B<OSSL_PKEY_PARAM_DEFAULT_DIGEST>) <UTF8 string>
+ 
+ Getter that returns the default digest name.
+ (Currently returns "SHA256" as of OpenSSL 3.0).
+diff --git a/doc/man7/provider-keymgmt.pod b/doc/man7/provider-keymgmt.pod
+index be3a65e319..84fdaa7968 100644
+--- a/doc/man7/provider-keymgmt.pod
++++ b/doc/man7/provider-keymgmt.pod
+@@ -374,6 +374,36 @@ dimensions handled in the rest of the same provider.
+ The value should be the number of security bits of the given key.
+ Bits of security is defined in SP800-57.
+ 
++=item "mandatory-digest" (B<OSSL_PKEY_PARAM_MANDATORY_DIGEST>) <UTF8 string>
++
++If there is a mandatory digest for performing a signature operation with
++keys from this keymgmt, this parameter should get its name as value.
++
++When EVP_PKEY_get_default_digest_name() queries this parameter and it's
++filled in by the implementation, its return value will be 2.
++
++If the keymgmt implementation fills in the value C<""> or C<"UNDEF">,
++L<EVP_PKEY_get_default_digest_name(3)> will place the string C<"UNDEF"> into
++its argument I<mdname>.  This signifies that no digest should be specified
++with the corresponding signature operation.
++
++=item "default-digest" (B<OSSL_PKEY_PARAM_DEFAULT_DIGEST>) <UTF8 string>
++
++If there is a default digest for performing a signature operation with
++keys from this keymgmt, this parameter should get its name as value.
++
++When L<EVP_PKEY_get_default_digest_name(3)> queries this parameter and it's
++filled in by the implementation, its return value will be 1.  Note that if
++B<OSSL_PKEY_PARAM_MANDATORY_DIGEST> is responded to as well,
++L<EVP_PKEY_get_default_digest_name(3)> ignores the response to this
++parameter.
++
++If the keymgmt implementation fills in the value C<""> or C<"UNDEF">,
++L<EVP_PKEY_get_default_digest_name(3)> will place the string C<"UNDEF"> into
++its argument I<mdname>.  This signifies that no digest has to be specified
++with the corresponding signature operation, but may be specified as an
++option.
++
+ =back
+ 
+ =head1 RETURN VALUES
+-- 
+2.34.1
+

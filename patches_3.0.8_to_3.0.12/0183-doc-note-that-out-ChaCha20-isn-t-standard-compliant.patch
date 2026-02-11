@@ -1,0 +1,46 @@
+From 1e8f555d9329a9025a4451d215c910162769f26b Mon Sep 17 00:00:00 2001
+From: Pauli <pauli@openssl.org>
+Date: Thu, 1 Jun 2023 09:51:46 +1000
+Subject: [PATCH 183/381] doc: note that out ChaCha20 isn't standard compliant.
+
+Fixes #21095
+
+Reviewed-by: Tomas Mraz <tomas@openssl.org>
+Reviewed-by: Shane Lontis <shane.lontis@oracle.com>
+(Merged from https://github.com/openssl/openssl/pull/21098)
+
+(cherry picked from commit c69756e7a0133b67df50525e89206c9cc4a7d2b8)
+---
+ doc/man3/EVP_chacha20.pod | 7 +++++--
+ 1 file changed, 5 insertions(+), 2 deletions(-)
+
+diff --git a/doc/man3/EVP_chacha20.pod b/doc/man3/EVP_chacha20.pod
+index 28ab25bf71..683faa326e 100644
+--- a/doc/man3/EVP_chacha20.pod
++++ b/doc/man3/EVP_chacha20.pod
+@@ -22,10 +22,10 @@ The ChaCha20 stream cipher for EVP.
+ =item EVP_chacha20()
+ 
+ The ChaCha20 stream cipher. The key length is 256 bits, the IV is 128 bits long.
+-The first 32 bits consists of a counter in little-endian order followed by a 96
++The first 64 bits consists of a counter in little-endian order followed by a 64
+ bit nonce. For example a nonce of:
+ 
+-000000000000000000000002
++0000000000000002
+ 
+ With an initial counter of 42 (2a in hex) would be expressed as:
+ 
+@@ -47,6 +47,9 @@ calling these functions multiple times and should consider using
+ L<EVP_CIPHER_fetch(3)> instead.
+ See L<crypto(7)/Performance> for further information.
+ 
++L<RFC 7539|https://www.rfc-editor.org/rfc/rfc7539.html#section-2.4>
++uses a 32 bit counter and a 96 bit nonce for the IV.
++
+ =head1 RETURN VALUES
+ 
+ These functions return an B<EVP_CIPHER> structure that contains the
+-- 
+2.34.1
+

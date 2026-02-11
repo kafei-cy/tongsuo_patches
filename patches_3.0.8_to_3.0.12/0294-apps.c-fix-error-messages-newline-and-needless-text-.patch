@@ -1,0 +1,44 @@
+From cbec14fec130be42657c76830e4e7f0018096a02 Mon Sep 17 00:00:00 2001
+From: "Dr. David von Oheimb" <David.von.Oheimb@siemens.com>
+Date: Thu, 3 Aug 2023 16:52:49 +0200
+Subject: [PATCH 294/381] apps.c: fix error messages (newline and needless
+ text) in load_key_certs_crls()
+
+Reviewed-by: Tomas Mraz <tomas@openssl.org>
+Reviewed-by: Paul Dale <pauli@openssl.org>
+Reviewed-by: Hugo Landau <hlandau@openssl.org>
+(Merged from https://github.com/openssl/openssl/pull/21659)
+
+(cherry picked from commit 81d037b8adb0232c8a4d4654f79c883dafb102bc)
+---
+ apps/lib/apps.c | 6 ++----
+ 1 file changed, 2 insertions(+), 4 deletions(-)
+
+diff --git a/apps/lib/apps.c b/apps/lib/apps.c
+index 4baeb352fe..04425ea1d7 100644
+--- a/apps/lib/apps.c
++++ b/apps/lib/apps.c
+@@ -944,7 +944,7 @@ int load_key_certs_crls_suppress(const char *uri, int format, int maybe_stdin,
+         BIO *bio;
+ 
+         if (!maybe_stdin) {
+-            BIO_printf(bio_err, "No filename or uri specified for loading");
++            BIO_printf(bio_err, "No filename or uri specified for loading\n");
+             goto end;
+         }
+         uri = "<stdin>";
+@@ -960,10 +960,8 @@ int load_key_certs_crls_suppress(const char *uri, int format, int maybe_stdin,
+         ctx = OSSL_STORE_open_ex(uri, libctx, propq, get_ui_method(), &uidata,
+                                  params, NULL, NULL);
+     }
+-    if (ctx == NULL) {
+-        BIO_printf(bio_err, "Could not open file or uri for loading");
++    if (ctx == NULL)
+         goto end;
+-    }
+     if (expect > 0 && !OSSL_STORE_expect(ctx, expect))
+         goto end;
+ 
+-- 
+2.34.1
+

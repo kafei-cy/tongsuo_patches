@@ -1,0 +1,74 @@
+From 02b87cc189fa8cae8d6f69d68449a9aecc0e34f0 Mon Sep 17 00:00:00 2001
+From: Dmitry Belyavskiy <beldmit@gmail.com>
+Date: Mon, 26 Dec 2022 20:38:44 +0100
+Subject: [PATCH 337/381] Improved detection of engine-provided private
+ "classic" keys
+
+Resolves #17092 (?)
+Resolves #17286 (?)
+
+Reviewed-by: Tomas Mraz <tomas@openssl.org>
+Reviewed-by: Paul Dale <pauli@openssl.org>
+(Merged from https://github.com/openssl/openssl/pull/19965)
+
+(cherry picked from commit 2b74e75331a27fc89cad9c8ea6a26c70019300b5)
+---
+ crypto/engine/eng_pkey.c | 42 ++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 42 insertions(+)
+
+diff --git a/crypto/engine/eng_pkey.c b/crypto/engine/eng_pkey.c
+index 6e6d6df35b..a8f1371a79 100644
+--- a/crypto/engine/eng_pkey.c
++++ b/crypto/engine/eng_pkey.c
+@@ -79,6 +79,48 @@ EVP_PKEY *ENGINE_load_private_key(ENGINE *e, const char *key_id,
+         ERR_raise(ERR_LIB_ENGINE, ENGINE_R_FAILED_LOADING_PRIVATE_KEY);
+         return NULL;
+     }
++    /* We enforce check for legacy key */
++    switch (EVP_PKEY_get_id(pkey)) {
++    case EVP_PKEY_RSA:
++        {
++        RSA *rsa = EVP_PKEY_get1_RSA(pkey);
++        EVP_PKEY_set1_RSA(pkey, rsa);
++        RSA_free(rsa);
++        }
++        break;
++#  ifndef OPENSSL_NO_EC
++    case EVP_PKEY_SM2:
++    case EVP_PKEY_EC:
++        {
++        EC_KEY *ec = EVP_PKEY_get1_EC_KEY(pkey);
++        EVP_PKEY_set1_EC_KEY(pkey, ec);
++        EC_KEY_free(ec);
++        }
++        break;
++#  endif
++#  ifndef OPENSSL_NO_DSA
++    case EVP_PKEY_DSA:
++        {
++        DSA *dsa = EVP_PKEY_get1_DSA(pkey);
++        EVP_PKEY_set1_DSA(pkey, dsa);
++        DSA_free(dsa);
++        }
++        break;
++#endif
++#  ifndef OPENSSL_NO_DH
++    case EVP_PKEY_DH:
++        {
++        DH *dh = EVP_PKEY_get1_DH(pkey);
++        EVP_PKEY_set1_DH(pkey, dh);
++        DH_free(dh);
++        }
++        break;
++#endif
++    default:
++        /*Do nothing */
++        break;
++    }
++
+     return pkey;
+ }
+ 
+-- 
+2.34.1
+

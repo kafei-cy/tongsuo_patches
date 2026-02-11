@@ -1,0 +1,48 @@
+From be0dc8982f1b7f782833b76095cd4e53b51f54d9 Mon Sep 17 00:00:00 2001
+From: Dimitri Papadopoulos
+ <3234522+DimitriPapadopoulos@users.noreply.github.com>
+Date: Thu, 29 Jun 2023 08:59:58 +0200
+Subject: [PATCH 213/381] Fix typos newly found by codespell in branch 3.0
+
+Fix only typos in doc/man* for inclusion in branch 3.0.
+
+CLA: trivial
+
+Reviewed-by: Hugo Landau <hlandau@openssl.org>
+Reviewed-by: Tom Cosgrove <tom.cosgrove@arm.com>
+Reviewed-by: Paul Dale <pauli@openssl.org>
+(Merged from https://github.com/openssl/openssl/pull/21321)
+---
+ doc/man1/openssl-genpkey.pod.in           | 2 +-
+ doc/man1/openssl-verification-options.pod | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/doc/man1/openssl-genpkey.pod.in b/doc/man1/openssl-genpkey.pod.in
+index 00b12a65b0..1a5bedc22c 100644
+--- a/doc/man1/openssl-genpkey.pod.in
++++ b/doc/man1/openssl-genpkey.pod.in
+@@ -333,7 +333,7 @@ The B<algorithm> option must be B<"DH">.
+ =item "default"
+ 
+ Selects a default type based on the B<algorithm>. This is used by the
+-OpenSSL default provider to set the type for backwards compatability.
++OpenSSL default provider to set the type for backwards compatibility.
+ If B<algorithm> is B<"DH"> then B<"generator"> is used.
+ If B<algorithm> is B<"DHX"> then B<"fips186_2"> is used.
+ 
+diff --git a/doc/man1/openssl-verification-options.pod b/doc/man1/openssl-verification-options.pod
+index 5fa3907c28..2542afece5 100644
+--- a/doc/man1/openssl-verification-options.pod
++++ b/doc/man1/openssl-verification-options.pod
+@@ -92,7 +92,7 @@ It does not have a negative trust attribute rejecting the given use.
+ =item *
+ 
+ It has a positive trust attribute accepting the given use
+-or (by default) one of the following compatibilty conditions apply:
++or (by default) one of the following compatibility conditions apply:
+ It is self-signed or the B<-partial_chain> option is given
+ (which corresponds to the B<X509_V_FLAG_PARTIAL_CHAIN> flag being set).
+ 
+-- 
+2.34.1
+

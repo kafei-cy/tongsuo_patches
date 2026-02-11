@@ -1,0 +1,66 @@
+From 3c4a3593e4bfa9824a676c7f6be3b939876ce2b3 Mon Sep 17 00:00:00 2001
+From: Richard Levitte <levitte@openssl.org>
+Date: Wed, 8 Mar 2023 11:53:34 +0100
+Subject: [PATCH 196/381] apps/ca.c: Handle EVP_PKEY_get_default_digest_name()
+ returning 1 with "UNDEF"
+
+EVP_PKEY_get_default_digest_name() may return 1 with the returned digest
+name "UNDEF".  This case hasn't been documented, and the meaning has been
+left undefined, until now.
+
+Reviewed-by: Todd Short <todd.short@me.com>
+Reviewed-by: Tomas Mraz <tomas@openssl.org>
+(Merged from https://github.com/openssl/openssl/pull/20460)
+
+(cherry picked from commit af99d55078582fb2ac35787043d56e0c10b1fe97)
+---
+ apps/ca.c                                    | 11 ++++++++---
+ doc/man3/EVP_PKEY_get_default_digest_nid.pod |  4 ++--
+ 2 files changed, 10 insertions(+), 5 deletions(-)
+
+diff --git a/apps/ca.c b/apps/ca.c
+index 281be08caf..29b10c86aa 100644
+--- a/apps/ca.c
++++ b/apps/ca.c
+@@ -806,15 +806,20 @@ end_of_options:
+     /*
+      * EVP_PKEY_get_default_digest_name() returns 2 if the digest is
+      * mandatory for this algorithm.
++     *
++     * That call may give back the name "UNDEF", which has these meanings:
++     *
++     * when def_ret == 2: the user MUST leave the digest unspecified
++     * when def_ret == 1: the user MAY leave the digest unspecified
+      */
+     if (def_ret == 2 && strcmp(def_dgst, "UNDEF") == 0) {
+-        /* The signing algorithm requires there to be no digest */
+         dgst = NULL;
+     } else if (dgst == NULL
+-               && (dgst = lookup_conf(conf, section, ENV_DEFAULT_MD)) == NULL) {
++               && (dgst = lookup_conf(conf, section, ENV_DEFAULT_MD)) == NULL
++               && strcmp(def_dgst, "UNDEF") != 0) {
+         goto end;
+     } else {
+-        if (strcmp(dgst, "default") == 0) {
++        if (strcmp(dgst, "default") == 0 || strcmp(def_dgst, "UNDEF") == 0) {
+             if (def_ret <= 0) {
+                 BIO_puts(bio_err, "no default digest\n");
+                 goto end;
+diff --git a/doc/man3/EVP_PKEY_get_default_digest_nid.pod b/doc/man3/EVP_PKEY_get_default_digest_nid.pod
+index ddabac8ff8..243268e4e6 100644
+--- a/doc/man3/EVP_PKEY_get_default_digest_nid.pod
++++ b/doc/man3/EVP_PKEY_get_default_digest_nid.pod
+@@ -18,8 +18,8 @@ EVP_PKEY_get_default_digest_nid, EVP_PKEY_get_default_digest_name
+ EVP_PKEY_get_default_digest_name() fills in the default message digest
+ name for the public key signature operations associated with key
+ I<pkey> into I<mdname>, up to at most I<mdname_sz> bytes including the
+-ending NUL byte.  The name could be C<"UNDEF">, signifying that no digest
+-should be used.
++ending NUL byte.  The name could be C<"UNDEF">, signifying that a digest
++must (for return value 2) or may (for return value 1) be left unspecified.
+ 
+ EVP_PKEY_get_default_digest_nid() sets I<pnid> to the default message
+ digest NID for the public key signature operations associated with key
+-- 
+2.34.1
+

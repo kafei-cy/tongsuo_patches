@@ -1,0 +1,41 @@
+From 2ad13ba03bdc9fe8edff5054b1df6a04b95e948e Mon Sep 17 00:00:00 2001
+From: Georgi Valkov <gvalkov@gmail.com>
+Date: Tue, 21 Mar 2023 12:49:23 +0200
+Subject: [PATCH 084/381] VC++ 2010 x86 compilers do not have InterlockedOr64
+
+The changes from the following commit should also apply to
+Visual Studio 2010
+https://github.com/openssl/openssl/commit/2d46a44ff24173d2cf5ea2196360cb79470d49c7#r104867505
+
+Fixes build errors: undefined symbol InterlockedOr64
+on Windows 2003, Visual Studio 2010 for x86 target.
+
+CLA: trivial
+
+Signed-off-by: Georgi Valkov <gvalkov@gmail.com>
+
+Reviewed-by: Matt Caswell <matt@openssl.org>
+Reviewed-by: Tomas Mraz <tomas@openssl.org>
+(Merged from https://github.com/openssl/openssl/pull/20557)
+
+(cherry picked from commit 8bdc3708964814ea0b7002df020fbd459e3a813f)
+---
+ crypto/threads_win.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/crypto/threads_win.c b/crypto/threads_win.c
+index f9cc73ce74..34e7ead8e0 100644
+--- a/crypto/threads_win.c
++++ b/crypto/threads_win.c
+@@ -22,7 +22,7 @@
+  * only VC++ 2008 or earlier x86 compilers.
+  */
+ 
+-#if (defined(_MSC_VER) && defined(_M_IX86) && _MSC_VER <= 1500)
++#if (defined(_MSC_VER) && defined(_M_IX86) && _MSC_VER <= 1600)
+ # define NO_INTERLOCKEDOR64
+ #endif
+ 
+-- 
+2.34.1
+

@@ -1,0 +1,129 @@
+From ed320ec647db7113d4753bbd7c8d9dd703c473fd Mon Sep 17 00:00:00 2001
+From: Liu-ErMeng <liuermeng2@huawei.com>
+Date: Fri, 21 Apr 2023 16:04:51 +0800
+Subject: [PATCH 133/381] fix aes-xts bug on aarch64 big-endian env.
+
+Signed-off-by: Liu-ErMeng <liuermeng2@huawei.com>
+
+Reviewed-by: Tom Cosgrove <tom.cosgrove@arm.com>
+Reviewed-by: Tomas Mraz <tomas@openssl.org>
+(Merged from https://github.com/openssl/openssl/pull/20797)
+
+(cherry picked from commit 4df13d1054e143f1cbf13fa347491807289f87b7)
+---
+ crypto/aes/asm/aesv8-armx.pl                  | 24 +++++++++----------
+ .../30-test_evp_data/evpciph_aes_common.txt   | 13 ++++++++++
+ 2 files changed, 25 insertions(+), 12 deletions(-)
+
+diff --git a/crypto/aes/asm/aesv8-armx.pl b/crypto/aes/asm/aesv8-armx.pl
+index bd583e2c89..7b11ab1f81 100755
+--- a/crypto/aes/asm/aesv8-armx.pl
++++ b/crypto/aes/asm/aesv8-armx.pl
+@@ -2261,10 +2261,10 @@ $code.=<<___	if ($flavour =~ /64/);
+ 	b.ne	.Lxts_enc_big_size
+ 	// Encrypt the iv with key2, as the first XEX iv.
+ 	ldr	$rounds,[$key2,#240]
+-	vld1.8	{$dat},[$key2],#16
++	vld1.32	{$dat},[$key2],#16
+ 	vld1.8	{$iv0},[$ivp]
+ 	sub	$rounds,$rounds,#2
+-	vld1.8	{$dat1},[$key2],#16
++	vld1.32	{$dat1},[$key2],#16
+ 
+ .Loop_enc_iv_enc:
+ 	aese	$iv0,$dat
+@@ -2866,9 +2866,9 @@ $code.=<<___	if ($flavour =~ /64/);
+ 
+ 	// Encrypt the composite block to get the last second encrypted text block
+ 	ldr	$rounds,[$key1,#240]		// load key schedule...
+-	vld1.8	{$dat},[$key1],#16
++	vld1.32	{$dat},[$key1],#16
+ 	sub	$rounds,$rounds,#2
+-	vld1.8	{$dat1},[$key1],#16		// load key schedule...
++	vld1.32	{$dat1},[$key1],#16		// load key schedule...
+ .Loop_final_enc:
+ 	aese	$tmpin,$dat0
+ 	aesmc	$tmpin,$tmpin
+@@ -2937,10 +2937,10 @@ $code.=<<___	if ($flavour =~ /64/);
+ 	b.ne	.Lxts_dec_big_size
+ 	// Encrypt the iv with key2, as the first XEX iv.
+ 	ldr	$rounds,[$key2,#240]
+-	vld1.8	{$dat},[$key2],#16
++	vld1.32	{$dat},[$key2],#16
+ 	vld1.8	{$iv0},[$ivp]
+ 	sub	$rounds,$rounds,#2
+-	vld1.8	{$dat1},[$key2],#16
++	vld1.32	{$dat1},[$key2],#16
+ 
+ .Loop_dec_small_iv_enc:
+ 	aese	$iv0,$dat
+@@ -3020,10 +3020,10 @@ $code.=<<___	if ($flavour =~ /64/);
+ 
+ 	// Encrypt the iv with key2, as the first XEX iv
+ 	ldr	$rounds,[$key2,#240]
+-	vld1.8	{$dat},[$key2],#16
++	vld1.32	{$dat},[$key2],#16
+ 	vld1.8	{$iv0},[$ivp]
+ 	sub	$rounds,$rounds,#2
+-	vld1.8	{$dat1},[$key2],#16
++	vld1.32	{$dat1},[$key2],#16
+ 
+ .Loop_dec_iv_enc:
+ 	aese	$iv0,$dat
+@@ -3363,7 +3363,7 @@ $code.=<<___	if ($flavour =~ /64/);
+ 	vst1.8	{$tmp3-$tmp4},[$out],#32
+ 
+ 	b.eq	.Lxts_dec_abort
+-	vld1.32	{$dat0},[$inp],#16
++	vld1.8	{$dat0},[$inp],#16
+ 	b	.Lxts_done
+ .align	4
+ .Lxts_outer_dec_tail:
+@@ -3541,7 +3541,7 @@ $code.=<<___	if ($flavour =~ /64/);
+ 	// Processing the last two blocks with cipher stealing.
+ 	mov	x7,x3
+ 	cbnz	x2,.Lxts_dec_1st_done
+-	vld1.32	{$dat0},[$inp],#16
++	vld1.8	{$dat0},[$inp],#16
+ 
+ 	// Decrypt the last secod block to get the last plain text block
+ .Lxts_dec_1st_done:
+@@ -3586,9 +3586,9 @@ $code.=<<___	if ($flavour =~ /64/);
+ 
+ 	// Decrypt the composite block to get the last second plain text block
+ 	ldr	$rounds,[$key_,#240]
+-	vld1.8	{$dat},[$key_],#16
++	vld1.32	{$dat},[$key_],#16
+ 	sub	$rounds,$rounds,#2
+-	vld1.8	{$dat1},[$key_],#16
++	vld1.32	{$dat1},[$key_],#16
+ .Loop_final_dec:
+ 	aesd	$tmpin,$dat0
+ 	aesimc	$tmpin,$tmpin
+diff --git a/test/recipes/30-test_evp_data/evpciph_aes_common.txt b/test/recipes/30-test_evp_data/evpciph_aes_common.txt
+index b42329007c..3355bc90f0 100644
+--- a/test/recipes/30-test_evp_data/evpciph_aes_common.txt
++++ b/test/recipes/30-test_evp_data/evpciph_aes_common.txt
+@@ -1259,6 +1259,19 @@ IV = 9a785634120000000000000000000000
+ Plaintext = 000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f202122232425262728292a2b2c2d2e2f303132333435363738393a3b3c3d3e3f404142434445464748494a4b4c4d4e4f5051
+ Ciphertext = edbf9dace45d6f6a7306e64be5dd824b2538f5724fcf24249ac111ab45ad39233ad6183c66fa548a3cdf3e36d2b21ccdc6bc657cb3aeb87ba2c5f58ffafacd765ecc4c85c0a01bf317b823fbd6111956d0a0
+ 
++# To cover the branches of assembly code of aes_v8_xts_encrypt(decrypt)
++Cipher = aes-128-xts
++Key = 1111111111111111111111111111111122222222222222222222222222222222
++IV = 33333333330000000000000000000000
++Plaintext = 44444444444444444444444444444444
++Ciphertext = c454185e6a16936e39334038acef838b
++
++Cipher = aes-128-xts
++Key = fffefdfcfbfaf9f8f7f6f5f4f3f2f1f022222222222222222222222222222222
++IV = 33333333330000000000000000000000
++Plaintext = 44444444444444444444444444444444
++Ciphertext = af85336b597afc1a900b2eb21ec949d2
++
+ Title = Case insensitive AES tests
+ 
+ Cipher = Aes-128-eCb
+-- 
+2.34.1
+

@@ -1,0 +1,68 @@
+From 3520f5ac91ad79d539857a8cd9648b88690c970c Mon Sep 17 00:00:00 2001
+From: Matt Caswell <matt@openssl.org>
+Date: Mon, 27 Feb 2023 18:43:20 +0000
+Subject: [PATCH 070/381] Remove spurious error queue entries on early data
+
+Early data decryption is expected to fail sometimes. If it does we should
+not leave spurious error entries on the queue.
+
+Fixes #20377
+
+Reviewed-by: Tomas Mraz <tomas@openssl.org>
+Reviewed-by: Dmitry Belyavskiy <beldmit@gmail.com>
+(Merged from https://github.com/openssl/openssl/pull/20442)
+
+(cherry picked from commit d015b50dc9af0640c7c019a693368c3488d692d8)
+---
+ ssl/record/ssl3_record.c | 11 +++++++++++
+ 1 file changed, 11 insertions(+)
+
+diff --git a/ssl/record/ssl3_record.c b/ssl/record/ssl3_record.c
+index edcbd6d5a9..3c0b1323a4 100644
+--- a/ssl/record/ssl3_record.c
++++ b/ssl/record/ssl3_record.c
+@@ -576,6 +576,7 @@ int ssl3_get_record(SSL *s)
+         }
+     }
+ 
++    ERR_set_mark();
+     enc_err = s->method->ssl3_enc->enc(s, rr, num_recs, 0, macbufs, mac_size);
+ 
+     /*-
+@@ -587,6 +588,7 @@ int ssl3_get_record(SSL *s)
+     if (enc_err == 0) {
+         if (ossl_statem_in_error(s)) {
+             /* SSLfatal() already got called */
++            ERR_clear_last_mark();
+             goto end;
+         }
+         if (num_recs == 1 && ossl_statem_skip_early_data(s)) {
+@@ -595,6 +597,12 @@ int ssl3_get_record(SSL *s)
+              * it like an empty record.
+              */
+ 
++            /*
++             * Remove any errors from the stack. Decryption failures are normal
++             * behaviour.
++             */
++            ERR_pop_to_mark();
++
+             thisrr = &rr[0];
+ 
+             if (!early_data_count_ok(s, thisrr->length,
+@@ -610,9 +618,12 @@ int ssl3_get_record(SSL *s)
+             ret = 1;
+             goto end;
+         }
++        ERR_clear_last_mark();
+         SSLfatal(s, SSL_AD_BAD_RECORD_MAC,
+                  SSL_R_DECRYPTION_FAILED_OR_BAD_RECORD_MAC);
+         goto end;
++    } else {
++        ERR_clear_last_mark();
+     }
+     OSSL_TRACE_BEGIN(TLS) {
+         BIO_printf(trc_out, "dec %lu\n", (unsigned long)rr[0].length);
+-- 
+2.34.1
+

@@ -1,0 +1,47 @@
+From 05f535c5b1bcf583bc7267c5f8868a5671a55040 Mon Sep 17 00:00:00 2001
+From: Dimitri Papadopoulos
+ <3234522+DimitriPapadopoulos@users.noreply.github.com>
+Date: Thu, 15 Jun 2023 09:16:22 +0200
+Subject: [PATCH 197/381] Fix new typos found by codespell
+
+Fix only typos in doc/man* for inclusion in 3.* branches.
+
+Reviewed-by: Tomas Mraz <tomas@openssl.org>
+Reviewed-by: Paul Dale <pauli@openssl.org>
+(Merged from https://github.com/openssl/openssl/pull/21211)
+
+(cherry picked from commit 11c28131ab773574363228dfeab8b7cf6fa4a656)
+---
+ doc/man3/OSSL_CMP_CTX_new.pod | 2 +-
+ doc/man7/EVP_PKEY-RSA.pod     | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/doc/man3/OSSL_CMP_CTX_new.pod b/doc/man3/OSSL_CMP_CTX_new.pod
+index c0c41a226b..e81fb08b00 100644
+--- a/doc/man3/OSSL_CMP_CTX_new.pod
++++ b/doc/man3/OSSL_CMP_CTX_new.pod
+@@ -627,7 +627,7 @@ OSSL_CMP_CTX_set_certConf_cb_arg(), or NULL if unset.
+ 
+ OSSL_CMP_CTX_get_status() returns for client contexts the PKIstatus from
+ the last received CertRepMessage or Revocation Response or error message:
+-=item B<OSSL_CMP_PKISTATUS_accepted> on sucessful receipt of a GENP message:
++=item B<OSSL_CMP_PKISTATUS_accepted> on successful receipt of a GENP message:
+ 
+ =over 4
+ 
+diff --git a/doc/man7/EVP_PKEY-RSA.pod b/doc/man7/EVP_PKEY-RSA.pod
+index f1141a364b..161e9d4d71 100644
+--- a/doc/man7/EVP_PKEY-RSA.pod
++++ b/doc/man7/EVP_PKEY-RSA.pod
+@@ -189,7 +189,7 @@ both return 1 unconditionally.
+ 
+ For RSA keys, L<EVP_PKEY_public_check(3)> conforms to the SP800-56Br1 I<public key
+ check> when the OpenSSL FIPS provider is used. The OpenSSL default provider
+-performs similiar tests but relaxes the keysize restrictions for backwards
++performs similar tests but relaxes the keysize restrictions for backwards
+ compatibility.
+ 
+ For RSA keys, L<EVP_PKEY_public_check_quick(3)> is the same as
+-- 
+2.34.1
+

@@ -1,0 +1,30 @@
+From d327f7c4ad2fe19bb6e69818dc540f8ae7c37a39 Mon Sep 17 00:00:00 2001
+From: "Dr. David von Oheimb" <David.von.Oheimb@siemens.com>
+Date: Wed, 30 Nov 2022 21:12:20 +0100
+Subject: [PATCH 059/381] check-format.pl: fix detection of '#ifdef
+ __cplusplus'
+
+Reviewed-by: Tomas Mraz <tomas@openssl.org>
+Reviewed-by: Tom Cosgrove <tom.cosgrove@arm.com>
+Reviewed-by: David von Oheimb <david.von.oheimb@siemens.com>
+(Merged from https://github.com/openssl/openssl/pull/20254)
+---
+ util/check-format.pl | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/util/check-format.pl b/util/check-format.pl
+index 8303c7823f..21ecaf0aa6 100755
+--- a/util/check-format.pl
++++ b/util/check-format.pl
+@@ -715,7 +715,7 @@ while (<>) { # loop over all lines of all input files
+         my $space_count = length($space); # maybe could also use indentation before '#'
+         report("'#if' nesting indent = $space_count != $preproc_if_nesting") if $space_count != $preproc_if_nesting;
+         $preproc_if_nesting++ if $preproc_directive =~ m/^(if|ifdef|ifndef|else|elif)$/;
+-        $ifdef__cplusplus = $preproc_directive eq "ifdef2" && m/\s+__cplusplus\s*$/;
++        $ifdef__cplusplus = $preproc_directive eq "ifdef" && m/\s+__cplusplus\s*$/;
+ 
+         # handle indentation of preprocessor directive independently of surrounding normal code
+         $count = -1; # do not check indentation of first line of preprocessor directive
+-- 
+2.34.1
+

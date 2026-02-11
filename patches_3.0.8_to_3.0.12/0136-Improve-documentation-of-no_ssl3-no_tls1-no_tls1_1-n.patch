@@ -1,0 +1,37 @@
+From b64b846dc86ad3d6f1c562056c2f4bef3beb9be8 Mon Sep 17 00:00:00 2001
+From: rkarmaka98 <130791740+rkarmaka98@users.noreply.github.com>
+Date: Wed, 26 Apr 2023 08:11:01 +0000
+Subject: [PATCH 136/381] Improve documentation of -no_ssl3, -no_tls1,
+ -no_tls1_1, -no_tls1_2, -no_tls1_3 options
+
+Fixes #19014
+
+CLA: trivial
+
+Reviewed-by: Tom Cosgrove <tom.cosgrove@arm.com>
+Reviewed-by: Paul Dale <pauli@openssl.org>
+Reviewed-by: Hugo Landau <hlandau@openssl.org>
+Reviewed-by: Tomas Mraz <tomas@openssl.org>
+(Merged from https://github.com/openssl/openssl/pull/20834)
+
+(cherry picked from commit 06565f36e78e6155834875ad544bb48838a812e4)
+---
+ doc/man1/openssl.pod | 2 ++
+ 1 file changed, 2 insertions(+)
+
+diff --git a/doc/man1/openssl.pod b/doc/man1/openssl.pod
+index 869e8e5ad8..1b6dda4b59 100644
+--- a/doc/man1/openssl.pod
++++ b/doc/man1/openssl.pod
+@@ -568,6 +568,8 @@ When a specific TLS version is required, only that version will be offered or
+ accepted.
+ Only one specific protocol can be given and it cannot be combined with any of
+ the B<no_> options.
++The B<no_*> options do not work with B<s_time> and B<ciphers> commands but work with
++B<s_client> and B<s_server> commands.
+ 
+ =item B<-dtls>, B<-dtls1>, B<-dtls1_2>
+ 
+-- 
+2.34.1
+

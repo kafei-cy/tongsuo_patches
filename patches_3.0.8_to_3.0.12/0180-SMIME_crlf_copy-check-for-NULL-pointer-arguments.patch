@@ -1,0 +1,35 @@
+From 4b4819d0a7e0f73369dc147cb781a71723ae7e85 Mon Sep 17 00:00:00 2001
+From: "Dr. David von Oheimb" <David.von.Oheimb@siemens.com>
+Date: Thu, 25 May 2023 17:48:04 +0200
+Subject: [PATCH 180/381] SMIME_crlf_copy(): check for NULL pointer arguments
+
+Reviewed-by: Tomas Mraz <tomas@openssl.org>
+Reviewed-by: Paul Dale <pauli@openssl.org>
+Reviewed-by: David von Oheimb <david.von.oheimb@siemens.com>
+(Merged from https://github.com/openssl/openssl/pull/21058)
+
+(cherry picked from commit 23450cfb9204615e97467e8be6a709141523a59e)
+---
+ crypto/asn1/asn_mime.c | 6 ++++++
+ 1 file changed, 6 insertions(+)
+
+diff --git a/crypto/asn1/asn_mime.c b/crypto/asn1/asn_mime.c
+index b44b0f3685..7ab7bc87ed 100644
+--- a/crypto/asn1/asn_mime.c
++++ b/crypto/asn1/asn_mime.c
+@@ -516,6 +516,12 @@ int SMIME_crlf_copy(BIO *in, BIO *out, int flags)
+     int len;
+     char linebuf[MAX_SMLEN];
+     int ret;
++
++    if (in == NULL || out == NULL) {
++        ERR_raise(ERR_LIB_ASN1, ERR_R_PASSED_NULL_PARAMETER);
++        return 0;
++    }
++
+     /*
+      * Buffer output so we don't write one line at a time. This is useful
+      * when streaming as we don't end up with one OCTET STRING per line.
+-- 
+2.34.1
+

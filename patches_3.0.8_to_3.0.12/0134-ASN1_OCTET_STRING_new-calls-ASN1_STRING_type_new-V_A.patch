@@ -1,0 +1,31 @@
+From 6b474481f587055eb10f0020fe93695a7ade7135 Mon Sep 17 00:00:00 2001
+From: Vladimir Kotal <vladimir.kotal@oracle.com>
+Date: Wed, 26 Apr 2023 14:31:25 +0200
+Subject: [PATCH 134/381] ASN1_OCTET_STRING_new() calls
+ ASN1_STRING_type_new(V_ASN1_OCTET_STRING)
+
+Reviewed-by: Hugo Landau <hlandau@openssl.org>
+Reviewed-by: Matt Caswell <matt@openssl.org>
+(Merged from https://github.com/openssl/openssl/pull/20838)
+
+(cherry picked from commit 26f0150fce64dd878b77eddc4504fd441cbdef87)
+---
+ doc/man3/ASN1_STRING_new.pod | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/doc/man3/ASN1_STRING_new.pod b/doc/man3/ASN1_STRING_new.pod
+index ff20de73b7..9fec854166 100644
+--- a/doc/man3/ASN1_STRING_new.pod
++++ b/doc/man3/ASN1_STRING_new.pod
+@@ -27,7 +27,7 @@ If I<a> is NULL nothing is done.
+ =head1 NOTES
+ 
+ Other string types call the B<ASN1_STRING> functions. For example
+-ASN1_OCTET_STRING_new() calls ASN1_STRING_type(V_ASN1_OCTET_STRING).
++ASN1_OCTET_STRING_new() calls ASN1_STRING_type_new(V_ASN1_OCTET_STRING).
+ 
+ =head1 RETURN VALUES
+ 
+-- 
+2.34.1
+

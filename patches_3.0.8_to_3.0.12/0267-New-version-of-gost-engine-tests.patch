@@ -1,0 +1,23 @@
+From 9f8dd6c265d5dd501cf03ca706aa45c6e79b53d7 Mon Sep 17 00:00:00 2001
+From: Dmitry Belyavskiy <beldmit@gmail.com>
+Date: Wed, 2 Aug 2023 14:17:30 +0200
+Subject: [PATCH 267/381] New version of gost-engine tests
+
+Reviewed-by: Matt Caswell <matt@openssl.org>
+Reviewed-by: Hugo Landau <hlandau@openssl.org>
+Reviewed-by: Todd Short <todd.short@me.com>
+(Merged from https://github.com/openssl/openssl/pull/21635)
+---
+ gost-engine | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/gost-engine b/gost-engine
+index b2b4d629f1..2a8a5e0eca 160000
+--- a/gost-engine
++++ b/gost-engine
+@@ -1 +1 @@
+-Subproject commit b2b4d629f100eaee9f5942a106b1ccefe85b8808
++Subproject commit 2a8a5e0ecaa3e3d6f4ec722a49aa72476755c2b7
+-- 
+2.34.1
+

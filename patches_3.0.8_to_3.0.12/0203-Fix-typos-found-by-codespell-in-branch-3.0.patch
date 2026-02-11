@@ -1,0 +1,839 @@
+From 6aefd64455a9fac0a11c69c2630a5a85f10f5b21 Mon Sep 17 00:00:00 2001
+From: Dimitri Papadopoulos
+ <3234522+DimitriPapadopoulos@users.noreply.github.com>
+Date: Sun, 18 Jun 2023 11:19:51 +0200
+Subject: [PATCH 203/381] Fix typos found by codespell in branch 3.0
+
+Fix only typos in doc/man* for inclusion in branch 3.0.
+
+Reviewed-by: Tomas Mraz <tomas@openssl.org>
+Reviewed-by: Paul Dale <pauli@openssl.org>
+(Merged from https://github.com/openssl/openssl/pull/21229)
+---
+ doc/man1/openssl-dhparam.pod.in            | 2 +-
+ doc/man1/openssl-genpkey.pod.in            | 2 +-
+ doc/man1/openssl-s_client.pod.in           | 2 +-
+ doc/man1/openssl-x509.pod.in               | 2 +-
+ doc/man3/ASN1_aux_cb.pod                   | 4 ++--
+ doc/man3/ASN1_item_sign.pod                | 4 ++--
+ doc/man3/BIO_s_core.pod                    | 2 +-
+ doc/man3/BN_rand.pod                       | 2 +-
+ doc/man3/CONF_modules_load_file.pod        | 2 +-
+ doc/man3/DH_get0_pqg.pod                   | 2 +-
+ doc/man3/EVP_EncryptInit.pod               | 2 +-
+ doc/man3/EVP_KEYMGMT.pod                   | 2 +-
+ doc/man3/EVP_PKEY2PKCS8.pod                | 2 +-
+ doc/man3/EVP_PKEY_derive.pod               | 2 +-
+ doc/man3/EVP_PKEY_gettable_params.pod      | 2 +-
+ doc/man3/EVP_PKEY_new.pod                  | 2 +-
+ doc/man3/EVP_PKEY_todata.pod               | 2 +-
+ doc/man3/OCSP_resp_find_status.pod         | 2 +-
+ doc/man3/OCSP_sendreq_new.pod              | 2 +-
+ doc/man3/OSSL_CMP_log_open.pod             | 2 +-
+ doc/man3/OSSL_DECODER.pod                  | 2 +-
+ doc/man3/OSSL_DECODER_CTX_new_for_pkey.pod | 2 +-
+ doc/man3/OSSL_ENCODER.pod                  | 2 +-
+ doc/man3/OSSL_ENCODER_CTX.pod              | 4 ++--
+ doc/man3/OSSL_ESS_check_signing_certs.pod  | 2 +-
+ doc/man3/OSSL_HTTP_REQ_CTX.pod             | 2 +-
+ doc/man3/OSSL_HTTP_parse_url.pod           | 2 +-
+ doc/man3/OSSL_PARAM.pod                    | 2 +-
+ doc/man3/OSSL_PARAM_int.pod                | 6 +++---
+ doc/man3/OSSL_STORE_LOADER.pod             | 2 +-
+ doc/man3/OSSL_trace_set_channel.pod        | 2 +-
+ doc/man3/PKCS12_decrypt_skey.pod           | 2 +-
+ doc/man3/PKCS12_gen_mac.pod                | 2 +-
+ doc/man3/RAND_bytes.pod                    | 2 +-
+ doc/man3/RSA_get0_key.pod                  | 2 +-
+ doc/man3/SSL_CTX_set_tmp_dh_callback.pod   | 4 ++--
+ doc/man3/X509_STORE_CTX_new.pod            | 2 +-
+ doc/man3/X509_VERIFY_PARAM_set_flags.pod   | 2 +-
+ doc/man3/X509_add_cert.pod                 | 2 +-
+ doc/man3/X509_digest.pod                   | 4 ++--
+ doc/man3/X509_dup.pod                      | 2 +-
+ doc/man5/config.pod                        | 2 +-
+ doc/man7/EVP_PKEY-EC.pod                   | 6 +++---
+ doc/man7/crypto.pod                        | 2 +-
+ doc/man7/fips_module.pod                   | 2 +-
+ doc/man7/life_cycle-pkey.pod               | 4 ++--
+ doc/man7/migration_guide.pod               | 8 ++++----
+ doc/man7/openssl-glossary.pod              | 6 +++---
+ doc/man7/provider-kdf.pod                  | 2 +-
+ doc/man7/provider-object.pod               | 2 +-
+ 50 files changed, 65 insertions(+), 65 deletions(-)
+
+diff --git a/doc/man1/openssl-dhparam.pod.in b/doc/man1/openssl-dhparam.pod.in
+index d358ba95dc..688a256571 100644
+--- a/doc/man1/openssl-dhparam.pod.in
++++ b/doc/man1/openssl-dhparam.pod.in
+@@ -88,7 +88,7 @@ I<numbits>. It must be the last option. If this option is present then
+ the input file is ignored and parameters are generated instead. If
+ this option is not present but a generator (B<-2>, B<-3> or B<-5>) is
+ present, parameters are generated with a default length of 2048 bits.
+-The minimim length is 512 bits. The maximum length is 10000 bits.
++The minimum length is 512 bits. The maximum length is 10000 bits.
+ 
+ =item B<-noout>
+ 
+diff --git a/doc/man1/openssl-genpkey.pod.in b/doc/man1/openssl-genpkey.pod.in
+index 1815306708..00b12a65b0 100644
+--- a/doc/man1/openssl-genpkey.pod.in
++++ b/doc/man1/openssl-genpkey.pod.in
+@@ -278,7 +278,7 @@ RFC5114 names "dh_1024_160", "dh_2048_224", "dh_2048_256".
+ 
+ If this option is set, then the appropriate RFC5114 parameters are used
+ instead of generating new parameters. The value I<num> can be one of
+-1, 2 or 3 that are equivalant to using the option B<group> with one of
++1, 2 or 3 that are equivalent to using the option B<group> with one of
+ "dh_1024_160", "dh_2048_224" or "dh_2048_256".
+ All other options will be ignored if this value is set.
+ 
+diff --git a/doc/man1/openssl-s_client.pod.in b/doc/man1/openssl-s_client.pod.in
+index c921e3b4a2..b8ba2fc54f 100644
+--- a/doc/man1/openssl-s_client.pod.in
++++ b/doc/man1/openssl-s_client.pod.in
+@@ -274,7 +274,7 @@ See L<openssl-format-options(1)> for details.
+ 
+ =item B<-pass> I<arg>
+ 
+-the private key and certifiate file password source.
++the private key and certificate file password source.
+ For more information about the format of I<arg>
+ see L<openssl-passphrase-options(1)>.
+ 
+diff --git a/doc/man1/openssl-x509.pod.in b/doc/man1/openssl-x509.pod.in
+index dd8f17154a..23923b1a98 100644
+--- a/doc/man1/openssl-x509.pod.in
++++ b/doc/man1/openssl-x509.pod.in
+@@ -478,7 +478,7 @@ unless the B<-new> option is given, which generates a certificate from scratch.
+ 
+ =item B<-CAform> B<DER>|B<PEM>|B<P12>,
+ 
+-The format for the CA certificate; unspecifed by default.
++The format for the CA certificate; unspecified by default.
+ See L<openssl-format-options(1)> for details.
+ 
+ =item B<-CAkey> I<filename>|I<uri>
+diff --git a/doc/man3/ASN1_aux_cb.pod b/doc/man3/ASN1_aux_cb.pod
+index 12f7ddf82d..f14b8ca5cd 100644
+--- a/doc/man3/ASN1_aux_cb.pod
++++ b/doc/man3/ASN1_aux_cb.pod
+@@ -3,7 +3,7 @@
+ =head1 NAME
+ 
+ ASN1_AUX, ASN1_PRINT_ARG, ASN1_STREAM_ARG, ASN1_aux_cb, ASN1_aux_const_cb
+-- ASN.1 auxilliary data
++- ASN.1 auxiliary data
+ 
+ =head1 SYNOPSIS
+ 
+@@ -45,7 +45,7 @@ ASN.1 data structures can be associated with an B<ASN1_AUX> object to supply
+ additional information about the ASN.1 structure. An B<ASN1_AUX> structure is
+ associated with the structure during the definition of the ASN.1 template. For
+ example an B<ASN1_AUX> structure will be associated by using one of the various
+-ASN.1 template definition macros that supply auxilliary information such as
++ASN.1 template definition macros that supply auxiliary information such as
+ ASN1_SEQUENCE_enc(), ASN1_SEQUENCE_ref(), ASN1_SEQUENCE_cb_const_cb(),
+ ASN1_SEQUENCE_const_cb(), ASN1_SEQUENCE_cb() or ASN1_NDEF_SEQUENCE_cb().
+ 
+diff --git a/doc/man3/ASN1_item_sign.pod b/doc/man3/ASN1_item_sign.pod
+index 407268bf17..3e454c25b7 100644
+--- a/doc/man3/ASN1_item_sign.pod
++++ b/doc/man3/ASN1_item_sign.pod
+@@ -62,7 +62,7 @@ I<algor2> are ignored if they are NULL.
+ ASN1_item_sign() is similar to ASN1_item_sign_ex() but uses default values of
+ NULL for the I<id>, I<libctx> and I<propq>.
+ 
+-ASN1_item_sign_ctx() is similiar to ASN1_item_sign() but uses the parameters
++ASN1_item_sign_ctx() is similar to ASN1_item_sign() but uses the parameters
+ contained in digest context I<ctx>.
+ 
+ ASN1_item_verify_ex() is used to verify the signature I<signature> of internal
+@@ -77,7 +77,7 @@ See EVP_PKEY_CTX_set1_id() for further info.
+ ASN1_item_verify() is similar to ASN1_item_verify_ex() but uses default values of
+ NULL for the I<id>, I<libctx> and I<propq>.
+ 
+-ASN1_item_verify_ctx() is similiar to ASN1_item_verify() but uses the parameters
++ASN1_item_verify_ctx() is similar to ASN1_item_verify() but uses the parameters
+ contained in digest context I<ctx>.
+ 
+ 
+diff --git a/doc/man3/BIO_s_core.pod b/doc/man3/BIO_s_core.pod
+index fbcd0b5c9c..041f126c54 100644
+--- a/doc/man3/BIO_s_core.pod
++++ b/doc/man3/BIO_s_core.pod
+@@ -22,7 +22,7 @@ libcrypto into a provider supply an OSSL_CORE_BIO parameter. This represents
+ a BIO within libcrypto, but cannot be used directly by a provider. Instead it
+ should be wrapped using a BIO_s_core().
+ 
+-Once a BIO is contructed based on BIO_s_core(), the associated OSSL_CORE_BIO
++Once a BIO is constructed based on BIO_s_core(), the associated OSSL_CORE_BIO
+ object should be set on it using BIO_set_data(3). Note that the BIO will only
+ operate correctly if it is associated with a library context constructed using
+ OSSL_LIB_CTX_new_from_dispatch(3). To associate the BIO with a library context
+diff --git a/doc/man3/BN_rand.pod b/doc/man3/BN_rand.pod
+index aebad1e72e..c6f528a623 100644
+--- a/doc/man3/BN_rand.pod
++++ b/doc/man3/BN_rand.pod
+@@ -59,7 +59,7 @@ BN_rand() is the same as BN_rand_ex() except that the default library context
+ is always used.
+ 
+ BN_rand_range_ex() generates a cryptographically strong pseudo-random
+-number I<rnd>, of security stength at least I<strength> bits,
++number I<rnd>, of security strength at least I<strength> bits,
+ in the range 0 E<lt>= I<rnd> E<lt> I<range> using the random number
+ generator for the library context associated with I<ctx>. The parameter I<ctx>
+ may be NULL in which case the default library context is used.
+diff --git a/doc/man3/CONF_modules_load_file.pod b/doc/man3/CONF_modules_load_file.pod
+index f96d9a1293..968317789a 100644
+--- a/doc/man3/CONF_modules_load_file.pod
++++ b/doc/man3/CONF_modules_load_file.pod
+@@ -34,7 +34,7 @@ as determined by calling CONF_get1_default_config_file().
+ If B<appname> is NULL the standard OpenSSL application name B<openssl_conf> is
+ used.
+ The behaviour can be customized using B<flags>. Note that, the error suppressing
+-can be overriden by B<config_diagnostics> as described in L<config(5)>.
++can be overridden by B<config_diagnostics> as described in L<config(5)>.
+ 
+ CONF_modules_load_file() is the same as CONF_modules_load_file_ex() but
+ has a NULL library context.
+diff --git a/doc/man3/DH_get0_pqg.pod b/doc/man3/DH_get0_pqg.pod
+index 2afc35c77f..245b413eb6 100644
+--- a/doc/man3/DH_get0_pqg.pod
++++ b/doc/man3/DH_get0_pqg.pod
+@@ -40,7 +40,7 @@ see L<openssl_user_macros(7)>:
+ 
+ All of the functions described on this page are deprecated.
+ Applications should instead use L<EVP_PKEY_get_bn_param(3)> for any methods that
+-return a B<BIGNUM>. Refer to L<EVP_PKEY-DH(7)> for more infomation.
++return a B<BIGNUM>. Refer to L<EVP_PKEY-DH(7)> for more information.
+ 
+ A DH object contains the parameters I<p>, I<q> and I<g>. Note that the I<q>
+ parameter is optional. It also contains a public key (I<pub_key>) and
+diff --git a/doc/man3/EVP_EncryptInit.pod b/doc/man3/EVP_EncryptInit.pod
+index e469f28a7b..9953177ad1 100644
+--- a/doc/man3/EVP_EncryptInit.pod
++++ b/doc/man3/EVP_EncryptInit.pod
+@@ -665,7 +665,7 @@ Note that the block size for a cipher may be different to the block size for
+ the underlying encryption/decryption primitive.
+ For example AES in CTR mode has a block size of 1 (because it operates like a
+ stream cipher), even though AES has a block size of 16.
+-Use EVP_CIPHER_get_block_size() to retreive the cached value.
++Use EVP_CIPHER_get_block_size() to retrieve the cached value.
+ 
+ =item "aead" (B<OSSL_CIPHER_PARAM_AEAD>) <integer>
+ 
+diff --git a/doc/man3/EVP_KEYMGMT.pod b/doc/man3/EVP_KEYMGMT.pod
+index f81fc9efb0..8d9ac44d49 100644
+--- a/doc/man3/EVP_KEYMGMT.pod
++++ b/doc/man3/EVP_KEYMGMT.pod
+@@ -123,7 +123,7 @@ otherwise 0.
+ 
+ EVP_KEYMGMT_get0_name() returns the algorithm name, or NULL on error.
+ 
+-EVP_KEYMGMT_get0_description() returns a pointer to a decription, or NULL if
++EVP_KEYMGMT_get0_description() returns a pointer to a description, or NULL if
+ there isn't one.
+ 
+ EVP_KEYMGMT_gettable_params(), EVP_KEYMGMT_settable_params() and
+diff --git a/doc/man3/EVP_PKEY2PKCS8.pod b/doc/man3/EVP_PKEY2PKCS8.pod
+index 290a3ba359..85e50b277e 100644
+--- a/doc/man3/EVP_PKEY2PKCS8.pod
++++ b/doc/man3/EVP_PKEY2PKCS8.pod
+@@ -21,7 +21,7 @@ EVP_PKEY2PKCS8() converts a private key I<pkey> into a returned PKCS8 object.
+ EVP_PKCS82PKEY_ex() converts a PKCS8 object I<p8> into a returned private key.
+ It uses I<libctx> and I<propq> when fetching algorithms.
+ 
+-EVP_PKCS82PKEY() is similiar to EVP_PKCS82PKEY_ex() but uses default values of
++EVP_PKCS82PKEY() is similar to EVP_PKCS82PKEY_ex() but uses default values of
+ NULL for the I<libctx> and I<propq>.
+ 
+ =head1 RETURN VALUES
+diff --git a/doc/man3/EVP_PKEY_derive.pod b/doc/man3/EVP_PKEY_derive.pod
+index d61bb5512f..9a59a99218 100644
+--- a/doc/man3/EVP_PKEY_derive.pod
++++ b/doc/man3/EVP_PKEY_derive.pod
+@@ -32,7 +32,7 @@ EVP_PKEY_derive_set_peer_ex() sets the peer key: this will normally
+ be a public key. The I<validate_peer> will validate the public key if this value
+ is non zero.
+ 
+-EVP_PKEY_derive_set_peer() is similiar to EVP_PKEY_derive_set_peer_ex() with
++EVP_PKEY_derive_set_peer() is similar to EVP_PKEY_derive_set_peer_ex() with
+ I<validate_peer> set to 1.
+ 
+ EVP_PKEY_derive() derives a shared secret using I<ctx>.
+diff --git a/doc/man3/EVP_PKEY_gettable_params.pod b/doc/man3/EVP_PKEY_gettable_params.pod
+index b51e4c4de1..8dd0fc543e 100644
+--- a/doc/man3/EVP_PKEY_gettable_params.pod
++++ b/doc/man3/EVP_PKEY_gettable_params.pod
+@@ -60,7 +60,7 @@ is allocated by the method.
+ 
+ EVP_PKEY_get_utf8_string_param() get a key I<pkey> UTF8 string value into a
+ buffer I<str> of maximum size I<max_buf_sz> associated with a name of
+-I<key_name>.  The maximum size must be large enough to accomodate the string
++I<key_name>.  The maximum size must be large enough to accommodate the string
+ value including a terminating NUL byte, or this function will fail.
+ If I<out_len> is not NULL, I<*out_len> is set to the length of the string
+ not including the terminating NUL byte. The required buffer size not including
+diff --git a/doc/man3/EVP_PKEY_new.pod b/doc/man3/EVP_PKEY_new.pod
+index 0ea7062f01..5b83aec308 100644
+--- a/doc/man3/EVP_PKEY_new.pod
++++ b/doc/man3/EVP_PKEY_new.pod
+@@ -62,7 +62,7 @@ see L<openssl_user_macros(7)>:
+ B<EVP_PKEY> is a generic structure to hold diverse types of asymmetric keys
+ (also known as "key pairs"), and can be used for diverse operations, like
+ signing, verifying signatures, key derivation, etc.  The asymmetric keys
+-themselves are often refered to as the "internal key", and are handled by
++themselves are often referred to as the "internal key", and are handled by
+ backends, such as providers (through L<EVP_KEYMGMT(3)>) or B<ENGINE>s.
+ 
+ Conceptually, an B<EVP_PKEY> internal key may hold a private key, a public
+diff --git a/doc/man3/EVP_PKEY_todata.pod b/doc/man3/EVP_PKEY_todata.pod
+index dedfb1b0cf..5b12086e38 100644
+--- a/doc/man3/EVP_PKEY_todata.pod
++++ b/doc/man3/EVP_PKEY_todata.pod
+@@ -23,7 +23,7 @@ I<selection> is described in L<EVP_PKEY_fromdata(3)/Selections>.
+ L<OSSL_PARAM_free(3)> should be used to free the returned parameters in
+ I<*params>.
+ 
+-EVP_PKEY_export() is similiar to EVP_PKEY_todata() but uses a callback
++EVP_PKEY_export() is similar to EVP_PKEY_todata() but uses a callback
+ I<export_cb> that gets passed the value of I<export_cbarg>.
+ See L<openssl-core.h(7)> for more information about the callback. Note that the
+ L<OSSL_PARAM(3)> array that is passed to the callback is not persistent after the
+diff --git a/doc/man3/OCSP_resp_find_status.pod b/doc/man3/OCSP_resp_find_status.pod
+index f4afddcdef..49d9cbcafc 100644
+--- a/doc/man3/OCSP_resp_find_status.pod
++++ b/doc/man3/OCSP_resp_find_status.pod
+@@ -131,7 +131,7 @@ in L<X509_VERIFY_PARAM_set_flags(3)/VERIFICATION FLAGS>.
+ If I<flags> contains B<OCSP_NOCHAIN> it ignores all certificates in I<certs>
+ and in I<bs>, else it takes them as untrusted intermediate CA certificates
+ and uses them for constructing the validation path for the signer certificate.
+-Certicate revocation status checks using CRLs is disabled during path validation
++Certificate revocation status checks using CRLs is disabled during path validation
+ if the signer certificate contains the B<id-pkix-ocsp-no-check> extension.
+ After successful path
+ validation the function returns success if the B<OCSP_NOCHECKS> flag is set.
+diff --git a/doc/man3/OCSP_sendreq_new.pod b/doc/man3/OCSP_sendreq_new.pod
+index 6e4c8110f1..d2e2e3b42c 100644
+--- a/doc/man3/OCSP_sendreq_new.pod
++++ b/doc/man3/OCSP_sendreq_new.pod
+@@ -40,7 +40,7 @@ These functions perform an OCSP POST request / response transfer over HTTP,
+ using the HTTP request functions described in L<OSSL_HTTP_REQ_CTX(3)>.
+ 
+ The function OCSP_sendreq_new() builds a complete B<OSSL_HTTP_REQ_CTX> structure
+-with the B<BIO> I<io> to be used for requests and reponse, the URL path I<path>,
++with the B<BIO> I<io> to be used for requests and response, the URL path I<path>,
+ optionally the OCSP request I<req>, and a response header maximum line length
+ of I<buf_size>. If I<buf_size> is zero a default value of 4KiB is used.
+ The I<req> may be set to NULL and provided later using OCSP_REQ_CTX_set1_req()
+diff --git a/doc/man3/OSSL_CMP_log_open.pod b/doc/man3/OSSL_CMP_log_open.pod
+index 9a55370e3c..895b98fc65 100644
+--- a/doc/man3/OSSL_CMP_log_open.pod
++++ b/doc/man3/OSSL_CMP_log_open.pod
+@@ -89,7 +89,7 @@ As long as neither if the two is used any logging output is ignored.
+ 
+ OSSL_CMP_log_close() may be called when all activities are finished to flush
+ any pending CMP-specific log output and deallocate related resources.
+-It may be called multiple times. It does get called at OpenSSL stutdown.
++It may be called multiple times. It does get called at OpenSSL shutdown.
+ 
+ OSSL_CMP_print_to_bio() prints the given component info, filename, line number,
+ severity level, and log message or error queue message to the given I<bio>.
+diff --git a/doc/man3/OSSL_DECODER.pod b/doc/man3/OSSL_DECODER.pod
+index 334f955e16..3f8bbfa537 100644
+--- a/doc/man3/OSSL_DECODER.pod
++++ b/doc/man3/OSSL_DECODER.pod
+@@ -116,7 +116,7 @@ multiple synonyms associated with it. In this case the first name from the
+ algorithm definition is returned. Ownership of the returned string is retained
+ by the I<decoder> object and should not be freed by the caller.
+ 
+-OSSL_DECODER_get0_description() returns a pointer to a decription, or NULL if
++OSSL_DECODER_get0_description() returns a pointer to a description, or NULL if
+ there isn't one.
+ 
+ OSSL_DECODER_names_do_all() returns 1 if the callback was called for all
+diff --git a/doc/man3/OSSL_DECODER_CTX_new_for_pkey.pod b/doc/man3/OSSL_DECODER_CTX_new_for_pkey.pod
+index 213791404c..3bc1b7102e 100644
+--- a/doc/man3/OSSL_DECODER_CTX_new_for_pkey.pod
++++ b/doc/man3/OSSL_DECODER_CTX_new_for_pkey.pod
+@@ -41,7 +41,7 @@ them up, so all the caller has to do next is call functions like
+ L<OSSL_DECODER_from_bio(3)>.  The caller may use the optional I<input_type>,
+ I<input_struct>, I<keytype> and I<selection> to specify what the input is
+ expected to contain.  The I<pkey> must reference an B<EVP_PKEY *> variable
+-that will be set to the newly created B<EVP_PKEY> on succesfull decoding.
++that will be set to the newly created B<EVP_PKEY> on successful decoding.
+ The referenced variable must be initialized to NULL before calling the
+ function.
+ 
+diff --git a/doc/man3/OSSL_ENCODER.pod b/doc/man3/OSSL_ENCODER.pod
+index cfabba2e1d..29ea6c8c8b 100644
+--- a/doc/man3/OSSL_ENCODER.pod
++++ b/doc/man3/OSSL_ENCODER.pod
+@@ -117,7 +117,7 @@ multiple synonyms associated with it. In this case the first name from the
+ algorithm definition is returned. Ownership of the returned string is retained
+ by the I<encoder> object and should not be freed by the caller.
+ 
+-OSSL_ENCODER_get0_description() returns a pointer to a decription, or NULL if
++OSSL_ENCODER_get0_description() returns a pointer to a description, or NULL if
+ there isn't one.
+ 
+ OSSL_ENCODER_names_do_all() returns 1 if the callback was called for all
+diff --git a/doc/man3/OSSL_ENCODER_CTX.pod b/doc/man3/OSSL_ENCODER_CTX.pod
+index 2d7a6a298f..005d0dacb5 100644
+--- a/doc/man3/OSSL_ENCODER_CTX.pod
++++ b/doc/man3/OSSL_ENCODER_CTX.pod
+@@ -80,7 +80,7 @@ as DER to PEM, as well as more specialized encoders like RSA to DER.
+ The final output type must be given, and a chain of encoders must end with
+ an implementation that produces that output type.
+ 
+-At the beginning of the encoding process, a contructor provided by the
++At the beginning of the encoding process, a constructor provided by the
+ caller is called to ensure that there is an appropriate provider-side object
+ to start with.
+ The constructor is set with OSSL_ENCODER_CTX_set_construct().
+@@ -148,7 +148,7 @@ The pointer that was set with OSSL_ENCODE_CTX_set_construct_data().
+ 
+ The constructor is expected to return a valid (non-NULL) pointer to a
+ provider-native object that can be used as first input of an encoding chain,
+-or NULL to indicate that an error has occured.
++or NULL to indicate that an error has occurred.
+ 
+ These utility functions may be used by a constructor:
+ 
+diff --git a/doc/man3/OSSL_ESS_check_signing_certs.pod b/doc/man3/OSSL_ESS_check_signing_certs.pod
+index bff26193d7..caebcae733 100644
+--- a/doc/man3/OSSL_ESS_check_signing_certs.pod
++++ b/doc/man3/OSSL_ESS_check_signing_certs.pod
+@@ -46,7 +46,7 @@ while the list contained in I<ssv2> is of type B<ESS_CERT_ID_V2>.
+ As far as these lists are present, they must be nonempty.
+ The certificate identified by their first entry must be the first element of
+ I<chain>, i.e. the signer certificate.
+-Any further certficates referenced in the list must also be found in I<chain>.
++Any further certificates referenced in the list must also be found in I<chain>.
+ The matching is done using the given certificate hash algorithm and value.
+ In addition to the checks required by RFCs 2624 and 5035,
+ if the B<issuerSerial> field is included in an B<ESSCertID> or B<ESSCertIDv2>
+diff --git a/doc/man3/OSSL_HTTP_REQ_CTX.pod b/doc/man3/OSSL_HTTP_REQ_CTX.pod
+index fbe1a152b8..bb4b942212 100644
+--- a/doc/man3/OSSL_HTTP_REQ_CTX.pod
++++ b/doc/man3/OSSL_HTTP_REQ_CTX.pod
+@@ -133,7 +133,7 @@ The function may need to be called again if its result is -1, which indicates
+ L<BIO_should_retry(3)>.  In such a case it is advisable to sleep a little in
+ between, using L<BIO_wait(3)> on the read BIO to prevent a busy loop.
+ 
+-OSSL_HTTP_REQ_CTX_nbio_d2i() is like OSSL_HTTP_REQ_CTX_nbio() but on successs
++OSSL_HTTP_REQ_CTX_nbio_d2i() is like OSSL_HTTP_REQ_CTX_nbio() but on success
+ in addition parses the response, which must be a DER-encoded ASN.1 structure,
+ using the ASN.1 template I<it> and places the result in I<*pval>.
+ 
+diff --git a/doc/man3/OSSL_HTTP_parse_url.pod b/doc/man3/OSSL_HTTP_parse_url.pod
+index 945e981a73..5c422d3d36 100644
+--- a/doc/man3/OSSL_HTTP_parse_url.pod
++++ b/doc/man3/OSSL_HTTP_parse_url.pod
+@@ -57,7 +57,7 @@ The path component is also optional and defaults to C</>.
+ Each non-NULL result pointer argument I<pscheme>, I<puser>, I<phost>, I<pport>,
+ I<ppath>, I<pquery>, and I<pfrag>, is assigned the respective url component.
+ On success, they are guaranteed to contain non-NULL string pointers, else NULL.
+-It is the reponsibility of the caller to free them using L<OPENSSL_free(3)>.
++It is the responsibility of the caller to free them using L<OPENSSL_free(3)>.
+ If I<pquery> is NULL, any given query component is handled as part of the path.
+ A string returned via I<*ppath> is guaranteed to begin with a C</> character.
+ For absent scheme, userinfo, port, query, and fragment components
+diff --git a/doc/man3/OSSL_PARAM.pod b/doc/man3/OSSL_PARAM.pod
+index 3939ddc742..1e5bf06cf7 100644
+--- a/doc/man3/OSSL_PARAM.pod
++++ b/doc/man3/OSSL_PARAM.pod
+@@ -108,7 +108,7 @@ B<OSSL_PARAM_UTF8_STRING> in relation to C strings.  When setting
+ parameters, the size should be set to the length of the string, not
+ counting the terminating NUL byte.  When requesting parameters, the
+ size should be set to the size of the buffer to be populated, which
+-should accomodate enough space for a terminating NUL byte.
++should accommodate enough space for a terminating NUL byte.
+ 
+ When I<requesting parameters>, it's acceptable for I<data> to be NULL.
+ This can be used by the I<requester> to figure out dynamically exactly
+diff --git a/doc/man3/OSSL_PARAM_int.pod b/doc/man3/OSSL_PARAM_int.pod
+index c03e30f839..d357818ff1 100644
+--- a/doc/man3/OSSL_PARAM_int.pod
++++ b/doc/man3/OSSL_PARAM_int.pod
+@@ -241,7 +241,7 @@ will be assigned the size the parameter's I<data> buffer should have.
+ OSSL_PARAM_get_utf8_string() retrieves a UTF8 string from the parameter
+ pointed to by I<p>.
+ The string is stored into I<*val> with a size limit of I<max_len>,
+-which must be large enough to accomodate a terminating NUL byte,
++which must be large enough to accommodate a terminating NUL byte,
+ otherwise this function will fail.
+ If I<*val> is NULL, memory is allocated for the string (including the
+ terminating  NUL byte) and I<max_len> is ignored.
+@@ -250,14 +250,14 @@ If memory is allocated by this function, it must be freed by the caller.
+ OSSL_PARAM_set_utf8_string() sets a UTF8 string from the parameter pointed to
+ by I<p> to the value referenced by I<val>.
+ If the parameter's I<data> field isn't NULL, its I<data_size> must indicate
+-that the buffer is large enough to accomodate the string that I<val> points at,
++that the buffer is large enough to accommodate the string that I<val> points at,
+ not including the terminating NUL byte, or this function will fail.
+ A terminating NUL byte is added only if the parameter's I<data_size> indicates
+ the buffer is longer than the string length, otherwise the string will not be
+ NUL terminated.
+ If the parameter's I<data> field is NULL, then only its I<return_size> field
+ will be assigned the minimum size the parameter's I<data> buffer should have
+-to accomodate the string, not including a terminating NUL byte.
++to accommodate the string, not including a terminating NUL byte.
+ 
+ OSSL_PARAM_get_octet_string() retrieves an OCTET string from the parameter
+ pointed to by I<p>.
+diff --git a/doc/man3/OSSL_STORE_LOADER.pod b/doc/man3/OSSL_STORE_LOADER.pod
+index b1d838604b..03b00e4f6a 100644
+--- a/doc/man3/OSSL_STORE_LOADER.pod
++++ b/doc/man3/OSSL_STORE_LOADER.pod
+@@ -327,7 +327,7 @@ definition string, or NULL on error.
+ OSSL_STORE_LOADER_is_a() returns 1 if I<loader> was identifiable,
+ otherwise 0.
+ 
+-OSSL_STORE_LOADER_get0_description() returns a pointer to a decription, or NULL if
++OSSL_STORE_LOADER_get0_description() returns a pointer to a description, or NULL if
+ there isn't one.
+ 
+ The functions with the types B<OSSL_STORE_open_fn>,
+diff --git a/doc/man3/OSSL_trace_set_channel.pod b/doc/man3/OSSL_trace_set_channel.pod
+index 3b9c64e541..f93242643c 100644
+--- a/doc/man3/OSSL_trace_set_channel.pod
++++ b/doc/man3/OSSL_trace_set_channel.pod
+@@ -48,7 +48,7 @@ so the caller must not free it directly.
+ OSSL_trace_set_prefix() and OSSL_trace_set_suffix() can be used to add
+ an extra line for each channel, to be output before and after group of
+ tracing output.
+-What constitues an output group is decided by the code that produces
++What constitutes an output group is decided by the code that produces
+ the output.
+ The lines given here are considered immutable; for more dynamic
+ tracing prefixes, consider setting a callback with
+diff --git a/doc/man3/PKCS12_decrypt_skey.pod b/doc/man3/PKCS12_decrypt_skey.pod
+index 7a41b2b06c..022067c3b4 100644
+--- a/doc/man3/PKCS12_decrypt_skey.pod
++++ b/doc/man3/PKCS12_decrypt_skey.pod
+@@ -21,7 +21,7 @@ decrypt functions
+ PKCS12_decrypt_skey() Decrypt the PKCS#8 shrouded keybag contained within I<bag>
+ using the supplied password I<pass> of length I<passlen>.
+ 
+-PKCS12_decrypt_skey_ex() is similar to the above but allows for a library contex
++PKCS12_decrypt_skey_ex() is similar to the above but allows for a library context
+ I<ctx> and property query I<propq> to be used to select algorithm implementations.
+ 
+ =head1 RETURN VALUES
+diff --git a/doc/man3/PKCS12_gen_mac.pod b/doc/man3/PKCS12_gen_mac.pod
+index 53b55e8703..1e72cfabd0 100644
+--- a/doc/man3/PKCS12_gen_mac.pod
++++ b/doc/man3/PKCS12_gen_mac.pod
+@@ -21,7 +21,7 @@ PKCS12_verify_mac - Functions to create and manipulate a PKCS#12 structure
+ =head1 DESCRIPTION
+ 
+ PKCS12_gen_mac() generates an HMAC over the entire PKCS#12 object using the
+-supplied password along with a set of already configured paramters.
++supplied password along with a set of already configured parameters.
+ 
+ PKCS12_verify_mac() verifies the PKCS#12 object's HMAC using the supplied
+ password.
+diff --git a/doc/man3/RAND_bytes.pod b/doc/man3/RAND_bytes.pod
+index ee7ed4af86..df63f786e5 100644
+--- a/doc/man3/RAND_bytes.pod
++++ b/doc/man3/RAND_bytes.pod
+@@ -37,7 +37,7 @@ and L<EVP_RAND(7)>.
+ 
+ RAND_bytes_ex() and RAND_priv_bytes_ex() are the same as RAND_bytes() and
+ RAND_priv_bytes() except that they both take additional I<strength> and
+-I<ctx> parameters. The bytes genreated will have a security strength of at
++I<ctx> parameters. The bytes generated will have a security strength of at
+ least I<strength> bits.
+ The DRBG used for the operation is the public or private DRBG associated with
+ the specified I<ctx>. The parameter can be NULL, in which case
+diff --git a/doc/man3/RSA_get0_key.pod b/doc/man3/RSA_get0_key.pod
+index 0a0f79125a..90dca47474 100644
+--- a/doc/man3/RSA_get0_key.pod
++++ b/doc/man3/RSA_get0_key.pod
+@@ -54,7 +54,7 @@ see L<openssl_user_macros(7)>:
+ 
+ All of the functions described on this page are deprecated.
+ Applications should instead use L<EVP_PKEY_get_bn_param(3)> for any methods that
+-return a B<BIGNUM>. Refer to L<EVP_PKEY-DH(7)> for more infomation.
++return a B<BIGNUM>. Refer to L<EVP_PKEY-DH(7)> for more information.
+ 
+ An RSA object contains the components for the public and private key,
+ B<n>, B<e>, B<d>, B<p>, B<q>, B<dmp1>, B<dmq1> and B<iqmp>.  B<n> is
+diff --git a/doc/man3/SSL_CTX_set_tmp_dh_callback.pod b/doc/man3/SSL_CTX_set_tmp_dh_callback.pod
+index 4daf78b8d3..c0d69f6f6a 100644
+--- a/doc/man3/SSL_CTX_set_tmp_dh_callback.pod
++++ b/doc/man3/SSL_CTX_set_tmp_dh_callback.pod
+@@ -73,9 +73,9 @@ the built-in parameter support described above. Applications wishing to supply
+ their own DH parameters should call SSL_CTX_set0_tmp_dh_pkey() or
+ SSL_set0_tmp_dh_pkey() to supply the parameters for the B<SSL_CTX> or B<SSL>
+ respectively. The parameters should be supplied in the I<dhpkey> argument as
+-an B<EVP_PKEY> containg DH parameters. Ownership of the I<dhpkey> value is
++an B<EVP_PKEY> containing DH parameters. Ownership of the I<dhpkey> value is
+ passed to the B<SSL_CTX> or B<SSL> object as a result of this call, and so the
+-caller should not free it if the function call is succesful.
++caller should not free it if the function call is successful.
+ 
+ The deprecated macros SSL_CTX_set_tmp_dh() and SSL_set_tmp_dh() do the same
+ thing as SSL_CTX_set0_tmp_dh_pkey() and SSL_set0_tmp_dh_pkey() except that the
+diff --git a/doc/man3/X509_STORE_CTX_new.pod b/doc/man3/X509_STORE_CTX_new.pod
+index 2319012a98..9c7abfee82 100644
+--- a/doc/man3/X509_STORE_CTX_new.pod
++++ b/doc/man3/X509_STORE_CTX_new.pod
+@@ -177,7 +177,7 @@ administrator might only trust it for the former. An X.509 certificate extension
+ exists that can record extended key usage information to supplement the purpose
+ information described above. This extended mechanism is arbitrarily extensible
+ and not well suited for a generic library API; applications that need to
+-validate extended key usage information in certifiates will need to define a
++validate extended key usage information in certificates will need to define a
+ custom "purpose" (see below) or supply a nondefault verification callback
+ (L<X509_STORE_set_verify_cb_func(3)>).
+ 
+diff --git a/doc/man3/X509_VERIFY_PARAM_set_flags.pod b/doc/man3/X509_VERIFY_PARAM_set_flags.pod
+index 43c1900bca..4627206174 100644
+--- a/doc/man3/X509_VERIFY_PARAM_set_flags.pod
++++ b/doc/man3/X509_VERIFY_PARAM_set_flags.pod
+@@ -223,7 +223,7 @@ X509_VERIFY_PARAM_set1_ip_asc() return 1 for success and 0 for
+ failure.
+ 
+ X509_VERIFY_PARAM_get0_host(), X509_VERIFY_PARAM_get0_email(), and
+-X509_VERIFY_PARAM_get1_ip_asc(), return the string pointers pecified above
++X509_VERIFY_PARAM_get1_ip_asc(), return the string pointer specified above
+ or NULL if the respective value has not been set or on error.
+ 
+ X509_VERIFY_PARAM_get_flags() returns the current verification flags.
+diff --git a/doc/man3/X509_add_cert.pod b/doc/man3/X509_add_cert.pod
+index 1512d81701..f6dcc03258 100644
+--- a/doc/man3/X509_add_cert.pod
++++ b/doc/man3/X509_add_cert.pod
+@@ -31,7 +31,7 @@ The value B<X509_ADD_FLAG_DEFAULT>, which equals 0, means no special semantics.
+ If B<X509_ADD_FLAG_UP_REF> is set then
+ the reference counts of those certificates added successfully are increased.
+ 
+-If B<X509_ADD_FLAG_PREPEND> is set then the certifcates are prepended to I<sk>.
++If B<X509_ADD_FLAG_PREPEND> is set then the certificates are prepended to I<sk>.
+ By default they are appended to I<sk>.
+ In both cases the original order of the added certificates is preserved.
+ 
+diff --git a/doc/man3/X509_digest.pod b/doc/man3/X509_digest.pod
+index f4921dbc18..ed58932505 100644
+--- a/doc/man3/X509_digest.pod
++++ b/doc/man3/X509_digest.pod
+@@ -44,9 +44,9 @@ X509_digest_sig() calculates a digest of the given certificate I<cert>
+ using the same hash algorithm as in its signature, if the digest
+ is an integral part of the certificate signature algorithm identifier.
+ Otherwise, a fallback hash algorithm is determined as follows:
+-SHA512 if the signature alorithm is ED25519,
++SHA512 if the signature algorithm is ED25519,
+ SHAKE256 if it is ED448, otherwise SHA256.
+-The output parmeters are assigned as follows.
++The output parameters are assigned as follows.
+ Unless I<md_used> is NULL, the hash algorithm used is provided
+ in I<*md_used> and must be freed by the caller (if it is not NULL).
+ Unless I<md_is_fallback> is NULL,
+diff --git a/doc/man3/X509_dup.pod b/doc/man3/X509_dup.pod
+index 9fc355c7ce..179b887543 100644
+--- a/doc/man3/X509_dup.pod
++++ b/doc/man3/X509_dup.pod
+@@ -350,7 +350,7 @@ to generate the function bodies.
+ B<I<TYPE>_new>() allocates an empty object of the indicated type.
+ The object returned must be released by calling B<I<TYPE>_free>().
+ 
+-B<I<TYPE>_new_ex>() is similiar to B<I<TYPE>_new>() but also passes the
++B<I<TYPE>_new_ex>() is similar to B<I<TYPE>_new>() but also passes the
+ library context I<libctx> and the property query I<propq> to use when retrieving
+ algorithms from providers. This created object can then be used when loading
+ binary data using B<d2i_I<TYPE>>().
+diff --git a/doc/man5/config.pod b/doc/man5/config.pod
+index a78ff4dc06..8d312c661f 100644
+--- a/doc/man5/config.pod
++++ b/doc/man5/config.pod
+@@ -415,7 +415,7 @@ For example:
+ =head2 Random Configuration
+ 
+ The name B<random> in the initialization section names the section
+-containing the random number generater settings.
++containing the random number generator settings.
+ 
+ Within the random section, the following names have meaning:
+ 
+diff --git a/doc/man7/EVP_PKEY-EC.pod b/doc/man7/EVP_PKEY-EC.pod
+index 4b6dec3586..3b14e25672 100644
+--- a/doc/man7/EVP_PKEY-EC.pod
++++ b/doc/man7/EVP_PKEY-EC.pod
+@@ -15,7 +15,7 @@ The B<EC> keytype is implemented in OpenSSL's default provider.
+ The normal way of specifying domain parameters for an EC curve is via the
+ curve name "group". For curves with no curve name, explicit parameters can be
+ used that specify "field-type", "p", "a", "b", "generator" and "order".
+-Explicit parameters are supported for backwards compability reasons, but they
++Explicit parameters are supported for backwards compatibility reasons, but they
+ are not compliant with multiple standards (including RFC5915) which only allow
+ named curves.
+ 
+@@ -70,7 +70,7 @@ I<order> multiplied by the I<cofactor> gives the number of points on the curve.
+ 
+ =item  "decoded-from-explicit" (B<OSSL_PKEY_PARAM_EC_DECODED_FROM_EXPLICIT_PARAMS>) <integer>
+ 
+-Gets a flag indicating wether the key or parameters were decoded from explicit
++Gets a flag indicating whether the key or parameters were decoded from explicit
+ curve parameters. Set to 1 if so or 0 if a named curve was used.
+ 
+ =item "use-cofactor-flag" (B<OSSL_PKEY_PARAM_USE_COFACTOR_ECDH>) <integer>
+@@ -99,7 +99,7 @@ point_conversion_forms please see L<EC_POINT_new(3)>. Valid values are
+ Sets or Gets the type of group check done when EVP_PKEY_param_check() is called.
+ Valid values are "default", "named" and "named-nist".
+ The "named" type checks that the domain parameters match the inbuilt curve parameters,
+-"named-nist" is similiar but also checks that the named curve is a nist curve.
++"named-nist" is similar but also checks that the named curve is a nist curve.
+ The "default" type does domain parameter validation for the OpenSSL default provider,
+ but is equivalent to "named-nist" for the OpenSSL FIPS provider.
+ 
+diff --git a/doc/man7/crypto.pod b/doc/man7/crypto.pod
+index ea81c91d3a..c31e10ac29 100644
+--- a/doc/man7/crypto.pod
++++ b/doc/man7/crypto.pod
+@@ -207,7 +207,7 @@ If anything in this step fails, the next step is used as a fallback.
+ 
+ As a fallback, try to fetch the operation type implementation from the same
+ provider as the original L<EVP_PKEY(3)>'s L<EVP_KEYMGMT(3)>, still using the
+-propery string from the B<EVP_PKEY_CTX>.
++property string from the B<EVP_PKEY_CTX>.
+ 
+ =back
+ 
+diff --git a/doc/man7/fips_module.pod b/doc/man7/fips_module.pod
+index 551323597c..460382a2b2 100644
+--- a/doc/man7/fips_module.pod
++++ b/doc/man7/fips_module.pod
+@@ -92,7 +92,7 @@ Obviously the include file location above should match the path and name of the
+ FIPS module config file that you installed earlier.
+ See L<https://github.com/openssl/openssl/blob/master/README-FIPS.md>.
+ 
+-For FIPS usage, it is recommened that the B<config_diagnostics> option is
++For FIPS usage, it is recommended that the B<config_diagnostics> option is
+ enabled to prevent accidental use of non-FIPS validated algorithms via broken
+ or mistaken configuration.  See L<config(5)>.
+ 
+diff --git a/doc/man7/life_cycle-pkey.pod b/doc/man7/life_cycle-pkey.pod
+index 6768750f48..0300203551 100644
+--- a/doc/man7/life_cycle-pkey.pod
++++ b/doc/man7/life_cycle-pkey.pod
+@@ -22,7 +22,7 @@ This state represents the PKEY after it has been allocated.
+ =item decapsulate
+ 
+ This state represents the PKEY when it is ready to perform a private key decapsulation
+-opeartion.
++operation.
+ 
+ =item decrypt
+ 
+@@ -40,7 +40,7 @@ operation.
+ =item encapsulate
+ 
+ This state represents the PKEY when it is ready to perform a public key encapsulation
+-opeartion.
++operation.
+ 
+ =item encrypt
+ 
+diff --git a/doc/man7/migration_guide.pod b/doc/man7/migration_guide.pod
+index 9eb4a031aa..1847e9813c 100644
+--- a/doc/man7/migration_guide.pod
++++ b/doc/man7/migration_guide.pod
+@@ -130,7 +130,7 @@ New algorithms provided via engines will still work.
+ 
+ Engine-backed keys can be loaded via custom B<OSSL_STORE> implementation.
+ In this case the B<EVP_PKEY> objects created via L<ENGINE_load_private_key(3)>
+-will be concidered legacy and will continue to work.
++will be considered legacy and will continue to work.
+ 
+ To ensure the future compatibility, the engines should be turned to providers.
+ To prefer the provider-based hardware offload, you can specify the default
+@@ -641,7 +641,7 @@ set up with the default library context. Use L<X509_new_ex(3)>,
+ L<X509_CRL_new_ex(3)>, L<X509_REQ_new_ex(3)> and L<X509_PUBKEY_new_ex(3)> if a
+ library context is required.
+ 
+-All functions listed below with a I<NAME> have a replacment function I<NAME_ex>
++All functions listed below with a I<NAME> have a replacement function I<NAME_ex>
+ that takes B<OSSL_LIB_CTX> as an additional argument. Functions that have other
+ mappings are listed along with the respective name.
+ 
+@@ -999,7 +999,7 @@ that refer to these categories.
+ Any accessor that uses an ENGINE is deprecated (such as EVP_PKEY_set1_engine()).
+ Applications using engines should instead use providers.
+ 
+-Before providers were added algorithms were overriden by changing the methods
++Before providers were added algorithms were overridden by changing the methods
+ used by algorithms. All these methods such as RSA_new_method() and RSA_meth_new()
+ are now deprecated and can be replaced by using providers instead.
+ 
+@@ -1548,7 +1548,7 @@ See L</Deprecated low-level validation functions>
+ 
+ EC_KEY_set_flags(), EC_KEY_get_flags(), EC_KEY_clear_flags()
+ 
+-See L<EVP_PKEY-EC(7)/Common EC parameters> which handles flags as seperate
++See L<EVP_PKEY-EC(7)/Common EC parameters> which handles flags as separate
+ parameters for B<OSSL_PKEY_PARAM_EC_POINT_CONVERSION_FORMAT>,
+ B<OSSL_PKEY_PARAM_EC_GROUP_CHECK_TYPE>, B<OSSL_PKEY_PARAM_EC_ENCODING>,
+ B<OSSL_PKEY_PARAM_USE_COFACTOR_ECDH> and
+diff --git a/doc/man7/openssl-glossary.pod b/doc/man7/openssl-glossary.pod
+index b112b375ac..5d6a830429 100644
+--- a/doc/man7/openssl-glossary.pod
++++ b/doc/man7/openssl-glossary.pod
+@@ -12,7 +12,7 @@ openssl-glossary - An OpenSSL Glossary
+ 
+ =item Algorithm
+ 
+-Cryptograpic primitives such as the SHA256 digest, or AES encryption are
++Cryptographic primitives such as the SHA256 digest, or AES encryption are
+ referred to in OpenSSL as "algorithms". There can be more than one
+ implementation for any given algorithm available for use.
+ 
+@@ -45,7 +45,7 @@ L<OSSL_DECODER_CTX_new_for_pkey(3)>
+ 
+ =item Default Provider
+ 
+-An OpenSSL Provider that contains the most commmon OpenSSL algorithm
++An OpenSSL Provider that contains the most common OpenSSL algorithm
+ implementations. It is loaded by default if no other provider is available. All
+ the algorithm implementations in the Base Provider are also available in the
+ Default Provider.
+@@ -81,7 +81,7 @@ Fetching is the process of looking through the available algorithm
+ implementations, applying selection criteria (via a property query string), and
+ finally choosing the implementation that will be used.
+ 
+-Also see Explicit Fetching and Implict Fetching.
++Also see Explicit Fetching and Implicit Fetching.
+ 
+ L<crypto(7)>
+ 
+diff --git a/doc/man7/provider-kdf.pod b/doc/man7/provider-kdf.pod
+index ad80869ebe..4221f9a0f4 100644
+--- a/doc/man7/provider-kdf.pod
++++ b/doc/man7/provider-kdf.pod
+@@ -198,7 +198,7 @@ Sets the mode in the associated KDF ctx.
+ 
+ =item "pkcs5" (B<OSSL_KDF_PARAM_PKCS5>) <integer>
+ 
+-Enables or diables the SP800-132 compliance checks.
++Enables or disables the SP800-132 compliance checks.
+ A mode of 0 enables the compliance checks.
+ 
+ The checks performed are:
+diff --git a/doc/man7/provider-object.pod b/doc/man7/provider-object.pod
+index 1088e03551..bc82879679 100644
+--- a/doc/man7/provider-object.pod
++++ b/doc/man7/provider-object.pod
+@@ -164,7 +164,7 @@ A human readable text that describes extra details on the object.
+ 
+ =back
+ 
+-When a provider-native object abtraction is used, it I<must> contain object
++When a provider-native object abstraction is used, it I<must> contain object
+ data in at least one form (object data I<passed by value>, i.e. the "data"
+ item, or object data I<passed by reference>, i.e. the "reference" item).
+ Both may be present at once, in which case the OpenSSL library code that
+-- 
+2.34.1
+

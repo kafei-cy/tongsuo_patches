@@ -1,0 +1,38 @@
+From 6509e65a04938d420a58036ec133b2948549c5c4 Mon Sep 17 00:00:00 2001
+From: Tomas Mraz <tomas@openssl.org>
+Date: Wed, 11 Oct 2023 11:20:02 +0200
+Subject: [PATCH 356/381] Windows: use srand() instead of srandom()
+
+This is used for memory allocation failure debugging only
+
+Reviewed-by: Tom Cosgrove <tom.cosgrove@arm.com>
+Reviewed-by: Paul Dale <pauli@openssl.org>
+(Merged from https://github.com/openssl/openssl/pull/22347)
+
+(cherry picked from commit 3b107b86ca7d1c6309bc7071ead59acb8c098f3b)
+---
+ crypto/mem.c | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/crypto/mem.c b/crypto/mem.c
+index ef0b744049..34128616e2 100644
+--- a/crypto/mem.c
++++ b/crypto/mem.c
+@@ -122,12 +122,13 @@ static void parseit(void)
+ }
+ 
+ /*
+- * Windows doesn't have random(), but it has rand()
++ * Windows doesn't have random() and srandom(), but it has rand() and srand().
+  * Some rand() implementations aren't good, but we're not
+  * dealing with secure randomness here.
+  */
+ # ifdef _WIN32
+ #  define random() rand()
++#  define srandom(seed) srand(seed)
+ # endif
+ /*
+  * See if the current malloc should fail.
+-- 
+2.34.1
+

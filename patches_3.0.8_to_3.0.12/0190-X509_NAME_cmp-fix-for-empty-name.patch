@@ -1,0 +1,41 @@
+From ef2a438d9d94c323b70bf8bd0b4c6ef6542d1a9d Mon Sep 17 00:00:00 2001
+From: Wim Decroix <wim.decroix@auth0.com>
+Date: Thu, 8 Jun 2023 12:40:36 +0200
+Subject: [PATCH 190/381] X509_NAME_cmp fix for empty name
+
+CLA: trivial
+
+Fixes #21156
+
+Reviewed-by: Todd Short <todd.short@me.com>
+Reviewed-by: Tomas Mraz <tomas@openssl.org>
+(Merged from https://github.com/openssl/openssl/pull/21155)
+
+(cherry picked from commit ec59752835f616860cd9451d6cfcea16bfc3ad05)
+---
+ crypto/x509/x509_cmp.c | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)
+
+diff --git a/crypto/x509/x509_cmp.c b/crypto/x509/x509_cmp.c
+index 5c9d91f407..c6e8ddab59 100644
+--- a/crypto/x509/x509_cmp.c
++++ b/crypto/x509/x509_cmp.c
+@@ -277,11 +277,11 @@ int X509_NAME_cmp(const X509_NAME *a, const X509_NAME *b)
+     if (ret == 0 && a->canon_enclen == 0)
+         return 0;
+ 
+-    if (a->canon_enc == NULL || b->canon_enc == NULL)
+-        return -2;
+-
+-    if (ret == 0)
++    if (ret == 0) {
++        if (a->canon_enc == NULL || b->canon_enc == NULL)
++            return -2;
+         ret = memcmp(a->canon_enc, b->canon_enc, a->canon_enclen);
++    }
+ 
+     return ret < 0 ? -1 : ret > 0;
+ }
+-- 
+2.34.1
+

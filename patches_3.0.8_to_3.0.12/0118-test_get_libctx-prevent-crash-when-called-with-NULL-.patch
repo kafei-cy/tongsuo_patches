@@ -1,0 +1,30 @@
+From 40f3a606b1671d417b63a902dab205e7906dbccd Mon Sep 17 00:00:00 2001
+From: "Dr. David von Oheimb" <David.von.Oheimb@siemens.com>
+Date: Wed, 1 Feb 2023 15:34:19 +0100
+Subject: [PATCH 118/381] test_get_libctx(): prevent crash when called with
+ NULL provider arg
+
+Reviewed-by: Tomas Mraz <tomas@openssl.org>
+Reviewed-by: Paul Dale <pauli@openssl.org>
+Reviewed-by: David von Oheimb <david.von.oheimb@siemens.com>
+(Merged from https://github.com/openssl/openssl/pull/20257)
+---
+ test/testutil/provider.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/test/testutil/provider.c b/test/testutil/provider.c
+index 0f46077a32..eac7254c3e 100644
+--- a/test/testutil/provider.c
++++ b/test/testutil/provider.c
+@@ -38,7 +38,7 @@ int test_get_libctx(OSSL_LIB_CTX **libctx, OSSL_PROVIDER **default_null_prov,
+         goto err;
+     }
+ 
+-    if (module_name != NULL
++    if (provider != NULL && module_name != NULL
+             && (*provider = OSSL_PROVIDER_load(new_libctx, module_name)) == NULL) {
+         opt_printf_stderr("Failed to load provider %s\n", module_name);
+         goto err;
+-- 
+2.34.1
+

@@ -1,0 +1,37 @@
+From 2197fba26c75b618640544697043f63c7eb85a36 Mon Sep 17 00:00:00 2001
+From: GauriSpears <Gauri@nextmail.ru>
+Date: Thu, 30 Mar 2023 16:30:59 +0500
+Subject: [PATCH 112/381] List also non-fetchable hashes in openssl dgst -list
+
+CLA: trivial
+
+Reviewed-by: Paul Dale <pauli@openssl.org>
+Reviewed-by: Tomas Mraz <tomas@openssl.org>
+(Merged from https://github.com/openssl/openssl/pull/20651)
+
+(cherry picked from commit 7eab7680ee61c64b2ae7acd9dd199ab6734f3d1f)
+---
+ apps/dgst.c | 7 +++++--
+ 1 file changed, 5 insertions(+), 2 deletions(-)
+
+diff --git a/apps/dgst.c b/apps/dgst.c
+index 1042d940f4..213470da79 100644
+--- a/apps/dgst.c
++++ b/apps/dgst.c
+@@ -487,8 +487,11 @@ static void show_digests(const OBJ_NAME *name, void *arg)
+ 
+     /* Filter out message digests that we cannot use */
+     md = EVP_MD_fetch(app_get0_libctx(), name->name, app_get0_propq());
+-    if (md == NULL)
+-        return;
++    if (md == NULL) {
++        md = EVP_get_digestbyname(name->name);
++        if (md == NULL)
++            return;
++    }
+ 
+     BIO_printf(dec->bio, "-%-25s", name->name);
+     if (++dec->n == 3) {
+-- 
+2.34.1
+

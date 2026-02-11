@@ -1,0 +1,38 @@
+From 21c9a485e7b55fef3bf0f008cb97f4dfbade9a4b Mon Sep 17 00:00:00 2001
+From: Mike Gilbert <floppym@gentoo.org>
+Date: Sun, 12 Feb 2023 17:56:58 -0500
+Subject: [PATCH 077/381] Fix Configure test for -mips in CFLAGS
+
+We want to add -mips2 or -mips3 only if the user hasn't already
+specified a mips version in CFLAGS. The existing test was a
+double-negative.
+
+CLA: trivial
+
+Fixes: https://github.com/openssl/openssl/issues/20214
+
+Reviewed-by: Tomas Mraz <tomas@openssl.org>
+Reviewed-by: Paul Dale <pauli@openssl.org>
+(Merged from https://github.com/openssl/openssl/pull/20273)
+
+(cherry picked from commit 8b399c5e51b4d010650cb344a67a696daf096a05)
+---
+ Configure | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/Configure b/Configure
+index 5ac4b5222e..4ddc275f78 100755
+--- a/Configure
++++ b/Configure
+@@ -1423,7 +1423,7 @@ if ($target =~ /^mingw/ && `$config{CC} --target-help 2>&1` =~ m/-mno-cygwin/m)
+         }
+ 
+ if ($target =~ /linux.*-mips/ && !$disabled{asm}
+-        && !grep { $_ !~ /-m(ips|arch=)/ } (@{$config{CFLAGS}})) {
++        && !grep { $_ =~ /-m(ips|arch=)/ } (@{$config{CFLAGS}})) {
+         # minimally required architecture flags for assembly modules
+         my $value;
+         $value = '-mips2' if ($target =~ /mips32/);
+-- 
+2.34.1
+

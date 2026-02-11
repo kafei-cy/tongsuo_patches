@@ -1,0 +1,51 @@
+From 9d4634d2fc26dc3bb78e9d986e49979a5d9c8400 Mon Sep 17 00:00:00 2001
+From: Darana <abdullahsaud03@gmail.com>
+Date: Thu, 25 May 2023 23:58:16 +0500
+Subject: [PATCH 182/381] Fix documentation where openssl-genrsa is listed as
+ deprecated since OpenSSL 3.0
+
+openssl-genrsa is not deprecated however the OpenSSL documentation
+states that it is the case from OpenSSL 3.0. This has been fixed in the
+documentation, specifically in manpage 1.
+
+Fixes #21055
+
+CLA: trivial
+
+Reviewed-by: Paul Dale <pauli@openssl.org>
+Reviewed-by: Tomas Mraz <tomas@openssl.org>
+(Merged from https://github.com/openssl/openssl/pull/21059)
+
+(cherry picked from commit 4ad2dd43d0959b850c06c5a681d34aeb78d7c4b9)
+---
+ doc/man1/openssl-genrsa.pod.in | 7 -------
+ 1 file changed, 7 deletions(-)
+
+diff --git a/doc/man1/openssl-genrsa.pod.in b/doc/man1/openssl-genrsa.pod.in
+index 6296409615..65d7badb55 100644
+--- a/doc/man1/openssl-genrsa.pod.in
++++ b/doc/man1/openssl-genrsa.pod.in
+@@ -35,9 +35,6 @@ B<openssl> B<genrsa>
+ 
+ =head1 DESCRIPTION
+ 
+-This command has been deprecated.
+-The L<openssl-genpkey(1)> command should be used instead.
+-
+ This command generates an RSA private key.
+ 
+ =head1 OPTIONS
+@@ -118,10 +115,6 @@ L<openssl(1)>,
+ L<openssl-genpkey(1)>,
+ L<openssl-gendsa(1)>
+ 
+-=head1 HISTORY
+-
+-This command was deprecated in OpenSSL 3.0.
+-
+ =head1 COPYRIGHT
+ 
+ Copyright 2000-2021 The OpenSSL Project Authors. All Rights Reserved.
+-- 
+2.34.1
+

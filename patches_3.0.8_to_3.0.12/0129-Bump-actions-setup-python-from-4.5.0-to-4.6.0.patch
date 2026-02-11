@@ -1,0 +1,45 @@
+From 1ff318776f175a91742ba12d7313bfdab123925c Mon Sep 17 00:00:00 2001
+From: "dependabot[bot]" <49699333+dependabot[bot]@users.noreply.github.com>
+Date: Fri, 21 Apr 2023 14:22:29 +0000
+Subject: [PATCH 129/381] Bump actions/setup-python from 4.5.0 to 4.6.0
+
+Bumps [actions/setup-python](https://github.com/actions/setup-python) from 4.5.0 to 4.6.0.
+- [Release notes](https://github.com/actions/setup-python/releases)
+- [Commits](https://github.com/actions/setup-python/compare/v4.5.0...v4.6.0)
+
+---
+updated-dependencies:
+- dependency-name: actions/setup-python
+  dependency-type: direct:production
+  update-type: version-update:semver-minor
+...
+
+Signed-off-by: dependabot[bot] <support@github.com>
+
+CLA: trivial
+
+Reviewed-by: Paul Dale <pauli@openssl.org>
+Reviewed-by: Tomas Mraz <tomas@openssl.org>
+(Merged from https://github.com/openssl/openssl/pull/20792)
+
+(cherry picked from commit 3ac96c8f715672ff77025d48b5773f5de4f84215)
+---
+ .github/workflows/ci.yml | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/.github/workflows/ci.yml b/.github/workflows/ci.yml
+index cd3248d375..72370e53d2 100644
+--- a/.github/workflows/ci.yml
++++ b/.github/workflows/ci.yml
+@@ -298,7 +298,7 @@ jobs:
+     - name: make
+       run: make -s -j4
+     - name: Setup Python
+-      uses: actions/setup-python@v4.5.0
++      uses: actions/setup-python@v4.6.0
+       with:
+         python-version: ${{ matrix.PYTHON }}
+     - uses: actions-rs/toolchain@v1
+-- 
+2.34.1
+

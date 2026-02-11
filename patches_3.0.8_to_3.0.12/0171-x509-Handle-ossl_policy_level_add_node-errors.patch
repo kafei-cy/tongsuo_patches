@@ -1,0 +1,71 @@
+From 3ecfc9e6b6119c5c447bf25937fde24eebefedc9 Mon Sep 17 00:00:00 2001
+From: Clemens Lang <cllang@redhat.com>
+Date: Wed, 24 May 2023 13:12:54 +0200
+Subject: [PATCH 171/381] x509: Handle ossl_policy_level_add_node errors
+
+The invocation of ossl_policy_level_add_node in tree_calculate_user_set
+did not have any error handling. Add it to prevent a memory leak for the
+allocated extra policy data.
+
+Also add error handling to sk_X509_POLICY_NODE_push to ensure that if
+a new node was allocated, but could not be added to the stack, it is
+freed correctly.
+
+Fix error handling if tree->user_policies cannot be allocated by
+returning 0, indicating failure, rather than 1.
+
+Signed-off-by: Clemens Lang <cllang@redhat.com>
+
+Reviewed-by: Dmitry Belyavskiy <beldmit@gmail.com>
+Reviewed-by: Matt Caswell <matt@openssl.org>
+Reviewed-by: Bernd Edlinger <bernd.edlinger@hotmail.de>
+Reviewed-by: Tomas Mraz <tomas@openssl.org>
+(Merged from https://github.com/openssl/openssl/pull/21040)
+
+(cherry picked from commit 95a8aa6dc0e283b1560dd3258d2e9115c02659b1)
+---
+ crypto/x509/pcy_tree.c | 16 +++++++++++++---
+ 1 file changed, 13 insertions(+), 3 deletions(-)
+
+diff --git a/crypto/x509/pcy_tree.c b/crypto/x509/pcy_tree.c
+index f953a05a41..9a0251c2b3 100644
+--- a/crypto/x509/pcy_tree.c
++++ b/crypto/x509/pcy_tree.c
+@@ -25,6 +25,8 @@
+ # define OPENSSL_POLICY_TREE_NODES_MAX 1000
+ #endif
+ 
++static void exnode_free(X509_POLICY_NODE *node);
++
+ static void expected_print(BIO *channel,
+                            X509_POLICY_LEVEL *lev, X509_POLICY_NODE *node,
+                            int indent)
+@@ -570,14 +572,22 @@ static int tree_calculate_user_set(X509_POLICY_TREE *tree,
+                 | POLICY_DATA_FLAG_EXTRA_NODE;
+             node = ossl_policy_level_add_node(NULL, extra, anyPolicy->parent,
+                                               tree, 1);
++            if (node == NULL) {
++                ossl_policy_data_free(extra);
++                return 0;
++            }
+         }
+         if (!tree->user_policies) {
+             tree->user_policies = sk_X509_POLICY_NODE_new_null();
+-            if (!tree->user_policies)
+-                return 1;
++            if (!tree->user_policies) {
++                exnode_free(node);
++                return 0;
++            }
+         }
+-        if (!sk_X509_POLICY_NODE_push(tree->user_policies, node))
++        if (!sk_X509_POLICY_NODE_push(tree->user_policies, node)) {
++            exnode_free(node);
+             return 0;
++        }
+     }
+     return 1;
+ }
+-- 
+2.34.1
+

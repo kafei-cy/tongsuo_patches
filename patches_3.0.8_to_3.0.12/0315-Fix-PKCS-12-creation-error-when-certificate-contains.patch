@@ -1,0 +1,218 @@
+From 3558a8c6c41270a1d451d1431a278680667f61e6 Mon Sep 17 00:00:00 2001
+From: Olga Batyshkina <obatysh@gmx.com>
+Date: Mon, 7 Aug 2023 15:14:53 +0200
+Subject: [PATCH 315/381] Fix PKCS#12 creation error when certificate contains
+ auxiliary data
+
+Prefer friendly name passed by the caller and calculated local
+key id to ones found in certificate auxiliary data when creating
+PKCS#12.
+
+Reviewed-by: Paul Dale <pauli@openssl.org>
+Reviewed-by: Tomas Mraz <tomas@openssl.org>
+(Merged from https://github.com/openssl/openssl/pull/21675)
+
+(cherry picked from commit 388a8e731445d190a46ec27b2ff5b4bf334d526b)
+---
+ crypto/pkcs12/p12_crt.c   | 62 ++++++++++++++++++++++++------------
+ test/pkcs12_format_test.c | 66 +++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 108 insertions(+), 20 deletions(-)
+
+diff --git a/crypto/pkcs12/p12_crt.c b/crypto/pkcs12/p12_crt.c
+index 00c7129746..b92a16cec3 100644
+--- a/crypto/pkcs12/p12_crt.c
++++ b/crypto/pkcs12/p12_crt.c
+@@ -14,6 +14,12 @@
+ 
+ static int pkcs12_add_bag(STACK_OF(PKCS12_SAFEBAG) **pbags,
+                           PKCS12_SAFEBAG *bag);
++static PKCS12_SAFEBAG *pkcs12_add_cert_bag(STACK_OF(PKCS12_SAFEBAG) **pbags,
++                                           X509 *cert,
++                                           const char *name,
++                                           int namelen,
++                                           unsigned char *keyid,
++                                           int keyidlen);
+ 
+ static int copy_bag_attr(PKCS12_SAFEBAG *bag, EVP_PKEY *pkey, int nid)
+ {
+@@ -40,6 +46,9 @@ PKCS12 *PKCS12_create_ex(const char *pass, const char *name, EVP_PKEY *pkey,
+     int i;
+     unsigned char keyid[EVP_MAX_MD_SIZE];
+     unsigned int keyidlen = 0;
++    int namelen = -1;
++    unsigned char *pkeyid = NULL;
++    int pkeyidlen = -1;
+ 
+     /* Set defaults */
+     if (nid_cert == NID_undef)
+@@ -64,11 +73,16 @@ PKCS12 *PKCS12_create_ex(const char *pass, const char *name, EVP_PKEY *pkey,
+     }
+ 
+     if (cert) {
+-        bag = PKCS12_add_cert(&bags, cert);
+-        if (name && !PKCS12_add_friendlyname(bag, name, -1))
+-            goto err;
+-        if (keyidlen && !PKCS12_add_localkeyid(bag, keyid, keyidlen))
+-            goto err;
++        if (name == NULL)
++            name = (char *)X509_alias_get0(cert, &namelen);
++        if (keyidlen > 0) {
++            pkeyid = keyid;
++            pkeyidlen = keyidlen;
++        } else {
++            pkeyid = X509_keyid_get0(cert, &pkeyidlen);
++        }
++
++        bag = pkcs12_add_cert_bag(&bags, cert, name, namelen, pkeyid, pkeyidlen);
+     }
+ 
+     /* Add all other certificates */
+@@ -139,30 +153,23 @@ PKCS12 *PKCS12_create(const char *pass, const char *name, EVP_PKEY *pkey, X509 *
+                             iter, mac_iter, keytype, NULL, NULL);
+ }
+ 
+-PKCS12_SAFEBAG *PKCS12_add_cert(STACK_OF(PKCS12_SAFEBAG) **pbags, X509 *cert)
++static PKCS12_SAFEBAG *pkcs12_add_cert_bag(STACK_OF(PKCS12_SAFEBAG) **pbags,
++                                           X509 *cert,
++                                           const char *name,
++                                           int namelen,
++                                           unsigned char *keyid,
++                                           int keyidlen)
+ {
+     PKCS12_SAFEBAG *bag = NULL;
+-    char *name;
+-    int namelen = -1;
+-    unsigned char *keyid;
+-    int keyidlen = -1;
+ 
+     /* Add user certificate */
+     if ((bag = PKCS12_SAFEBAG_create_cert(cert)) == NULL)
+         goto err;
+ 
+-    /*
+-     * Use friendlyName and localKeyID in certificate. (if present)
+-     */
+-
+-    name = (char *)X509_alias_get0(cert, &namelen);
+-
+-    if (name && !PKCS12_add_friendlyname(bag, name, namelen))
++    if (name != NULL && !PKCS12_add_friendlyname(bag, name, namelen))
+         goto err;
+ 
+-    keyid = X509_keyid_get0(cert, &keyidlen);
+-
+-    if (keyid && !PKCS12_add_localkeyid(bag, keyid, keyidlen))
++    if (keyid != NULL && !PKCS12_add_localkeyid(bag, keyid, keyidlen))
+         goto err;
+ 
+     if (!pkcs12_add_bag(pbags, bag))
+@@ -173,7 +180,22 @@ PKCS12_SAFEBAG *PKCS12_add_cert(STACK_OF(PKCS12_SAFEBAG) **pbags, X509 *cert)
+  err:
+     PKCS12_SAFEBAG_free(bag);
+     return NULL;
++}
++
++PKCS12_SAFEBAG *PKCS12_add_cert(STACK_OF(PKCS12_SAFEBAG) **pbags, X509 *cert)
++{
++    char *name = NULL;
++    int namelen = -1;
++    unsigned char *keyid = NULL;
++    int keyidlen = -1;
++
++    /*
++     * Use friendlyName and localKeyID in certificate. (if present)
++     */
++    name = (char *)X509_alias_get0(cert, &namelen);
++    keyid = X509_keyid_get0(cert, &keyidlen);
+ 
++    return pkcs12_add_cert_bag(pbags, cert, name, namelen, keyid, keyidlen);
+ }
+ 
+ PKCS12_SAFEBAG *PKCS12_add_key_ex(STACK_OF(PKCS12_SAFEBAG) **pbags,
+diff --git a/test/pkcs12_format_test.c b/test/pkcs12_format_test.c
+index d4129d2522..93d66e87d8 100644
+--- a/test/pkcs12_format_test.c
++++ b/test/pkcs12_format_test.c
+@@ -792,6 +792,70 @@ err:
+ }
+ #endif
+ 
++static int pkcs12_recreate_test(void)
++{
++    int ret = 0;
++    X509 *cert = NULL;
++    X509 *cert_parsed = NULL;
++    EVP_PKEY *pkey = NULL;
++    EVP_PKEY *pkey_parsed = NULL;
++    PKCS12 *p12 = NULL;
++    PKCS12 *p12_parsed = NULL;
++    PKCS12 *p12_recreated = NULL;
++    const unsigned char *cert_bytes = CERT1;
++    const unsigned char *key_bytes = KEY1;
++    BIO *bio = NULL;
++
++    cert = d2i_X509(NULL, &cert_bytes, sizeof(CERT1));
++    if (!TEST_ptr(cert))
++        goto err;
++    pkey = d2i_AutoPrivateKey(NULL, &key_bytes, sizeof(KEY1));
++    if (!TEST_ptr(pkey))
++        goto err;
++    p12 = PKCS12_create("pass", NULL, pkey, cert, NULL, NID_aes_256_cbc,
++                        NID_aes_256_cbc, 2, 1, 0);
++    if (!TEST_ptr(p12))
++        goto err;
++    if (!TEST_int_eq(ERR_peek_error(), 0))
++        goto err;
++
++    bio = BIO_new(BIO_s_mem());
++    if (!TEST_ptr(bio))
++        goto err;
++    if (!TEST_int_eq(i2d_PKCS12_bio(bio, p12), 1))
++        goto err;
++    p12_parsed = PKCS12_init_ex(NID_pkcs7_data, testctx, NULL);
++    if (!TEST_ptr(p12_parsed))
++        goto err;
++    p12_parsed = d2i_PKCS12_bio(bio, &p12_parsed);
++    if (!TEST_ptr(p12_parsed))
++        goto err;
++    if (!TEST_int_eq(PKCS12_parse(p12_parsed, "pass", &pkey_parsed,
++                                  &cert_parsed, NULL), 1))
++        goto err;
++
++    /* cert_parsed also contains auxiliary data */
++    p12_recreated = PKCS12_create("new_pass", NULL, pkey_parsed, cert_parsed,
++                                  NULL, NID_aes_256_cbc, NID_aes_256_cbc,
++                                  2, 1, 0);
++    if (!TEST_ptr(p12_recreated))
++        goto err;
++    if (!TEST_int_eq(ERR_peek_error(), 0))
++        goto err;
++
++    ret = 1;
++err:
++    BIO_free(bio);
++    PKCS12_free(p12);
++    PKCS12_free(p12_parsed);
++    PKCS12_free(p12_recreated);
++    EVP_PKEY_free(pkey);
++    EVP_PKEY_free(pkey_parsed);
++    X509_free(cert);
++    X509_free(cert_parsed);
++    return ret;
++}
++
+ typedef enum OPTION_choice {
+     OPT_ERR = -1,
+     OPT_EOF = 0,
+@@ -873,6 +937,8 @@ int setup_tests(void)
+     if (default_libctx)
+         ADD_TEST(pkcs12_create_test);
+ #endif
++    if (default_libctx)
++        ADD_TEST(pkcs12_recreate_test);
+     ADD_ALL_TESTS(test_single_key_enc_pass, OSSL_NELEM(passwords));
+     ADD_ALL_TESTS(test_single_key_enc_iter, OSSL_NELEM(iters));
+     ADD_TEST(test_single_key_with_attrs);
+-- 
+2.34.1
+

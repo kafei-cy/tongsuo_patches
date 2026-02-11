@@ -1,0 +1,35 @@
+From b92d8af93f7047d0c481b9cf130bd657ca4155c5 Mon Sep 17 00:00:00 2001
+From: Duncan Thomson <dthomson@esri.com>
+Date: Wed, 28 Jun 2023 22:02:26 +0100
+Subject: [PATCH 214/381] Fix OSSL_PROVIDER_try_load() retain_fallbacks doc
+
+CLA: trivial
+
+Reviewed-by: Tom Cosgrove <tom.cosgrove@arm.com>
+Reviewed-by: Matt Caswell <matt@openssl.org>
+Reviewed-by: Paul Dale <pauli@openssl.org>
+(Merged from https://github.com/openssl/openssl/pull/21319)
+
+(cherry picked from commit 063cdca61adfd4d418affe850f8bebbf528d05d9)
+---
+ doc/man3/OSSL_PROVIDER.pod | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/doc/man3/OSSL_PROVIDER.pod b/doc/man3/OSSL_PROVIDER.pod
+index 9710469e07..4753e76531 100644
+--- a/doc/man3/OSSL_PROVIDER.pod
++++ b/doc/man3/OSSL_PROVIDER.pod
+@@ -90,8 +90,8 @@ the environment variable OPENSSL_MODULES if set.
+ 
+ OSSL_PROVIDER_try_load() functions like OSSL_PROVIDER_load(), except that
+ it does not disable the fallback providers if the provider cannot be
+-loaded and initialized or if I<retain_fallbacks> is zero.
+-If the provider loads successfully and I<retain_fallbacks> is nonzero, the
++loaded and initialized or if I<retain_fallbacks> is nonzero.
++If the provider loads successfully and I<retain_fallbacks> is zero, the
+ fallback providers are disabled.
+ 
+ OSSL_PROVIDER_unload() unloads the given provider.
+-- 
+2.34.1
+

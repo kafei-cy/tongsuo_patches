@@ -1,0 +1,35 @@
+From 1b1b1457fdb92b2de6f7d33a813b37524afb3b3f Mon Sep 17 00:00:00 2001
+From: Benno Evers <benno@bourbaki>
+Date: Fri, 17 Feb 2023 13:03:19 +0100
+Subject: [PATCH 018/381] Document return value of OSSL_DECODER_from_data
+
+CLA: trivial
+
+Reviewed-by: Matt Caswell <matt@openssl.org>
+Reviewed-by: Kurt Roeckx <kurt@roeckx.be>
+Reviewed-by: Paul Dale <pauli@openssl.org>
+(Merged from https://github.com/openssl/openssl/pull/20327)
+
+(cherry picked from commit 7e5505107aacdf58a4d0c00da90af4b7407c8d65)
+---
+ doc/man3/OSSL_DECODER_from_bio.pod | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/doc/man3/OSSL_DECODER_from_bio.pod b/doc/man3/OSSL_DECODER_from_bio.pod
+index 5118dee9ac..e9df3c046d 100644
+--- a/doc/man3/OSSL_DECODER_from_bio.pod
++++ b/doc/man3/OSSL_DECODER_from_bio.pod
+@@ -42,8 +42,8 @@ except that the input is coming from the B<FILE> I<fp>.
+ 
+ =head1 RETURN VALUES
+ 
+-OSSL_DECODER_from_bio() and OSSL_DECODER_from_fp() return 1 on success, or 0
+-on failure.
++OSSL_DECODER_from_bio(), OSSL_DECODER_from_data() and OSSL_DECODER_from_fp()
++return 1 on success, or 0 on failure.
+ 
+ =head1 EXAMPLES
+ 
+-- 
+2.34.1
+

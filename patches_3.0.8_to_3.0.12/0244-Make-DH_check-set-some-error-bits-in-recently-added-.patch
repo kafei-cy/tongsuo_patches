@@ -1,0 +1,40 @@
+From e648db50d9a63f71cab5cb78424c2932d019a744 Mon Sep 17 00:00:00 2001
+From: Bernd Edlinger <bernd.edlinger@hotmail.de>
+Date: Sun, 23 Jul 2023 14:27:54 +0200
+Subject: [PATCH 244/381] Make DH_check set some error bits in recently added
+ error
+
+The pre-existing error cases where DH_check returned zero
+are not related to the dh params in any way, but are only
+triggered by out-of-memory errors, therefore having *ret
+set to zero feels right, but since the new error case is
+triggered by too large p values that is something different.
+On the other hand some callers of this function might not
+be prepared to handle the return value correctly but only
+rely on *ret. Therefore we set some error bits in *ret as
+additional safety measure.
+
+Reviewed-by: Paul Dale <pauli@openssl.org>
+Reviewed-by: Tomas Mraz <tomas@openssl.org>
+(Merged from https://github.com/openssl/openssl/pull/21524)
+
+(cherry picked from commit 81d10e61a4b7d5394d08a718bf7d6bae20e818fc)
+---
+ crypto/dh/dh_check.c | 1 +
+ 1 file changed, 1 insertion(+)
+
+diff --git a/crypto/dh/dh_check.c b/crypto/dh/dh_check.c
+index 84a926998e..aef6f9b1b7 100644
+--- a/crypto/dh/dh_check.c
++++ b/crypto/dh/dh_check.c
+@@ -155,6 +155,7 @@ int DH_check(const DH *dh, int *ret)
+     /* Don't do any checks at all with an excessively large modulus */
+     if (BN_num_bits(dh->params.p) > OPENSSL_DH_CHECK_MAX_MODULUS_BITS) {
+         ERR_raise(ERR_LIB_DH, DH_R_MODULUS_TOO_LARGE);
++        *ret = DH_MODULUS_TOO_LARGE | DH_CHECK_P_NOT_PRIME;
+         return 0;
+     }
+ 
+-- 
+2.34.1
+

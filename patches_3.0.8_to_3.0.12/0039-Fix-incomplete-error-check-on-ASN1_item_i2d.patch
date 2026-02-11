@@ -1,0 +1,36 @@
+From d83a5043ad49739f87f3d7dc7b12f711191610ac Mon Sep 17 00:00:00 2001
+From: ndossche <niels.dossche@ugent.be>
+Date: Thu, 9 Feb 2023 11:39:58 +0100
+Subject: [PATCH 039/381] Fix incomplete error check on ASN1_item_i2d()
+
+According to the documentation and my analysis tool
+ASN1_item_i2d() can return a negative value on error,
+but this is not checked. Fix it by changing the error check condition.
+
+CLA: trivial
+
+Reviewed-by: Tomas Mraz <tomas@openssl.org>
+Reviewed-by: Paul Dale <pauli@openssl.org>
+(Merged from https://github.com/openssl/openssl/pull/20251)
+
+(cherry picked from commit 5df5032ab02d7a17e07435de777d730bae190253)
+---
+ crypto/asn1/asn_pack.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/crypto/asn1/asn_pack.c b/crypto/asn1/asn_pack.c
+index 292e6d8176..f629e6d347 100644
+--- a/crypto/asn1/asn_pack.c
++++ b/crypto/asn1/asn_pack.c
+@@ -29,7 +29,7 @@ ASN1_STRING *ASN1_item_pack(void *obj, const ASN1_ITEM *it, ASN1_STRING **oct)
+     OPENSSL_free(octmp->data);
+     octmp->data = NULL;
+ 
+-    if ((octmp->length = ASN1_item_i2d(obj, &octmp->data, it)) == 0) {
++    if ((octmp->length = ASN1_item_i2d(obj, &octmp->data, it)) <= 0) {
+         ERR_raise(ERR_LIB_ASN1, ASN1_R_ENCODE_ERROR);
+         goto err;
+     }
+-- 
+2.34.1
+

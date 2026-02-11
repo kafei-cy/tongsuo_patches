@@ -1,0 +1,37 @@
+From 56d5c55de779f35d4e66ae4b791ef1488ab1f57a Mon Sep 17 00:00:00 2001
+From: "Dr. David von Oheimb" <David.von.Oheimb@siemens.com>
+Date: Wed, 1 Feb 2023 15:39:52 +0100
+Subject: [PATCH 121/381] cmp_ctx.c: fix wrong comments on
+ OSSL_CMP_CTX_set1_{recipient,issuer}
+
+Reviewed-by: Tomas Mraz <tomas@openssl.org>
+Reviewed-by: Paul Dale <pauli@openssl.org>
+Reviewed-by: David von Oheimb <david.von.oheimb@siemens.com>
+(Merged from https://github.com/openssl/openssl/pull/20257)
+---
+ crypto/cmp/cmp_ctx.c | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/crypto/cmp/cmp_ctx.c b/crypto/cmp/cmp_ctx.c
+index 410fc0e999..ed840fb53c 100644
+--- a/crypto/cmp/cmp_ctx.c
++++ b/crypto/cmp/cmp_ctx.c
+@@ -669,13 +669,13 @@ int OSSL_CMP_CTX_set1_##FIELD(OSSL_CMP_CTX *ctx, TYPE *val) \
+  */
+ DEFINE_OSSL_CMP_CTX_set1_up_ref(srvCert, X509)
+ 
+-/* Set the X509 name of the recipient. Set in the PKIHeader */
++/* Set the X509 name of the recipient to be placed in the PKIHeader */
+ DEFINE_OSSL_CMP_CTX_set1(recipient, X509_NAME)
+ 
+ /* Store the X509 name of the expected sender in the PKIHeader of responses */
+ DEFINE_OSSL_CMP_CTX_set1(expected_sender, X509_NAME)
+ 
+-/* Set the X509 name of the issuer. Set in the PKIHeader */
++/* Set the X509 name of the issuer to be placed in the certTemplate */
+ DEFINE_OSSL_CMP_CTX_set1(issuer, X509_NAME)
+ 
+ /*
+-- 
+2.34.1
+

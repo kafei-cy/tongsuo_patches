@@ -1,0 +1,47 @@
+From c309c4dce742c3eeb393a0f03f9c567d0e368ccc Mon Sep 17 00:00:00 2001
+From: FdaSilvaYY <fdasilvayy@gmail.com>
+Date: Fri, 10 Mar 2023 15:16:01 +0100
+Subject: [PATCH 080/381] cmp: fix --strict-warnings windows builds
+
+remove unneeded const qualifier to keep method declaration
+and definition in sync.
+
+Reviewed-by: David von Oheimb <david.von.oheimb@siemens.com>
+Reviewed-by: Matthias St. Pierre <Matthias.St.Pierre@ncp-e.com>
+(Merged from https://github.com/openssl/openssl/pull/20436)
+
+(cherry picked from commit 6f792f4d27b47213166e0fa9c9b10a3eab85b8f6)
+---
+ doc/man3/OSSL_CMP_CTX_new.pod | 2 +-
+ include/openssl/cmp.h.in      | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/doc/man3/OSSL_CMP_CTX_new.pod b/doc/man3/OSSL_CMP_CTX_new.pod
+index fb90437b97..7f3e28ff7f 100644
+--- a/doc/man3/OSSL_CMP_CTX_new.pod
++++ b/doc/man3/OSSL_CMP_CTX_new.pod
+@@ -112,7 +112,7 @@ OSSL_CMP_CTX_set1_senderNonce
+  int OSSL_CMP_CTX_set1_referenceValue(OSSL_CMP_CTX *ctx,
+                                       const unsigned char *ref, int len);
+  int OSSL_CMP_CTX_set1_secretValue(OSSL_CMP_CTX *ctx,
+-                                   const unsigned char *sec, const int len);
++                                   const unsigned char *sec, int len);
+ 
+  /* CMP message header and extra certificates: */
+  int OSSL_CMP_CTX_set1_recipient(OSSL_CMP_CTX *ctx, const X509_NAME *name);
+diff --git a/include/openssl/cmp.h.in b/include/openssl/cmp.h.in
+index fda401127d..0b5dc5c422 100644
+--- a/include/openssl/cmp.h.in
++++ b/include/openssl/cmp.h.in
+@@ -324,7 +324,7 @@ int OSSL_CMP_CTX_set1_pkey(OSSL_CMP_CTX *ctx, EVP_PKEY *pkey);
+ int OSSL_CMP_CTX_set1_referenceValue(OSSL_CMP_CTX *ctx,
+                                      const unsigned char *ref, int len);
+ int OSSL_CMP_CTX_set1_secretValue(OSSL_CMP_CTX *ctx,
+-                                  const unsigned char *sec, const int len);
++                                  const unsigned char *sec, int len);
+ /* CMP message header and extra certificates: */
+ int OSSL_CMP_CTX_set1_recipient(OSSL_CMP_CTX *ctx, const X509_NAME *name);
+ int OSSL_CMP_CTX_push0_geninfo_ITAV(OSSL_CMP_CTX *ctx, OSSL_CMP_ITAV *itav);
+-- 
+2.34.1
+

@@ -1,0 +1,382 @@
+From 943cb9b06c32eb111515aced30e4698db161004f Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?=D0=BD=D0=B0=D0=B1?= <nabijaczleweli@nabijaczleweli.xyz>
+Date: Wed, 18 Oct 2023 15:35:55 +0200
+Subject: [PATCH 374/381] Reference the non-"legacy" provider names directly
+ from EVP_md5(3) &c.
+
+Earlier today, it took me five manuals! to find what on earth the
+"Performance"/"EVP_MD_fetch(3)" crosslinks actually mean:
+  EVP_sha1(3)
+  crypto(7)
+  EVP_MD_fetch(3) (but not there! don't read that!)
+  OSSL_PROVIDER-default(7)
+  EVP_MD-SHA1(7)
+
+If, instead, EVP_sha1(3) referenced EVP_MD-SHA1(7) at /all/,
+which it should do, since it's supposed to be what you're replacing it
+with, but it doesn't actually say that, maybe people would use it.
+I know I didn't because it's basically just deadass buried
+
+As found by git grep -l 'and should consider using'
+
+Reviewed-by: Tomas Mraz <tomas@openssl.org>
+Reviewed-by: Matt Caswell <matt@openssl.org>
+(Merged from https://github.com/openssl/openssl/pull/22420)
+
+(cherry picked from commit b6eb95fa4439ea6254a5330487dabb2a499fb6c8)
+---
+ doc/man3/EVP_aes_128_gcm.pod      | 2 +-
+ doc/man3/EVP_aria_128_gcm.pod     | 2 +-
+ doc/man3/EVP_bf_cbc.pod           | 2 +-
+ doc/man3/EVP_blake2b512.pod       | 2 +-
+ doc/man3/EVP_camellia_128_ecb.pod | 2 +-
+ doc/man3/EVP_cast5_cbc.pod        | 2 +-
+ doc/man3/EVP_chacha20.pod         | 2 +-
+ doc/man3/EVP_des_cbc.pod          | 2 +-
+ doc/man3/EVP_desx_cbc.pod         | 2 +-
+ doc/man3/EVP_idea_cbc.pod         | 2 +-
+ doc/man3/EVP_md2.pod              | 2 +-
+ doc/man3/EVP_md4.pod              | 2 +-
+ doc/man3/EVP_md5.pod              | 2 +-
+ doc/man3/EVP_mdc2.pod             | 2 +-
+ doc/man3/EVP_rc2_cbc.pod          | 2 +-
+ doc/man3/EVP_rc4.pod              | 2 +-
+ doc/man3/EVP_rc5_32_12_16_cbc.pod | 2 +-
+ doc/man3/EVP_ripemd160.pod        | 2 +-
+ doc/man3/EVP_seed_cbc.pod         | 2 +-
+ doc/man3/EVP_sha1.pod             | 2 +-
+ doc/man3/EVP_sha224.pod           | 2 +-
+ doc/man3/EVP_sha3_224.pod         | 2 +-
+ doc/man3/EVP_sm3.pod              | 2 +-
+ doc/man3/EVP_sm4_cbc.pod          | 2 +-
+ doc/man3/EVP_whirlpool.pod        | 2 +-
+ 25 files changed, 25 insertions(+), 25 deletions(-)
+
+diff --git a/doc/man3/EVP_aes_128_gcm.pod b/doc/man3/EVP_aes_128_gcm.pod
+index 067f17e8fc..485705ea78 100644
+--- a/doc/man3/EVP_aes_128_gcm.pod
++++ b/doc/man3/EVP_aes_128_gcm.pod
+@@ -167,7 +167,7 @@ the XTS "tweak" value.
+ 
+ Developers should be aware of the negative performance implications of
+ calling these functions multiple times and should consider using
+-L<EVP_CIPHER_fetch(3)> instead.
++L<EVP_CIPHER_fetch(3)> with L<EVP_CIPHER-AES(7)> instead.
+ See L<crypto(7)/Performance> for further information.
+ 
+ =head1 RETURN VALUES
+diff --git a/doc/man3/EVP_aria_128_gcm.pod b/doc/man3/EVP_aria_128_gcm.pod
+index 9291365263..91aa75ec38 100644
+--- a/doc/man3/EVP_aria_128_gcm.pod
++++ b/doc/man3/EVP_aria_128_gcm.pod
+@@ -96,7 +96,7 @@ correctly, see the L<EVP_EncryptInit(3)/AEAD Interface> section for details.
+ 
+ Developers should be aware of the negative performance implications of
+ calling these functions multiple times and should consider using
+-L<EVP_CIPHER_fetch(3)> instead.
++L<EVP_CIPHER_fetch(3)> with L<EVP_CIPHER-ARIA(7)> instead.
+ See L<crypto(7)/Performance> for further information.
+ 
+ =head1 RETURN VALUES
+diff --git a/doc/man3/EVP_bf_cbc.pod b/doc/man3/EVP_bf_cbc.pod
+index 4df98f4bdf..11a909207a 100644
+--- a/doc/man3/EVP_bf_cbc.pod
++++ b/doc/man3/EVP_bf_cbc.pod
+@@ -41,7 +41,7 @@ Blowfish encryption algorithm in CBC, CFB, ECB and OFB modes respectively.
+ 
+ Developers should be aware of the negative performance implications of
+ calling these functions multiple times and should consider using
+-L<EVP_CIPHER_fetch(3)> instead.
++L<EVP_CIPHER_fetch(3)> with L<EVP_CIPHER-BLOWFISH(7)> instead.
+ See L<crypto(7)/Performance> for further information.
+ 
+ =head1 RETURN VALUES
+diff --git a/doc/man3/EVP_blake2b512.pod b/doc/man3/EVP_blake2b512.pod
+index 98e1899f6a..55bd9f3bce 100644
+--- a/doc/man3/EVP_blake2b512.pod
++++ b/doc/man3/EVP_blake2b512.pod
+@@ -35,7 +35,7 @@ The BLAKE2b algorithm that produces a 512-bit output from a given input.
+ 
+ Developers should be aware of the negative performance implications of
+ calling these functions multiple times and should consider using
+-L<EVP_MD_fetch(3)> instead.
++L<EVP_MD_fetch(3)> with L<EVP_MD-BLAKE2(7)> instead.
+ See L<crypto(7)/Performance> for further information.
+ 
+ While the BLAKE2b and BLAKE2s algorithms supports a variable length digest,
+diff --git a/doc/man3/EVP_camellia_128_ecb.pod b/doc/man3/EVP_camellia_128_ecb.pod
+index a6b597156a..cb6e12e212 100644
+--- a/doc/man3/EVP_camellia_128_ecb.pod
++++ b/doc/man3/EVP_camellia_128_ecb.pod
+@@ -79,7 +79,7 @@ Camellia for 128, 192 and 256 bit keys in the following modes: CBC, CFB with
+ 
+ Developers should be aware of the negative performance implications of
+ calling these functions multiple times and should consider using
+-L<EVP_CIPHER_fetch(3)> instead.
++L<EVP_CIPHER_fetch(3)> with L<EVP_CIPHER-CAMELLIA(7)> instead.
+ See L<crypto(7)/Performance> for further information.
+ 
+ =head1 RETURN VALUES
+diff --git a/doc/man3/EVP_cast5_cbc.pod b/doc/man3/EVP_cast5_cbc.pod
+index 85ff2ad014..7fef059815 100644
+--- a/doc/man3/EVP_cast5_cbc.pod
++++ b/doc/man3/EVP_cast5_cbc.pod
+@@ -41,7 +41,7 @@ CAST encryption algorithm in CBC, ECB, CFB and OFB modes respectively.
+ 
+ Developers should be aware of the negative performance implications of
+ calling these functions multiple times and should consider using
+-L<EVP_CIPHER_fetch(3)> instead.
++L<EVP_CIPHER_fetch(3)> with L<EVP_CIPHER-CAST(7)> instead.
+ See L<crypto(7)/Performance> for further information.
+ 
+ =head1 RETURN VALUES
+diff --git a/doc/man3/EVP_chacha20.pod b/doc/man3/EVP_chacha20.pod
+index 683faa326e..7e80c8de40 100644
+--- a/doc/man3/EVP_chacha20.pod
++++ b/doc/man3/EVP_chacha20.pod
+@@ -44,7 +44,7 @@ L<EVP_EncryptInit(3)/AEAD Interface> section for more information.
+ 
+ Developers should be aware of the negative performance implications of
+ calling these functions multiple times and should consider using
+-L<EVP_CIPHER_fetch(3)> instead.
++L<EVP_CIPHER_fetch(3)> with L<EVP_CIPHER-CHACHA(7)> instead.
+ See L<crypto(7)/Performance> for further information.
+ 
+ L<RFC 7539|https://www.rfc-editor.org/rfc/rfc7539.html#section-2.4>
+diff --git a/doc/man3/EVP_des_cbc.pod b/doc/man3/EVP_des_cbc.pod
+index 501216cd6d..442be8993a 100644
+--- a/doc/man3/EVP_des_cbc.pod
++++ b/doc/man3/EVP_des_cbc.pod
+@@ -89,7 +89,7 @@ Triple-DES key wrap according to RFC 3217 Section 3.
+ 
+ Developers should be aware of the negative performance implications of
+ calling these functions multiple times and should consider using
+-L<EVP_CIPHER_fetch(3)> instead.
++L<EVP_CIPHER_fetch(3)> with L<EVP_CIPHER-DES(7)> instead.
+ See L<crypto(7)/Performance> for further information.
+ 
+ =head1 RETURN VALUES
+diff --git a/doc/man3/EVP_desx_cbc.pod b/doc/man3/EVP_desx_cbc.pod
+index fae827192e..c22c0de479 100644
+--- a/doc/man3/EVP_desx_cbc.pod
++++ b/doc/man3/EVP_desx_cbc.pod
+@@ -31,7 +31,7 @@ implementation.
+ 
+ Developers should be aware of the negative performance implications of
+ calling this function multiple times and should consider using
+-L<EVP_CIPHER_fetch(3)> instead.
++L<EVP_CIPHER_fetch(3)> with L<EVP_CIPHER-DES(7)> instead.
+ See L<crypto(7)/Performance> for further information.
+ 
+ =head1 RETURN VALUES
+diff --git a/doc/man3/EVP_idea_cbc.pod b/doc/man3/EVP_idea_cbc.pod
+index 5a9adaedc4..a36aae0bc9 100644
+--- a/doc/man3/EVP_idea_cbc.pod
++++ b/doc/man3/EVP_idea_cbc.pod
+@@ -39,7 +39,7 @@ The IDEA encryption algorithm in CBC, CFB, ECB and OFB modes respectively.
+ 
+ Developers should be aware of the negative performance implications of
+ calling these functions multiple times and should consider using
+-L<EVP_CIPHER_fetch(3)> instead.
++L<EVP_CIPHER_fetch(3)> with L<EVP_CIPHER-IDEA(7)> instead.
+ See L<crypto(7)/Performance> for further information.
+ 
+ =head1 RETURN VALUES
+diff --git a/doc/man3/EVP_md2.pod b/doc/man3/EVP_md2.pod
+index 0b473887e0..a6f3a010de 100644
+--- a/doc/man3/EVP_md2.pod
++++ b/doc/man3/EVP_md2.pod
+@@ -28,7 +28,7 @@ The MD2 algorithm which produces a 128-bit output from a given input.
+ 
+ Developers should be aware of the negative performance implications of
+ calling this function multiple times and should consider using
+-L<EVP_MD_fetch(3)> instead.
++L<EVP_MD_fetch(3)> with L<EVP_MD-MD2(7)> instead.
+ See L<crypto(7)/Performance> for further information.
+ 
+ =head1 RETURN VALUES
+diff --git a/doc/man3/EVP_md4.pod b/doc/man3/EVP_md4.pod
+index baaff9e4ea..a4e1a7d0a6 100644
+--- a/doc/man3/EVP_md4.pod
++++ b/doc/man3/EVP_md4.pod
+@@ -29,7 +29,7 @@ The MD4 algorithm which produces a 128-bit output from a given input.
+ 
+ Developers should be aware of the negative performance implications of
+ calling this function multiple times and should consider using
+-L<EVP_MD_fetch(3)> instead.
++L<EVP_MD_fetch(3)> with L<EVP_MD-MD4(7)> instead.
+ See L<crypto(7)/Performance> for further information.
+ 
+ =head1 RETURN VALUES
+diff --git a/doc/man3/EVP_md5.pod b/doc/man3/EVP_md5.pod
+index 752fdd1f6c..42370fb3d0 100644
+--- a/doc/man3/EVP_md5.pod
++++ b/doc/man3/EVP_md5.pod
+@@ -40,7 +40,7 @@ WARNING: this algorithm is not intended for non-SSL usage.
+ 
+ Developers should be aware of the negative performance implications of
+ calling these functions multiple times and should consider using
+-L<EVP_MD_fetch(3)> instead.
++L<EVP_MD_fetch(3)> with L<EVP_MD-MD5(7)> or L<EVP_MD-MD5-SHA1(7)> instead.
+ See L<crypto(7)/Performance> for further information.
+ 
+ =head1 RETURN VALUES
+diff --git a/doc/man3/EVP_mdc2.pod b/doc/man3/EVP_mdc2.pod
+index e9de6f3c56..3681bd06a6 100644
+--- a/doc/man3/EVP_mdc2.pod
++++ b/doc/man3/EVP_mdc2.pod
+@@ -30,7 +30,7 @@ The MDC-2DES algorithm of using MDC-2 with the DES block cipher. It produces a
+ 
+ Developers should be aware of the negative performance implications of
+ calling this function multiple times and should consider using
+-L<EVP_MD_fetch(3)> instead.
++L<EVP_MD_fetch(3)> with L<EVP_MD-MDC2(7)> instead.
+ See L<crypto(7)/Performance> for further information.
+ 
+ =head1 RETURN VALUES
+diff --git a/doc/man3/EVP_rc2_cbc.pod b/doc/man3/EVP_rc2_cbc.pod
+index bf4a13ba45..17f6f4b3e2 100644
+--- a/doc/man3/EVP_rc2_cbc.pod
++++ b/doc/man3/EVP_rc2_cbc.pod
+@@ -55,7 +55,7 @@ functions to set the key length and effective key length.
+ 
+ Developers should be aware of the negative performance implications of
+ calling these functions multiple times and should consider using
+-L<EVP_CIPHER_fetch(3)> instead.
++L<EVP_CIPHER_fetch(3)> with L<EVP_CIPHER-RC2(7)> instead.
+ See L<crypto(7)/Performance> for further information.
+ 
+ =head1 RETURN VALUES
+diff --git a/doc/man3/EVP_rc4.pod b/doc/man3/EVP_rc4.pod
+index f22e88a652..0311ef278c 100644
+--- a/doc/man3/EVP_rc4.pod
++++ b/doc/man3/EVP_rc4.pod
+@@ -47,7 +47,7 @@ interface.
+ 
+ Developers should be aware of the negative performance implications of
+ calling these functions multiple times and should consider using
+-L<EVP_CIPHER_fetch(3)> instead.
++L<EVP_CIPHER_fetch(3)> with L<EVP_CIPHER-RC4(7)> instead.
+ See L<crypto(7)/Performance> for further information.
+ 
+ =head1 RETURN VALUES
+diff --git a/doc/man3/EVP_rc5_32_12_16_cbc.pod b/doc/man3/EVP_rc5_32_12_16_cbc.pod
+index c177b18451..69fc2f2cc6 100644
+--- a/doc/man3/EVP_rc5_32_12_16_cbc.pod
++++ b/doc/man3/EVP_rc5_32_12_16_cbc.pod
+@@ -60,7 +60,7 @@ is an int.
+ 
+ Developers should be aware of the negative performance implications of
+ calling these functions multiple times and should consider using
+-L<EVP_CIPHER_fetch(3)> instead.
++L<EVP_CIPHER_fetch(3)> with L<EVP_CIPHER-RC5(7)> instead.
+ See L<crypto(7)/Performance> for further information.
+ 
+ =head1 RETURN VALUES
+diff --git a/doc/man3/EVP_ripemd160.pod b/doc/man3/EVP_ripemd160.pod
+index 6ad2d3e018..5b96fd09f8 100644
+--- a/doc/man3/EVP_ripemd160.pod
++++ b/doc/man3/EVP_ripemd160.pod
+@@ -29,7 +29,7 @@ The RIPEMD-160 algorithm which produces a 160-bit output from a given input.
+ 
+ Developers should be aware of the negative performance implications of
+ calling this function multiple times and should consider using
+-L<EVP_MD_fetch(3)> instead.
++L<EVP_MD_fetch(3)> with L<EVP_MD-RIPEMD160(7)> instead.
+ See L<crypto(7)/Performance> for further information.
+ 
+ =head1 RETURN VALUES
+diff --git a/doc/man3/EVP_seed_cbc.pod b/doc/man3/EVP_seed_cbc.pod
+index 010607e574..2c821d07c3 100644
+--- a/doc/man3/EVP_seed_cbc.pod
++++ b/doc/man3/EVP_seed_cbc.pod
+@@ -41,7 +41,7 @@ The SEED encryption algorithm in CBC, CFB, ECB and OFB modes respectively.
+ 
+ Developers should be aware of the negative performance implications of
+ calling these functions multiple times and should consider using
+-L<EVP_CIPHER_fetch(3)> instead.
++L<EVP_CIPHER_fetch(3)> with L<EVP_CIPHER-SEED(7)> instead.
+ See L<crypto(7)/Performance> for further information.
+ 
+ =head1 RETURN VALUES
+diff --git a/doc/man3/EVP_sha1.pod b/doc/man3/EVP_sha1.pod
+index 264ddd1add..6fc8f07b06 100644
+--- a/doc/man3/EVP_sha1.pod
++++ b/doc/man3/EVP_sha1.pod
+@@ -29,7 +29,7 @@ The SHA-1 algorithm which produces a 160-bit output from a given input.
+ 
+ Developers should be aware of the negative performance implications of
+ calling this function multiple times and should consider using
+-L<EVP_MD_fetch(3)> instead.
++L<EVP_MD_fetch(3)> with L<EVP_MD-SHA1(7)> instead.
+ See L<crypto(7)/Performance> for further information.
+ 
+ =head1 RETURN VALUES
+diff --git a/doc/man3/EVP_sha224.pod b/doc/man3/EVP_sha224.pod
+index 7a50cf9b6c..be09e49ee3 100644
+--- a/doc/man3/EVP_sha224.pod
++++ b/doc/man3/EVP_sha224.pod
+@@ -49,7 +49,7 @@ their outputs are of the same size.
+ 
+ Developers should be aware of the negative performance implications of
+ calling these functions multiple times and should consider using
+-L<EVP_MD_fetch(3)> instead.
++L<EVP_MD_fetch(3)> with L<EVP_MD-SHA2(7)>instead.
+ See L<crypto(7)/Performance> for further information.
+ 
+ =head1 RETURN VALUES
+diff --git a/doc/man3/EVP_sha3_224.pod b/doc/man3/EVP_sha3_224.pod
+index 5bb9ae1b89..93c0d0b9fb 100644
+--- a/doc/man3/EVP_sha3_224.pod
++++ b/doc/man3/EVP_sha3_224.pod
+@@ -54,7 +54,7 @@ B<EVP_shake256> provides that of 256 bits.
+ 
+ Developers should be aware of the negative performance implications of
+ calling these functions multiple times and should consider using
+-L<EVP_MD_fetch(3)> instead.
++L<EVP_MD_fetch(3)> with L<EVP_MD-SHA3(7)> or L<EVP_MD-SHAKE(7)> instead.
+ See L<crypto(7)/Performance> for further information.
+ 
+ =head1 RETURN VALUES
+diff --git a/doc/man3/EVP_sm3.pod b/doc/man3/EVP_sm3.pod
+index 4e8112dc0a..65be55e88d 100644
+--- a/doc/man3/EVP_sm3.pod
++++ b/doc/man3/EVP_sm3.pod
+@@ -28,7 +28,7 @@ The SM3 hash function.
+ 
+ Developers should be aware of the negative performance implications of
+ calling this function multiple times and should consider using
+-L<EVP_MD_fetch(3)> instead.
++L<EVP_MD_fetch(3)> with L<EVP_MD-SM3(7)> instead.
+ See L<crypto(7)/Performance> for further information.
+ 
+ =head1 RETURN VALUES
+diff --git a/doc/man3/EVP_sm4_cbc.pod b/doc/man3/EVP_sm4_cbc.pod
+index b67ade5499..48be7a31ad 100644
+--- a/doc/man3/EVP_sm4_cbc.pod
++++ b/doc/man3/EVP_sm4_cbc.pod
+@@ -45,7 +45,7 @@ respectively.
+ 
+ Developers should be aware of the negative performance implications of
+ calling these functions multiple times and should consider using
+-L<EVP_CIPHER_fetch(3)> instead.
++L<EVP_CIPHER_fetch(3)> with L<EVP_CIPHER-SM4(7)> instead.
+ See L<crypto(7)/Performance> for further information.
+ 
+ =head1 RETURN VALUES
+diff --git a/doc/man3/EVP_whirlpool.pod b/doc/man3/EVP_whirlpool.pod
+index a9826e290a..c5d465b16f 100644
+--- a/doc/man3/EVP_whirlpool.pod
++++ b/doc/man3/EVP_whirlpool.pod
+@@ -30,7 +30,7 @@ input.
+ 
+ Developers should be aware of the negative performance implications of
+ calling this function multiple times and should consider using
+-L<EVP_MD_fetch(3)> instead.
++L<EVP_MD_fetch(3)> with L<EVP_MD-WHIRLPOOL(7)> instead.
+ See L<crypto(7)/Performance> for further information.
+ 
+ =head1 RETURN VALUES
+-- 
+2.34.1
+

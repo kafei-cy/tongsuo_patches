@@ -1,0 +1,73 @@
+From 2fb42a7b768d2a6bc3374c7e7ca9ec7332a05d85 Mon Sep 17 00:00:00 2001
+From: Ingo Franzki <ifranzki@linux.ibm.com>
+Date: Wed, 19 Jul 2023 15:24:49 +0200
+Subject: [PATCH 239/381] speed: Fix execution of EdDSA measurement
+
+Running 'openssl speed eddsa' fails with
+
+Doing 253 bits sign Ed25519 ops for 10s: EdDSA sign failure
+000003FF9306C7D0:error:030000BC:digital envelope routines:EVP_DigestSign:
+                           final error:crypto/evp/m_sigver.c:585:
+-1 253 bits Ed25519 sign ops in 0.00s
+Doing 253 bits verify Ed25519 ops for 10s: EdDSA verify failure
+000003FF9306C7D0:error:030000BC:digital envelope routines:EVP_DigestVerify:
+                           final error:crypto/evp/m_sigver.c:694:
+-1 253 bits Ed25519 verify ops in 0.00s
+
+This is because the EVP_DigestSign/Verify() calls in the EdDSA_sign/verify_loop()
+fail because the context has already been finalized by the previous
+EVP_DigestSign/Verify call during the EdDSA signature test done by speed_main().
+
+This happens since commit 3fc2b7d6b8f961144905330dfd4689f5bd515199 where the
+EVP_DigestSign/Verify() functions have been changed to set a flag that the
+context has been finalized.
+
+Fix this by re-initializing the context using EVP_DigestSign/Verify() in the
+EdDSA_sign/verify_loop().
+
+Signed-off-by: Ingo Franzki <ifranzki@linux.ibm.com>
+
+Reviewed-by: Tomas Mraz <tomas@openssl.org>
+Reviewed-by: Paul Dale <pauli@openssl.org>
+(Merged from https://github.com/openssl/openssl/pull/21491)
+
+(cherry picked from commit 0c85bcbaeabe3a695831bec44ab87964725a51a6)
+---
+ apps/speed.c | 14 ++++++++++++++
+ 1 file changed, 14 insertions(+)
+
+diff --git a/apps/speed.c b/apps/speed.c
+index 439c153dd2..f1f1e28d1e 100644
+--- a/apps/speed.c
++++ b/apps/speed.c
+@@ -1005,6 +1005,13 @@ static int EdDSA_sign_loop(void *args)
+     int ret, count;
+ 
+     for (count = 0; COND(eddsa_c[testnum][0]); count++) {
++        ret = EVP_DigestSignInit(edctx[testnum], NULL, NULL, NULL, NULL);
++        if (ret == 0) {
++            BIO_printf(bio_err, "EdDSA sign init failure\n");
++            ERR_print_errors(bio_err);
++            count = -1;
++            break;
++        }
+         ret = EVP_DigestSign(edctx[testnum], eddsasig, eddsasigsize, buf, 20);
+         if (ret == 0) {
+             BIO_printf(bio_err, "EdDSA sign failure\n");
+@@ -1026,6 +1033,13 @@ static int EdDSA_verify_loop(void *args)
+     int ret, count;
+ 
+     for (count = 0; COND(eddsa_c[testnum][1]); count++) {
++        ret = EVP_DigestVerifyInit(edctx[testnum], NULL, NULL, NULL, NULL);
++        if (ret == 0) {
++            BIO_printf(bio_err, "EdDSA verify init failure\n");
++            ERR_print_errors(bio_err);
++            count = -1;
++            break;
++        }
+         ret = EVP_DigestVerify(edctx[testnum], eddsasig, eddsasigsize, buf, 20);
+         if (ret != 1) {
+             BIO_printf(bio_err, "EdDSA verify failure\n");
+-- 
+2.34.1
+

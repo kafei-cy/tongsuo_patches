@@ -1,0 +1,40 @@
+From 4b52d80c48fe1f4858f43030be0be92cc2158668 Mon Sep 17 00:00:00 2001
+From: Matt Caswell <matt@openssl.org>
+Date: Mon, 31 Jul 2023 12:30:34 +0100
+Subject: [PATCH 255/381] Always add a suitable error if we fail to decode
+
+We're always supposed to add the fallback "unsupported" error if we don't
+have anything better. However in some cases this wasn't happening because
+we were incorrectly setting "flag_construct_called" - even though the
+construct function had failed.
+
+Reviewed-by: Tim Hudson <tjh@openssl.org>
+Reviewed-by: Tomas Mraz <tomas@openssl.org>
+(Merged from https://github.com/openssl/openssl/pull/21603)
+
+(cherry picked from commit 564e5b754a4680dfad38585dd73bcf025567b448)
+---
+ crypto/encode_decode/decoder_lib.c | 5 +++--
+ 1 file changed, 3 insertions(+), 2 deletions(-)
+
+diff --git a/crypto/encode_decode/decoder_lib.c b/crypto/encode_decode/decoder_lib.c
+index e24d2c6cd5..a1257571ec 100644
+--- a/crypto/encode_decode/decoder_lib.c
++++ b/crypto/encode_decode/decoder_lib.c
+@@ -743,10 +743,11 @@ static int decoder_process(const OSSL_PARAM params[], void *arg)
+                            (void *)new_data.ctx, LEVEL, rv);
+             } OSSL_TRACE_END(DECODER);
+ 
+-            data->flag_construct_called = 1;
+             ok = (rv > 0);
+-            if (ok)
++            if (ok) {
++                data->flag_construct_called = 1;
+                 goto end;
++            }
+         }
+ 
+         /* The constructor didn't return success */
+-- 
+2.34.1
+

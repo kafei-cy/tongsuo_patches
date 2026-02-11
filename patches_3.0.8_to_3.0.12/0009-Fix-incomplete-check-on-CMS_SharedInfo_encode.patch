@@ -1,0 +1,40 @@
+From de11968bc395969ce112bd33c734c2507ac1b329 Mon Sep 17 00:00:00 2001
+From: ndossche <niels.dossche@ugent.be>
+Date: Tue, 31 Jan 2023 16:30:26 +0100
+Subject: [PATCH 009/381] Fix incomplete check on CMS_SharedInfo_encode
+
+CMS_SharedInfo_encode() can also return a negative error value, but this
+is not checked in the current check, only the zero error return value is
+covered. A previous PR [1] fixed the other caller's check of
+CMS_SharedInfo_encode in this file, but it seems like this place was
+missed. Fix it by changing the check to <= 0.
+
+[1] https://github.com/openssl/openssl/pull/12628/commits/a752fc4da5e1dfd5b3a730d95272c2e2b0c48f1a
+
+CLA: trivial
+
+Reviewed-by: Hugo Landau <hlandau@openssl.org>
+Reviewed-by: Tomas Mraz <tomas@openssl.org>
+(Merged from https://github.com/openssl/openssl/pull/20181)
+
+(cherry picked from commit ba061818e9d76f332e8914dfe9168577b2378dde)
+---
+ crypto/cms/cms_ec.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/crypto/cms/cms_ec.c b/crypto/cms/cms_ec.c
+index 8ecf730aa7..42b713752d 100644
+--- a/crypto/cms/cms_ec.c
++++ b/crypto/cms/cms_ec.c
+@@ -346,7 +346,7 @@ static int ecdh_cms_encrypt(CMS_RecipientInfo *ri)
+ 
+     penclen = CMS_SharedInfo_encode(&penc, wrap_alg, ukm, keylen);
+ 
+-    if (penclen == 0)
++    if (penclen <= 0)
+         goto err;
+ 
+     if (EVP_PKEY_CTX_set0_ecdh_kdf_ukm(pctx, penc, penclen) <= 0)
+-- 
+2.34.1
+

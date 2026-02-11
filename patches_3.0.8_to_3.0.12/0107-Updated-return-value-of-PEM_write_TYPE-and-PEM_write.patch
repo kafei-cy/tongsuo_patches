@@ -1,0 +1,36 @@
+From 9636f1c86e3f870c113d07e6e4cbc6ec44b54d1b Mon Sep 17 00:00:00 2001
+From: Jeeban Sethi <13jeeban@gmail.com>
+Date: Mon, 3 Apr 2023 14:16:24 +0530
+Subject: [PATCH 107/381] Updated return value of PEM_write_TYPE() and
+ PEM_write_bio_TYPE() in man-pages.
+
+Fixes #20218
+
+CLA: trivial
+
+Reviewed-by: Todd Short <todd.short@me.com>
+Reviewed-by: Tomas Mraz <tomas@openssl.org>
+(Merged from https://github.com/openssl/openssl/pull/20673)
+
+(cherry picked from commit dfb8e185134df90fd3f21fb6ec625e7c295fdcea)
+---
+ doc/man3/PEM_read_CMS.pod | 3 +--
+ 1 file changed, 1 insertion(+), 2 deletions(-)
+
+diff --git a/doc/man3/PEM_read_CMS.pod b/doc/man3/PEM_read_CMS.pod
+index 2b96db9c31..311f40e343 100644
+--- a/doc/man3/PEM_read_CMS.pod
++++ b/doc/man3/PEM_read_CMS.pod
+@@ -122,8 +122,7 @@ B<PEM_read_I<TYPE>>() and B<PEM_read_bio_I<TYPE>>() return a pointer to an
+ allocated object, which should be released by calling B<I<TYPE>_free>(), or
+ NULL on error.
+ 
+-B<PEM_write_I<TYPE>>() and B<PEM_write_bio_I<TYPE>>() return the number of bytes
+-written or zero on error.
++B<PEM_write_I<TYPE>>() and B<PEM_write_bio_I<TYPE>>() return 1 for success or 0 for failure.
+ 
+ =head1 SEE ALSO
+ 
+-- 
+2.34.1
+

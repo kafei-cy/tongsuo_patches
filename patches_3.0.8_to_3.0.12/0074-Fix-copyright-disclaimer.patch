@@ -1,0 +1,32 @@
+From 19d22e74713d645496693f81e2ffb7a8dc27f371 Mon Sep 17 00:00:00 2001
+From: Pauli <pauli@openssl.org>
+Date: Wed, 15 Mar 2023 19:19:35 +1100
+Subject: [PATCH 074/381] Fix copyright disclaimer.
+
+The mention of the GPL shouldn't have been there.
+
+Reviewed-by: Tim Hudson <tjh@openssl.org>
+Reviewed-by: Tomas Mraz <tomas@openssl.org>
+(Merged from https://github.com/openssl/openssl/pull/20517)
+
+(cherry picked from commit c879f8ac56170a5cf929fab8067beb2a5902be2b)
+---
+ crypto/aes/asm/bsaes-armv7.pl | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/crypto/aes/asm/bsaes-armv7.pl b/crypto/aes/asm/bsaes-armv7.pl
+index 372853461f..ff0b62287b 100644
+--- a/crypto/aes/asm/bsaes-armv7.pl
++++ b/crypto/aes/asm/bsaes-armv7.pl
+@@ -14,7 +14,7 @@
+ # details see http://www.openssl.org/~appro/cryptogams/.
+ #
+ # Specific modes and adaptation for Linux kernel by Ard Biesheuvel
+-# of Linaro. Permission to use under GPL terms is granted.
++# of Linaro.
+ # ====================================================================
+ 
+ # Bit-sliced AES for ARM NEON
+-- 
+2.34.1
+

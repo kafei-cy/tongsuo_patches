@@ -1,0 +1,80 @@
+From 0905ad2978dc30b5761a8f3560e0a4b5ef21b484 Mon Sep 17 00:00:00 2001
+From: "Matthias St. Pierre" <matthias.st.pierre@ncp-e.com>
+Date: Mon, 2 Oct 2023 12:10:01 +0200
+Subject: [PATCH 342/381] Don't (re-)initialize the FFC_PARAMs in dh_init and
+ dsa_init
+
+The initialization was introduced in commit dc8de3e6f1ee and
+changes the behaviour of the `init` method for DSA and DH
+between 1.1.1 and 3.0, while the behaviour for RSA and EC_KEY
+remains unchanged.
+
+The initialization is not necessary in 3.x and master imho and
+breaks the use-case of intercepting the methods of an existing
+key.
+
+Reviewed-by: Paul Dale <pauli@openssl.org>
+Reviewed-by: Tomas Mraz <tomas@openssl.org>
+(Merged from https://github.com/openssl/openssl/pull/22185)
+
+(cherry picked from commit 706512ecbc31585d447b53c3aa89acdf6951f996)
+---
+ crypto/dh/dh_key.c    | 1 -
+ crypto/dh/dh_lib.c    | 2 ++
+ crypto/dsa/dsa_lib.c  | 2 ++
+ crypto/dsa/dsa_ossl.c | 1 -
+ 4 files changed, 4 insertions(+), 2 deletions(-)
+
+diff --git a/crypto/dh/dh_key.c b/crypto/dh/dh_key.c
+index 4e9705beef..fb9ef5dd7c 100644
+--- a/crypto/dh/dh_key.c
++++ b/crypto/dh/dh_key.c
+@@ -190,7 +190,6 @@ static int dh_bn_mod_exp(const DH *dh, BIGNUM *r,
+ static int dh_init(DH *dh)
+ {
+     dh->flags |= DH_FLAG_CACHE_MONT_P;
+-    ossl_ffc_params_init(&dh->params);
+     dh->dirty_cnt++;
+     return 1;
+ }
+diff --git a/crypto/dh/dh_lib.c b/crypto/dh/dh_lib.c
+index 29cda5d7bf..57ea2ee492 100644
+--- a/crypto/dh/dh_lib.c
++++ b/crypto/dh/dh_lib.c
+@@ -116,6 +116,8 @@ static DH *dh_new_intern(ENGINE *engine, OSSL_LIB_CTX *libctx)
+         goto err;
+ #endif /* FIPS_MODULE */
+ 
++    ossl_ffc_params_init(&ret->params);
++
+     if ((ret->meth->init != NULL) && !ret->meth->init(ret)) {
+         ERR_raise(ERR_LIB_DH, ERR_R_INIT_FAIL);
+         goto err;
+diff --git a/crypto/dsa/dsa_lib.c b/crypto/dsa/dsa_lib.c
+index ccc7016592..ebe3685d46 100644
+--- a/crypto/dsa/dsa_lib.c
++++ b/crypto/dsa/dsa_lib.c
+@@ -176,6 +176,8 @@ static DSA *dsa_new_intern(ENGINE *engine, OSSL_LIB_CTX *libctx)
+         goto err;
+ #endif
+ 
++    ossl_ffc_params_init(&ret->params);
++
+     if ((ret->meth->init != NULL) && !ret->meth->init(ret)) {
+         ERR_raise(ERR_LIB_DSA, ERR_R_INIT_FAIL);
+         goto err;
+diff --git a/crypto/dsa/dsa_ossl.c b/crypto/dsa/dsa_ossl.c
+index 62f7c70149..8fd66a950e 100644
+--- a/crypto/dsa/dsa_ossl.c
++++ b/crypto/dsa/dsa_ossl.c
+@@ -441,7 +441,6 @@ static int dsa_do_verify(const unsigned char *dgst, int dgst_len,
+ static int dsa_init(DSA *dsa)
+ {
+     dsa->flags |= DSA_FLAG_CACHE_MONT_P;
+-    ossl_ffc_params_init(&dsa->params);
+     dsa->dirty_cnt++;
+     return 1;
+ }
+-- 
+2.34.1
+

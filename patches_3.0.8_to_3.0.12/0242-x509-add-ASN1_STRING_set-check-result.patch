@@ -1,0 +1,82 @@
+From b852e3bf4013184a34fbede9f91040d2f71077da Mon Sep 17 00:00:00 2001
+From: atishkov <a.tishkov@aladdin.ru>
+Date: Thu, 20 Jul 2023 11:02:38 +0300
+Subject: [PATCH 242/381] x509: add ASN1_STRING_set() check result
+
+Reviewed-by: Tomas Mraz <tomas@openssl.org>
+Reviewed-by: Paul Dale <pauli@openssl.org>
+(Merged from https://github.com/openssl/openssl/pull/21497)
+
+(cherry picked from commit 46e95903762f0cc478d8a3c252390fa7312bba6e)
+---
+ crypto/x509/v3_ist.c | 39 +++++++++++++++++----------------------
+ 1 file changed, 17 insertions(+), 22 deletions(-)
+
+diff --git a/crypto/x509/v3_ist.c b/crypto/x509/v3_ist.c
+index 0de281f668..0d019db1b7 100644
+--- a/crypto/x509/v3_ist.c
++++ b/crypto/x509/v3_ist.c
+@@ -50,43 +50,38 @@ static ISSUER_SIGN_TOOL *v2i_issuer_sign_tool(X509V3_EXT_METHOD *method, X509V3_
+         }
+         if (strcmp(cnf->name, "signTool") == 0) {
+             ist->signTool = ASN1_UTF8STRING_new();
+-            if (ist->signTool == NULL) {
+-                ERR_raise(ERR_LIB_X509V3, ERR_R_MALLOC_FAILURE);
+-                ISSUER_SIGN_TOOL_free(ist);
+-                return NULL;
++            if (ist->signTool == NULL || !ASN1_STRING_set(ist->signTool, cnf->value, strlen(cnf->value))) {
++                ERR_raise(ERR_LIB_X509V3, ERR_R_ASN1_LIB);
++                goto err;
+             }
+-            ASN1_STRING_set(ist->signTool, cnf->value, strlen(cnf->value));
+         } else if (strcmp(cnf->name, "cATool") == 0) {
+             ist->cATool = ASN1_UTF8STRING_new();
+-            if (ist->cATool == NULL) {
+-                ERR_raise(ERR_LIB_X509V3, ERR_R_MALLOC_FAILURE);
+-                ISSUER_SIGN_TOOL_free(ist);
+-                return NULL;
++            if (ist->cATool == NULL || !ASN1_STRING_set(ist->cATool, cnf->value, strlen(cnf->value))) {
++                ERR_raise(ERR_LIB_X509V3, ERR_R_ASN1_LIB);
++                goto err;
+             }
+-            ASN1_STRING_set(ist->cATool, cnf->value, strlen(cnf->value));
+         } else if (strcmp(cnf->name, "signToolCert") == 0) {
+             ist->signToolCert = ASN1_UTF8STRING_new();
+-            if (ist->signToolCert == NULL) {
+-                ERR_raise(ERR_LIB_X509V3, ERR_R_MALLOC_FAILURE);
+-                ISSUER_SIGN_TOOL_free(ist);
+-                return NULL;
++            if (ist->signToolCert == NULL || !ASN1_STRING_set(ist->signToolCert, cnf->value, strlen(cnf->value))) {
++                ERR_raise(ERR_LIB_X509V3, ERR_R_ASN1_LIB);
++                goto err;
+             }
+-            ASN1_STRING_set(ist->signToolCert, cnf->value, strlen(cnf->value));
+         } else if (strcmp(cnf->name, "cAToolCert") == 0) {
+             ist->cAToolCert = ASN1_UTF8STRING_new();
+-            if (ist->cAToolCert == NULL) {
+-                ERR_raise(ERR_LIB_X509V3, ERR_R_MALLOC_FAILURE);
+-                ISSUER_SIGN_TOOL_free(ist);
+-                return NULL;
++            if (ist->cAToolCert == NULL || !ASN1_STRING_set(ist->cAToolCert, cnf->value, strlen(cnf->value))) {
++                ERR_raise(ERR_LIB_X509V3, ERR_R_ASN1_LIB);
++                goto err;
+             }
+-            ASN1_STRING_set(ist->cAToolCert, cnf->value, strlen(cnf->value));
+         } else {
+             ERR_raise(ERR_LIB_X509V3, ERR_R_PASSED_INVALID_ARGUMENT);
+-            ISSUER_SIGN_TOOL_free(ist);
+-            return NULL;
++            goto err;
+         }
+     }
+     return ist;
++
++err:
++    ISSUER_SIGN_TOOL_free(ist);
++    return NULL;
+ }
+ 
+ static int i2r_issuer_sign_tool(X509V3_EXT_METHOD *method,
+-- 
+2.34.1
+

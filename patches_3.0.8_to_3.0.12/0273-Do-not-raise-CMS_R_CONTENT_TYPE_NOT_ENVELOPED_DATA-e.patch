@@ -1,0 +1,120 @@
+From 9f0f833480861ef230d215aa24f1aeb2a2160e81 Mon Sep 17 00:00:00 2001
+From: Olga Batyshkina <obatysh@gmx.com>
+Date: Mon, 7 Aug 2023 14:51:53 +0200
+Subject: [PATCH 273/381] Do not raise CMS_R_CONTENT_TYPE_NOT_ENVELOPED_DATA
+ error in CMS_ContentInfo_free
+
+This happens if this function is called for signed content.
+
+Added ossl_cms_env_enc_content_free() for cleaning enveloped content.
+
+Fixed indentation in ossl_cms_env_enc_content_free
+
+Reviewed-by: Matt Caswell <matt@openssl.org>
+Reviewed-by: Tomas Mraz <tomas@openssl.org>
+(Merged from https://github.com/openssl/openssl/pull/21676)
+
+(cherry picked from commit 13342efbb9e16ec8f97b1ac5ab4aa2b3b3490596)
+---
+ crypto/cms/cms_env.c   | 21 +++++++++++++++++++--
+ crypto/cms/cms_lib.c   |  5 +----
+ crypto/cms/cms_local.h |  1 +
+ test/cmsapitest.c      |  4 ++--
+ 4 files changed, 23 insertions(+), 8 deletions(-)
+
+diff --git a/crypto/cms/cms_env.c b/crypto/cms/cms_env.c
+index bd1f3e7345..99cf1dcb39 100644
+--- a/crypto/cms/cms_env.c
++++ b/crypto/cms/cms_env.c
+@@ -26,7 +26,7 @@ static void cms_env_set_version(CMS_EnvelopedData *env);
+ #define CMS_ENVELOPED_STANDARD 1
+ #define CMS_ENVELOPED_AUTH     2
+ 
+-static int cms_get_enveloped_type(const CMS_ContentInfo *cms)
++static int cms_get_enveloped_type_simple(const CMS_ContentInfo *cms)
+ {
+     int nid = OBJ_obj2nid(cms->contentType);
+ 
+@@ -38,11 +38,28 @@ static int cms_get_enveloped_type(const CMS_ContentInfo *cms)
+         return CMS_ENVELOPED_AUTH;
+ 
+     default:
+-        ERR_raise(ERR_LIB_CMS, CMS_R_CONTENT_TYPE_NOT_ENVELOPED_DATA);
+         return 0;
+     }
+ }
+ 
++static int cms_get_enveloped_type(const CMS_ContentInfo *cms)
++{
++    int ret = cms_get_enveloped_type_simple(cms);
++
++    if (ret == 0)
++        ERR_raise(ERR_LIB_CMS, CMS_R_CONTENT_TYPE_NOT_ENVELOPED_DATA);
++    return ret;
++}
++
++void ossl_cms_env_enc_content_free(const CMS_ContentInfo *cinf)
++{
++    if (cms_get_enveloped_type_simple(cinf) != 0) {
++        CMS_EncryptedContentInfo *ec = ossl_cms_get0_env_enc_content(cinf);
++        if (ec != NULL)
++            OPENSSL_clear_free(ec->key, ec->keylen);
++    }
++}
++
+ CMS_EnvelopedData *ossl_cms_get0_enveloped(CMS_ContentInfo *cms)
+ {
+     if (OBJ_obj2nid(cms->contentType) != NID_pkcs7_enveloped) {
+diff --git a/crypto/cms/cms_lib.c b/crypto/cms/cms_lib.c
+index 1d2c5bc422..8b135e95aa 100644
+--- a/crypto/cms/cms_lib.c
++++ b/crypto/cms/cms_lib.c
+@@ -76,10 +76,7 @@ CMS_ContentInfo *CMS_ContentInfo_new(void)
+ void CMS_ContentInfo_free(CMS_ContentInfo *cms)
+ {
+     if (cms != NULL) {
+-        CMS_EncryptedContentInfo *ec = ossl_cms_get0_env_enc_content(cms);
+-
+-        if (ec != NULL)
+-            OPENSSL_clear_free(ec->key, ec->keylen);
++        ossl_cms_env_enc_content_free(cms);
+         OPENSSL_free(cms->ctx.propq);
+         ASN1_item_free((ASN1_VALUE *)cms, ASN1_ITEM_rptr(CMS_ContentInfo));
+     }
+diff --git a/crypto/cms/cms_local.h b/crypto/cms/cms_local.h
+index 15b4a29ce0..f1e9be9087 100644
+--- a/crypto/cms/cms_local.h
++++ b/crypto/cms/cms_local.h
+@@ -444,6 +444,7 @@ BIO *ossl_cms_EnvelopedData_init_bio(CMS_ContentInfo *cms);
+ int ossl_cms_EnvelopedData_final(CMS_ContentInfo *cms, BIO *chain);
+ BIO *ossl_cms_AuthEnvelopedData_init_bio(CMS_ContentInfo *cms);
+ int ossl_cms_AuthEnvelopedData_final(CMS_ContentInfo *cms, BIO *cmsbio);
++void ossl_cms_env_enc_content_free(const CMS_ContentInfo *cinf);
+ CMS_EnvelopedData *ossl_cms_get0_enveloped(CMS_ContentInfo *cms);
+ CMS_AuthEnvelopedData *ossl_cms_get0_auth_enveloped(CMS_ContentInfo *cms);
+ CMS_EncryptedContentInfo *ossl_cms_get0_env_enc_content(const CMS_ContentInfo *cms);
+diff --git a/test/cmsapitest.c b/test/cmsapitest.c
+index d5c4cb8481..ffc9a0c98a 100644
+--- a/test/cmsapitest.c
++++ b/test/cmsapitest.c
+@@ -56,7 +56,7 @@ static int test_encrypt_decrypt(const EVP_CIPHER *cipher)
+     BIO_free(outmsgbio);
+     CMS_ContentInfo_free(content);
+ 
+-    return testresult;
++    return testresult && TEST_int_eq(ERR_peek_error(), 0);
+ }
+ 
+ static int test_encrypt_decrypt_aes_cbc(void)
+@@ -286,7 +286,7 @@ static int test_d2i_CMS_bio_NULL(void)
+                                   CMS_NO_SIGNER_CERT_VERIFY));
+     CMS_ContentInfo_free(cms);
+     BIO_free(bio);
+-    return ret;
++    return ret && TEST_int_eq(ERR_peek_error(), 0);
+ }
+ 
+ static unsigned char *read_all(BIO *bio, long *p_len)
+-- 
+2.34.1
+

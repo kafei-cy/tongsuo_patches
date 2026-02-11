@@ -1,0 +1,48 @@
+From 9d097d56ea9f78c4cbd973575ea112807290c66e Mon Sep 17 00:00:00 2001
+From: Pauli <pauli@openssl.org>
+Date: Wed, 2 Aug 2023 10:44:37 +1000
+Subject: [PATCH 264/381] provider test: don't run configuration based tests if
+ configuration isn't loaded
+
+Reviewed-by: Matt Caswell <matt@openssl.org>
+Reviewed-by: Shane Lontis <shane.lontis@oracle.com>
+(Merged from https://github.com/openssl/openssl/pull/21621)
+
+(cherry picked from commit a9dde749504065e6e66b63cc12c25381465ec721)
+---
+ test/provider_internal_test.c | 4 ++++
+ 1 file changed, 4 insertions(+)
+
+diff --git a/test/provider_internal_test.c b/test/provider_internal_test.c
+index cb7d5efcf5..bccce7159e 100644
+--- a/test/provider_internal_test.c
++++ b/test/provider_internal_test.c
+@@ -83,6 +83,7 @@ static int test_loaded_provider(void)
+         && test_provider(prov, expected_greeting1(name));
+ }
+ 
++# ifndef OPENSSL_NO_AUTOLOAD_CONFIG
+ static int test_configured_provider(void)
+ {
+     const char *name = "p_test_configured";
+@@ -95,6 +96,7 @@ static int test_configured_provider(void)
+         TEST_ptr(prov = ossl_provider_find(NULL, name, 0))
+         && test_provider(prov, expected_greeting);
+ }
++# endif
+ #endif
+ 
+ static int test_cache_flushes(void)
+@@ -139,7 +141,9 @@ int setup_tests(void)
+     ADD_TEST(test_builtin_provider);
+ #ifndef NO_PROVIDER_MODULE
+     ADD_TEST(test_loaded_provider);
++# ifndef OPENSSL_NO_AUTOLOAD_CONFIG
+     ADD_TEST(test_configured_provider);
++# endif
+ #endif
+     ADD_TEST(test_cache_flushes);
+     return 1;
+-- 
+2.34.1
+

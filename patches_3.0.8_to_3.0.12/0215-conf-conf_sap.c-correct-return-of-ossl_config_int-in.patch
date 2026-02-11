@@ -1,0 +1,39 @@
+From d13017c6bd54b4fa2db064b556fdc4669080a811 Mon Sep 17 00:00:00 2001
+From: Yi Li <yi1.li@intel.com>
+Date: Tue, 27 Jun 2023 22:33:24 +0800
+Subject: [PATCH 215/381] conf/conf_sap.c: correct return of ossl_config_int()
+ in UEFI system
+
+FIX: https://github.com/openssl/openssl/issues/21299
+
+ret in ossl_config_int() only used to check return value of
+CONF_modules_load_file(), should set it to 1 if in UEFI system.
+
+Signed-off-by: Yi Li <yi1.li@intel.com>
+
+Reviewed-by: Matt Caswell <matt@openssl.org>
+Reviewed-by: Tom Cosgrove <tom.cosgrove@arm.com>
+Reviewed-by: Tomas Mraz <tomas@openssl.org>
+(Merged from https://github.com/openssl/openssl/pull/21300)
+
+(cherry picked from commit 500e479db1beae5fa5691d40b866329d2fdc62e7)
+---
+ crypto/conf/conf_sap.c | 2 ++
+ 1 file changed, 2 insertions(+)
+
+diff --git a/crypto/conf/conf_sap.c b/crypto/conf/conf_sap.c
+index 39efcdbf90..8d5152b5d5 100644
+--- a/crypto/conf/conf_sap.c
++++ b/crypto/conf/conf_sap.c
+@@ -66,6 +66,8 @@ int ossl_config_int(const OPENSSL_INIT_SETTINGS *settings)
+ 
+ #ifndef OPENSSL_SYS_UEFI
+     ret = CONF_modules_load_file(filename, appname, flags);
++#else
++    ret = 1;
+ #endif
+     openssl_configured = 1;
+     return ret;
+-- 
+2.34.1
+

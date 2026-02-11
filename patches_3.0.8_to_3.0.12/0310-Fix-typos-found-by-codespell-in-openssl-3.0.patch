@@ -1,0 +1,102 @@
+From bb0ad19ae878a1811043b50b05da6af25eb8900e Mon Sep 17 00:00:00 2001
+From: Dimitri Papadopoulos
+ <3234522+DimitriPapadopoulos@users.noreply.github.com>
+Date: Mon, 11 Sep 2023 13:32:06 +0200
+Subject: [PATCH 310/381] Fix typos found by codespell in openssl-3.0
+
+Only modify doc/man* in the openssl-3.0 branch.
+
+Reviewed-by: Hugo Landau <hlandau@openssl.org>
+Reviewed-by: Paul Dale <pauli@openssl.org>
+Reviewed-by: Tomas Mraz <tomas@openssl.org>
+(Merged from https://github.com/openssl/openssl/pull/22064)
+---
+ doc/man1/openssl-cms.pod.in   | 2 +-
+ doc/man3/EVP_MAC.pod          | 2 +-
+ doc/man3/EVP_SIGNATURE.pod    | 2 +-
+ doc/man3/OSSL_CMP_CTX_new.pod | 2 +-
+ doc/man3/SSL_new.pod          | 2 +-
+ doc/man5/x509v3_config.pod    | 2 +-
+ 6 files changed, 6 insertions(+), 6 deletions(-)
+
+diff --git a/doc/man1/openssl-cms.pod.in b/doc/man1/openssl-cms.pod.in
+index c63a7f330b..a97eea0d71 100644
+--- a/doc/man1/openssl-cms.pod.in
++++ b/doc/man1/openssl-cms.pod.in
+@@ -391,7 +391,7 @@ option.
+ =item I<recipient-cert> ...
+ 
+ This is an alternative to using the B<-recip> option when encrypting a message.
+-One or more certificate filennames may be given.
++One or more certificate filenames may be given.
+ 
+ =item B<-I<cipher>>
+ 
+diff --git a/doc/man3/EVP_MAC.pod b/doc/man3/EVP_MAC.pod
+index 13482ac5e1..8fd237599e 100644
+--- a/doc/man3/EVP_MAC.pod
++++ b/doc/man3/EVP_MAC.pod
+@@ -181,7 +181,7 @@ EVP_MAC_CTX_set_params() passes chosen parameters to the underlying
+ context, given a context I<ctx>.
+ The set of parameters given with I<params> determine exactly what
+ parameters are passed down.
+-If I<params> are NULL, the unterlying context should do nothing and return 1.
++If I<params> are NULL, the underlying context should do nothing and return 1.
+ Note that a parameter that is unknown in the underlying context is
+ simply ignored.
+ Also, what happens when a needed parameter isn't passed down is
+diff --git a/doc/man3/EVP_SIGNATURE.pod b/doc/man3/EVP_SIGNATURE.pod
+index 6005220853..a4ee9c4807 100644
+--- a/doc/man3/EVP_SIGNATURE.pod
++++ b/doc/man3/EVP_SIGNATURE.pod
+@@ -61,7 +61,7 @@ EVP_SIGNATURE_get0_provider() returns the provider that I<signature> was
+ fetched from.
+ 
+ EVP_SIGNATURE_do_all_provided() traverses all SIGNATURE implemented by all
+-activated roviders in the given library context I<libctx>, and for each of the
++activated providers in the given library context I<libctx>, and for each of the
+ implementations, calls the given function I<fn> with the implementation method
+ and the given I<arg> as argument.
+ 
+diff --git a/doc/man3/OSSL_CMP_CTX_new.pod b/doc/man3/OSSL_CMP_CTX_new.pod
+index e81fb08b00..41d334887f 100644
+--- a/doc/man3/OSSL_CMP_CTX_new.pod
++++ b/doc/man3/OSSL_CMP_CTX_new.pod
+@@ -182,7 +182,7 @@ clearing the internal CMP transaction (aka session) status, PKIStatusInfo,
+ and any previous results (newCert, newChain, caPubs, and extraCertsIn)
+ from the last executed transaction.
+ It also clears any ITAVs that were added by OSSL_CMP_CTX_push0_genm_ITAV().
+-All other field values (i.e., CMP options) are retained for potential re-use.
++All other field values (i.e., CMP options) are retained for potential reuse.
+ 
+ OSSL_CMP_CTX_set_option() sets the given value for the given option
+ (e.g., OSSL_CMP_OPT_IMPLICIT_CONFIRM) in the given OSSL_CMP_CTX structure.
+diff --git a/doc/man3/SSL_new.pod b/doc/man3/SSL_new.pod
+index 59d275523f..f9b8678246 100644
+--- a/doc/man3/SSL_new.pod
++++ b/doc/man3/SSL_new.pod
+@@ -35,7 +35,7 @@ MUST NOT have yet started the SSL handshake.  For connections that are not in
+ their initial state SSL_dup() just increments an internal
+ reference count and returns the I<same> handle.  It may be possible to
+ use L<SSL_clear(3)> to recycle an SSL handle that is not in its initial
+-state for re-use, but this is best avoided.  Instead, save and restore
++state for reuse, but this is best avoided.  Instead, save and restore
+ the session, if desired, and construct a fresh handle for each connection.
+ 
+ The subset of settings in I<s> that are duplicated are:
+diff --git a/doc/man5/x509v3_config.pod b/doc/man5/x509v3_config.pod
+index 1830092394..fe24cb3456 100644
+--- a/doc/man5/x509v3_config.pod
++++ b/doc/man5/x509v3_config.pod
+@@ -93,7 +93,7 @@ numeric identifier, as shown here:
+  email.2 = steve@example.org
+ 
+ The syntax of raw extensions is defined by the source code that parses
+-the extension but should be documened.
++the extension but should be documented.
+ See L</Certificate Policies> for an example of a raw extension.
+ 
+ If an extension type is unsupported, then the I<arbitrary> extension syntax
+-- 
+2.34.1
+

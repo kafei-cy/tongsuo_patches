@@ -1,0 +1,56 @@
+From 7439661627b8009f69b13c57b7372286e85a2805 Mon Sep 17 00:00:00 2001
+From: "Dr. David von Oheimb" <David.von.Oheimb@siemens.com>
+Date: Wed, 1 Feb 2023 15:47:14 +0100
+Subject: [PATCH 123/381] ossl_cmp_mock_srv_new.pod: correct/update names of
+ internal test support functions
+
+Reviewed-by: Tomas Mraz <tomas@openssl.org>
+Reviewed-by: Paul Dale <pauli@openssl.org>
+Reviewed-by: David von Oheimb <david.von.oheimb@siemens.com>
+(Merged from https://github.com/openssl/openssl/pull/20257)
+---
+ doc/internal/man3/ossl_cmp_mock_srv_new.pod | 18 +++++++++---------
+ 1 file changed, 9 insertions(+), 9 deletions(-)
+
+diff --git a/doc/internal/man3/ossl_cmp_mock_srv_new.pod b/doc/internal/man3/ossl_cmp_mock_srv_new.pod
+index 837ca06bb3..46df6d4946 100644
+--- a/doc/internal/man3/ossl_cmp_mock_srv_new.pod
++++ b/doc/internal/man3/ossl_cmp_mock_srv_new.pod
+@@ -39,25 +39,25 @@ I<propq>, both of which may be NULL to select the defaults.
+ 
+ ossl_cmp_mock_srv_free() deallocates the contexts for the CMP mock server.
+ 
+-OSSL_CMP_SRV_CTX_set1_certOut() sets the certificate to be returned in
++ossl_cmp_mock_srv_set1_certOut() sets the certificate to be returned in
+ cp/ip/kup.
+ 
+-OSSL_CMP_SRV_CTX_set1_chainOut() sets the certificate chain to be added to
++ossl_cmp_mock_srv_set1_chainOut() sets the certificate chain to be added to
+ the extraCerts in a cp/ip/kup.
+-It should to useful to validate B<certOut>.
++It should be useful for the validation of the certificate given via
++ossl_cmp_mock_srv_set1_certOut().
+ 
+-OSSL_CMP_SRV_CTX_set1_caPubsOut() sets the caPubs to be returned in an ip.
++ossl_cmp_mock_srv_set1_caPubsOut() sets the caPubs to be returned in an ip.
+ 
+-OSSL_CMP_SRV_CTX_set_statusInfo() sets the status info to be returned.
++ossl_cmp_mock_srv_set_statusInfo() sets the status info to be returned.
+ 
+-OSSL_CMP_SRV_CTX_set_send_error() enables enforcement of error responses.
++ossl_cmp_mock_srv_set_send_error() enables enforcement of error responses.
+ 
+-OSSL_CMP_SRV_CTX_set_pollCount() sets the number of polls before cert response.
++ossl_cmp_mock_srv_set_pollCount() sets the number of polls before cert response.
+ 
+-OSSL_CMP_SRV_CTX_set_checkAfterTime() sets the number of seconds
++ossl_cmp_mock_srv_set_checkAfterTime() sets the number of seconds
+ the client should wait for the next poll.
+ 
+-
+ =head1 NOTES
+ 
+ CMP is defined in RFC 4210 (and CRMF in RFC 4211).
+-- 
+2.34.1
+

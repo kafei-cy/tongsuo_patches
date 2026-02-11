@@ -1,0 +1,56 @@
+From c3cc0f1386b0544383a61244a4beeb762b67498f Mon Sep 17 00:00:00 2001
+From: Matt Caswell <matt@openssl.org>
+Date: Tue, 24 Oct 2023 14:48:41 +0100
+Subject: [PATCH 381/381] Prepare for release of 3.0.12
+
+Reviewed-by: Tomas Mraz <tomas@openssl.org>
+Release: yes
+---
+ CHANGES.md  | 2 +-
+ NEWS.md     | 2 +-
+ VERSION.dat | 4 ++--
+ 3 files changed, 4 insertions(+), 4 deletions(-)
+
+diff --git a/CHANGES.md b/CHANGES.md
+index 6d0f495dcc..f464b2320e 100644
+--- a/CHANGES.md
++++ b/CHANGES.md
+@@ -28,7 +28,7 @@ breaking changes, and mappings for the large list of deprecated functions.
+ 
+ [Migration guide]: https://github.com/openssl/openssl/tree/master/doc/man7/migration_guide.pod
+ 
+-### Changes between 3.0.11 and 3.0.12 [xx XXX xxxx]
++### Changes between 3.0.11 and 3.0.12 [24 Oct 2023]
+ 
+  * Fix incorrect key and IV resizing issues when calling EVP_EncryptInit_ex2(),
+    EVP_DecryptInit_ex2() or EVP_CipherInit_ex2() with OSSL_PARAM parameters
+diff --git a/NEWS.md b/NEWS.md
+index b4e57b7fd8..8f0d973e05 100644
+--- a/NEWS.md
++++ b/NEWS.md
+@@ -18,7 +18,7 @@ OpenSSL Releases
+ OpenSSL 3.0
+ -----------
+ 
+-### Major changes between OpenSSL 3.0.11 and OpenSSL 3.0.12 [under development]
++### Major changes between OpenSSL 3.0.11 and OpenSSL 3.0.12 [24 Oct 2023]
+ 
+   * Mitigate incorrect resize handling for symmetric cipher keys and IVs.
+     ([CVE-2023-5363])
+diff --git a/VERSION.dat b/VERSION.dat
+index b9d08f44f5..9d9448118e 100644
+--- a/VERSION.dat
++++ b/VERSION.dat
+@@ -1,7 +1,7 @@
+ MAJOR=3
+ MINOR=0
+ PATCH=12
+-PRE_RELEASE_TAG=dev
++PRE_RELEASE_TAG=
+ BUILD_METADATA=
+-RELEASE_DATE=""
++RELEASE_DATE="24 Oct 2023"
+ SHLIB_VERSION=3
+-- 
+2.34.1
+

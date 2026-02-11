@@ -1,0 +1,43 @@
+From ec51c8050a6fd6b4073131da457e59c59dcc5d2a Mon Sep 17 00:00:00 2001
+From: Ingo Franzki <ifranzki@linux.ibm.com>
+Date: Wed, 23 Aug 2023 15:08:51 +0200
+Subject: [PATCH 286/381] Allow RSA-PSS also in EVP_PKEY_assign() and
+ EVP_PKEY_can_sign()
+
+Treat keys with EVP_PKEY_RSA_PSS the same as EVP_PKEY_RSA in EVP_PKEY_can_sign()
+and detect_foreign_key() which is called by EVP_PKEY_assign().
+
+Signed-off-by: Ingo Franzki <ifranzki@linux.ibm.com>
+
+Reviewed-by: Matt Caswell <matt@openssl.org>
+Reviewed-by: Tomas Mraz <tomas@openssl.org>
+(Merged from https://github.com/openssl/openssl/pull/21819)
+
+(cherry picked from commit e2972982c64f3f1ac10b3ebe1086d99ec67631bd)
+---
+ crypto/evp/p_lib.c | 2 ++
+ 1 file changed, 2 insertions(+)
+
+diff --git a/crypto/evp/p_lib.c b/crypto/evp/p_lib.c
+index aa6ec31dab..59a7a867ec 100644
+--- a/crypto/evp/p_lib.c
++++ b/crypto/evp/p_lib.c
+@@ -717,6 +717,7 @@ static void detect_foreign_key(EVP_PKEY *pkey)
+ {
+     switch (pkey->type) {
+     case EVP_PKEY_RSA:
++    case EVP_PKEY_RSA_PSS:
+         pkey->foreign = pkey->pkey.rsa != NULL
+                         && ossl_rsa_is_foreign(pkey->pkey.rsa);
+         break;
+@@ -1075,6 +1076,7 @@ int EVP_PKEY_can_sign(const EVP_PKEY *pkey)
+     if (pkey->keymgmt == NULL) {
+         switch (EVP_PKEY_get_base_id(pkey)) {
+         case EVP_PKEY_RSA:
++        case EVP_PKEY_RSA_PSS:
+             return 1;
+ # ifndef OPENSSL_NO_DSA
+         case EVP_PKEY_DSA:
+-- 
+2.34.1
+

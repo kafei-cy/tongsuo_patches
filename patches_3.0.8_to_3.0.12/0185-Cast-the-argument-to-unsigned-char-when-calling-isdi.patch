@@ -1,0 +1,105 @@
+From 3fbb364b192c3568947d5e164cc29ebe6f992205 Mon Sep 17 00:00:00 2001
+From: Michael Baentsch <57787676+baentsch@users.noreply.github.com>
+Date: Mon, 5 Jun 2023 13:09:29 +0200
+Subject: [PATCH 185/381] Cast the argument to unsigned char when calling
+ isdigit()
+
+Fixes #21123
+
+Reviewed-by: Matt Caswell <matt@openssl.org>
+Reviewed-by: Paul Dale <pauli@openssl.org>
+Reviewed-by: Tomas Mraz <tomas@openssl.org>
+(Merged from https://github.com/openssl/openssl/pull/21127)
+
+(cherry picked from commit 8229874476cc2955e6947cf6d3fee09e13b8c160)
+---
+ apps/s_client.c                                  | 2 +-
+ crypto/LPdir_unix.c                              | 2 +-
+ engines/e_loader_attic.c                         | 4 ++--
+ providers/implementations/storemgmt/file_store.c | 6 +++---
+ test/testutil/provider.c                         | 2 +-
+ 5 files changed, 8 insertions(+), 8 deletions(-)
+
+diff --git a/apps/s_client.c b/apps/s_client.c
+index a914238642..8ddbd154fc 100644
+--- a/apps/s_client.c
++++ b/apps/s_client.c
+@@ -2271,7 +2271,7 @@ int s_client_main(int argc, char **argv)
+             do {
+                 mbuf_len = BIO_gets(fbio, mbuf, BUFSIZZ);
+             }
+-            while (mbuf_len > 3 && (!isdigit(mbuf[0]) || !isdigit(mbuf[1]) || !isdigit(mbuf[2]) || mbuf[3] != ' '));
++            while (mbuf_len > 3 && (!isdigit((unsigned char)mbuf[0]) || !isdigit((unsigned char)mbuf[1]) || !isdigit((unsigned char)mbuf[2]) || mbuf[3] != ' '));
+             (void)BIO_flush(fbio);
+             BIO_pop(fbio);
+             BIO_free(fbio);
+diff --git a/crypto/LPdir_unix.c b/crypto/LPdir_unix.c
+index bc0e924e46..aa266c5979 100644
+--- a/crypto/LPdir_unix.c
++++ b/crypto/LPdir_unix.c
+@@ -137,7 +137,7 @@ const char *LP_find_file(LP_DIR_CTX **ctx, const char *directory)
+     if ((*ctx)->expect_file_generations) {
+         char *p = (*ctx)->entry_name + strlen((*ctx)->entry_name);
+ 
+-        while(p > (*ctx)->entry_name && isdigit(p[-1]))
++        while (p > (*ctx)->entry_name && isdigit((unsigned char)p[-1]))
+             p--;
+         if (p > (*ctx)->entry_name && p[-1] == ';')
+             p[-1] = '\0';
+diff --git a/engines/e_loader_attic.c b/engines/e_loader_attic.c
+index eba7ab14b8..9e269be480 100644
+--- a/engines/e_loader_attic.c
++++ b/engines/e_loader_attic.c
+@@ -1486,9 +1486,9 @@ static int file_name_check(OSSL_STORE_LOADER_CTX *ctx, const char *name)
+      * Last, check that the rest of the extension is a decimal number, at
+      * least one digit long.
+      */
+-    if (!isdigit(*p))
++    if (!isdigit((unsigned char)*p))
+         return 0;
+-    while (isdigit(*p))
++    while (isdigit((unsigned char)*p))
+         p++;
+ 
+ #ifdef __VMS
+diff --git a/providers/implementations/storemgmt/file_store.c b/providers/implementations/storemgmt/file_store.c
+index 6d6312659b..b5bb1dc92a 100644
+--- a/providers/implementations/storemgmt/file_store.c
++++ b/providers/implementations/storemgmt/file_store.c
+@@ -612,9 +612,9 @@ static int file_name_check(struct file_ctx_st *ctx, const char *name)
+      * Last, check that the rest of the extension is a decimal number, at
+      * least one digit long.
+      */
+-    if (!isdigit(*p))
++    if (!isdigit((unsigned char)*p))
+         return 0;
+-    while (isdigit(*p))
++    while (isdigit((unsigned char)*p))
+         p++;
+ 
+ #ifdef __VMS
+@@ -623,7 +623,7 @@ static int file_name_check(struct file_ctx_st *ctx, const char *name)
+      */
+     if (*p == ';')
+         for (p++; *p != '\0'; p++)
+-            if (!ossl_isdigit(*p))
++            if (!ossl_isdigit((unsigned char)*p))
+                 break;
+ #endif
+ 
+diff --git a/test/testutil/provider.c b/test/testutil/provider.c
+index 5d5991f502..3f94d7506e 100644
+--- a/test/testutil/provider.c
++++ b/test/testutil/provider.c
+@@ -201,7 +201,7 @@ int fips_provider_version_match(OSSL_LIB_CTX *libctx, const char *versions)
+         } else if (*p == '>') {
+             mode = MODE_GT;
+             p++;
+-        } else if (isdigit(*p)) {
++        } else if (isdigit((unsigned char)*p)) {
+             mode = MODE_EQ;
+         } else {
+             TEST_info("Error matching FIPS version: mode %s\n", p);
+-- 
+2.34.1
+

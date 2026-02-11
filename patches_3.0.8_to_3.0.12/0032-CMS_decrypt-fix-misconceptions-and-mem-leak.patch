@@ -1,0 +1,230 @@
+From 26521faae48c14597877e330911171105ab6c30f Mon Sep 17 00:00:00 2001
+From: "Dr. David von Oheimb" <David.von.Oheimb@siemens.com>
+Date: Thu, 15 Sep 2022 11:51:30 +0200
+Subject: [PATCH 032/381] CMS_decrypt*(): fix misconceptions and mem leak
+
+Also document CMS_decrypt_set1_password() and fix CMS_EnvelopedData_create.pod.
+
+Reviewed-by: Tomas Mraz <tomas@openssl.org>
+Reviewed-by: Paul Dale <pauli@openssl.org>
+Reviewed-by: David von Oheimb <david.von.oheimb@siemens.com>
+(Merged from https://github.com/openssl/openssl/pull/20209)
+---
+ crypto/cms/cms_env.c                   |  2 +-
+ crypto/cms/cms_smime.c                 | 21 ++++----
+ doc/man3/CMS_EncryptedData_decrypt.pod |  6 +--
+ doc/man3/CMS_decrypt.pod               | 72 ++++++++++++++++++--------
+ 4 files changed, 64 insertions(+), 37 deletions(-)
+
+diff --git a/crypto/cms/cms_env.c b/crypto/cms/cms_env.c
+index 51a1d7df84..584fe1a547 100644
+--- a/crypto/cms/cms_env.c
++++ b/crypto/cms/cms_env.c
+@@ -138,7 +138,7 @@ int ossl_cms_env_asn1_ctrl(CMS_RecipientInfo *ri, int cmd)
+     return 1;
+ }
+ 
+-CMS_EncryptedContentInfo* ossl_cms_get0_env_enc_content(const CMS_ContentInfo *cms)
++CMS_EncryptedContentInfo *ossl_cms_get0_env_enc_content(const CMS_ContentInfo *cms)
+ {
+     switch (cms_get_enveloped_type(cms)) {
+     case CMS_ENVELOPED_STANDARD:
+diff --git a/crypto/cms/cms_smime.c b/crypto/cms/cms_smime.c
+index d17df31dd4..0e37321a0b 100644
+--- a/crypto/cms/cms_smime.c
++++ b/crypto/cms/cms_smime.c
+@@ -705,10 +705,16 @@ int CMS_decrypt_set1_pkey_and_peer(CMS_ContentInfo *cms, EVP_PKEY *pk,
+     CMS_RecipientInfo *ri;
+     int i, r, cms_pkey_ri_type;
+     int debug = 0, match_ri = 0;
++    CMS_EncryptedContentInfo *ec = ossl_cms_get0_env_enc_content(cms);
++
++    /* Prevent mem leak on earlier CMS_decrypt_set1_{pkey_and_peer,password} */
++    OPENSSL_clear_free(ec->key, ec->keylen);
++    ec->key = NULL;
++    ec->keylen = 0;
+ 
+     ris = CMS_get0_RecipientInfos(cms);
+     if (ris != NULL)
+-        debug = ossl_cms_get0_env_enc_content(cms)->debug;
++        debug = ec->debug;
+ 
+     cms_pkey_ri_type = ossl_cms_pkey_get_ri_type(pk);
+     if (cms_pkey_ri_type == CMS_RECIPINFO_NONE) {
+@@ -843,7 +849,7 @@ int CMS_decrypt(CMS_ContentInfo *cms, EVP_PKEY *pk, X509 *cert,
+ {
+     int r;
+     BIO *cont;
+-
++    CMS_EncryptedContentInfo *ec;
+     int nid = OBJ_obj2nid(CMS_get0_type(cms));
+ 
+     if (nid != NID_pkcs7_enveloped
+@@ -853,14 +859,9 @@ int CMS_decrypt(CMS_ContentInfo *cms, EVP_PKEY *pk, X509 *cert,
+     }
+     if (dcont == NULL && !check_content(cms))
+         return 0;
+-    if (flags & CMS_DEBUG_DECRYPT)
+-        ossl_cms_get0_env_enc_content(cms)->debug = 1;
+-    else
+-        ossl_cms_get0_env_enc_content(cms)->debug = 0;
+-    if (cert == NULL)
+-        ossl_cms_get0_env_enc_content(cms)->havenocert = 1;
+-    else
+-        ossl_cms_get0_env_enc_content(cms)->havenocert = 0;
++    ec = ossl_cms_get0_env_enc_content(cms);
++    ec->debug = (flags & CMS_DEBUG_DECRYPT) != 0;
++    ec->havenocert = cert == NULL;
+     if (pk == NULL && cert == NULL && dcont == NULL && out == NULL)
+         return 1;
+     if (pk != NULL && !CMS_decrypt_set1_pkey(cms, pk, cert))
+diff --git a/doc/man3/CMS_EncryptedData_decrypt.pod b/doc/man3/CMS_EncryptedData_decrypt.pod
+index 17850a98af..7a19f92b26 100644
+--- a/doc/man3/CMS_EncryptedData_decrypt.pod
++++ b/doc/man3/CMS_EncryptedData_decrypt.pod
+@@ -21,10 +21,10 @@ to and I<flags> is an optional set of flags.
+ I<dcont> is used in the rare case where the encrypted content is detached. It
+ will normally be set to NULL.
+ 
+-The following flags can be passed in the B<flags> parameter.
++The following flags can be passed in the I<flags> parameter.
+ 
+-If the B<CMS_TEXT> flag is set MIME headers for type B<text/plain> are deleted
+-from the content. If the content is not of type B<text/plain> then an error is
++If the B<CMS_TEXT> flag is set MIME headers for type C<text/plain> are deleted
++from the content. If the content is not of type C<text/plain> then an error is
+ returned.
+ 
+ =head1 RETURN VALUES
+diff --git a/doc/man3/CMS_decrypt.pod b/doc/man3/CMS_decrypt.pod
+index 4f8d32fbbb..c656133c5d 100644
+--- a/doc/man3/CMS_decrypt.pod
++++ b/doc/man3/CMS_decrypt.pod
+@@ -2,8 +2,9 @@
+ 
+ =head1 NAME
+ 
+-CMS_decrypt, CMS_decrypt_set1_pkey_and_peer, CMS_decrypt_set1_pkey - decrypt
+-content from a CMS envelopedData structure
++CMS_decrypt, CMS_decrypt_set1_pkey_and_peer,
++CMS_decrypt_set1_pkey, CMS_decrypt_set1_password
++- decrypt content from a CMS envelopedData structure
+ 
+ =head1 SYNOPSIS
+ 
+@@ -14,23 +15,41 @@ content from a CMS envelopedData structure
+  int CMS_decrypt_set1_pkey_and_peer(CMS_ContentInfo *cms,
+                  EVP_PKEY *pk, X509 *cert, X509 *peer);
+  int CMS_decrypt_set1_pkey(CMS_ContentInfo *cms, EVP_PKEY *pk, X509 *cert);
++ int CMS_decrypt_set1_password(CMS_ContentInfo *cms,
++                               unsigned char *pass, ossl_ssize_t passlen);
+ 
+ =head1 DESCRIPTION
+ 
+-CMS_decrypt() extracts and decrypts the content from a CMS EnvelopedData
+-or AuthEnvelopedData structure. B<pkey> is the private key of the recipient,
+-B<cert> is the recipient's certificate, B<out> is a BIO to write the content to
+-and B<flags> is an optional set of flags.
+-
+-The B<dcont> parameter is used in the rare case where the encrypted content
++CMS_decrypt() extracts the decrypted content from a CMS EnvelopedData
++or AuthEnvelopedData structure.
++It uses CMS_decrypt_set1_pkey() to decrypt the content
++with the recipient private key I<pkey> if I<pkey> is not NULL.
++In this case, it is recommended to provide the associated certificate
++in I<cert> - see the NOTES below.
++I<out> is a BIO to write the content to and
++I<flags> is an optional set of flags.
++If I<pkey> is NULL the function assumes that decryption was already done
++(e.g., using CMS_decrypt_set1_pkey() or CMS_decrypt_set1_password()) and just
++provides the content unless I<cert>, I<dcont>, and I<out> are NULL as well.
++The I<dcont> parameter is used in the rare case where the encrypted content
+ is detached. It will normally be set to NULL.
+ 
+-CMS_decrypt_set1_pkey_and_peer() associates the private key B<pkey>, the
+-corresponding certificate B<cert> and the originator certificate B<peer> with
+-the CMS_ContentInfo structure B<cms>.
++CMS_decrypt_set1_pkey_and_peer() decrypts the CMS_ContentInfo structure I<cms>
++using the private key I<pkey>, the corresponding certificate I<cert>, which is
++recommended to be supplied but may be NULL,
++and the (optional) originator certificate I<peer>.
++On success, it also records in I<cms> the decryption key I<pkey>, and this
++should be followed by C<CMS_decrypt(cms, NULL, NULL, dcont, out, flags)>.
++This call deallocates any decryption key stored in I<cms>.
++
++CMS_decrypt_set1_pkey() is the same as
++CMS_decrypt_set1_pkey_and_peer() with I<peer> being NULL.
+ 
+-CMS_decrypt_set1_pkey() associates the private key B<pkey>, corresponding
+-certificate B<cert> with the CMS_ContentInfo structure B<cms>.
++CMS_decrypt_set1_password() decrypts the CMS_ContentInfo structure I<cms>
++using the secret I<pass> of length I<passlen>.
++On success, it also records in I<cms> the decryption key used, and this
++should be followed by C<CMS_decrypt(cms, NULL, NULL, dcont, out, flags)>.
++This call deallocates any decryption key stored in I<cms>.
+ 
+ =head1 NOTES
+ 
+@@ -38,7 +57,7 @@ Although the recipients certificate is not needed to decrypt the data it is
+ needed to locate the appropriate (of possible several) recipients in the CMS
+ structure.
+ 
+-If B<cert> is set to NULL all possible recipients are tried. This case however
++If I<cert> is set to NULL all possible recipients are tried. This case however
+ is problematic. To thwart the MMA attack (Bleichenbacher's attack on
+ PKCS #1 v1.5 RSA padding) all recipients are tried whether they succeed or
+ not. If no recipient succeeds then a random symmetric key is used to decrypt
+@@ -54,26 +73,32 @@ open to attack.
+ 
+ It is possible to determine the correct recipient key by other means (for
+ example looking them up in a database) and setting them in the CMS structure
+-in advance using the CMS utility functions such as CMS_set1_pkey(). In this
+-case both B<cert> and B<pkey> should be set to NULL.
++in advance using the CMS utility functions such as CMS_set1_pkey(),
++or use CMS_decrypt_set1_password() if the recipient has a symmetric key.
++In these cases both I<cert> and I<pkey> should be set to NULL.
+ 
+ To process KEKRecipientInfo types CMS_set1_key() or CMS_RecipientInfo_set0_key()
+ and CMS_RecipientInfo_decrypt() should be called before CMS_decrypt() and
+-B<cert> and B<pkey> set to NULL.
++I<cert> and I<pkey> set to NULL.
+ 
+-The following flags can be passed in the B<flags> parameter.
++The following flags can be passed in the I<flags> parameter.
+ 
+-If the B<CMS_TEXT> flag is set MIME headers for type B<text/plain> are deleted
+-from the content. If the content is not of type B<text/plain> then an error is
++If the B<CMS_TEXT> flag is set MIME headers for type C<text/plain> are deleted
++from the content. If the content is not of type C<text/plain> then an error is
+ returned.
+ 
+ =head1 RETURN VALUES
+ 
+-CMS_decrypt() returns either 1 for success or 0 for failure.
+-The error can be obtained from ERR_get_error(3)
++CMS_decrypt(), CMS_decrypt_set1_pkey_and_peer(),
++CMS_decrypt_set1_pkey(), and CMS_decrypt_set1_password()
++return either 1 for success or 0 for failure.
++The error can be obtained from ERR_get_error(3).
+ 
+ =head1 BUGS
+ 
++The B<set1_> part of these function names is misleading
++and should better read: B<with_>.
++
+ The lack of single pass processing and the need to hold all data in memory as
+ mentioned in CMS_verify() also applies to CMS_decrypt().
+ 
+@@ -83,7 +108,8 @@ L<ERR_get_error(3)>, L<CMS_encrypt(3)>
+ 
+ =head1 HISTORY
+ 
+-B<CMS_decrypt_set1_pkey_and_peer> was added in OpenSSL 3.0.
++CMS_decrypt_set1_pkey_and_peer() and CMS_decrypt_set1_password()
++were added in OpenSSL 3.0.
+ 
+ =head1 COPYRIGHT
+ 
+-- 
+2.34.1
+

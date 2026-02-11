@@ -1,0 +1,88 @@
+From 0c7d6a5557f91cbacbd9534e17cf8a90c3d57952 Mon Sep 17 00:00:00 2001
+From: Pauli <pauli@openssl.org>
+Date: Tue, 7 Feb 2023 09:29:57 +1100
+Subject: [PATCH 003/381] des: prevent error when using two key triple DES with
+ a random key
+
+Two key 3DES only sets two keys and the random generation errors out if fewer
+than three keys are required.  It shouldn't.
+
+Fixes #20212
+
+Reviewed-by: Tomas Mraz <tomas@openssl.org>
+Reviewed-by: Matt Caswell <matt@openssl.org>
+(Merged from https://github.com/openssl/openssl/pull/20224)
+
+(cherry picked from commit 587e0407803af330c0b04238fcbce78521ce35d7)
+---
+ .../ciphers/cipher_tdes_common.c              |  9 ++++---
+ test/destest.c                                | 24 +++++++++++++++++++
+ 2 files changed, 28 insertions(+), 5 deletions(-)
+
+diff --git a/providers/implementations/ciphers/cipher_tdes_common.c b/providers/implementations/ciphers/cipher_tdes_common.c
+index 346aec05a1..c31002b11b 100644
+--- a/providers/implementations/ciphers/cipher_tdes_common.c
++++ b/providers/implementations/ciphers/cipher_tdes_common.c
+@@ -123,13 +123,12 @@ static int tdes_generatekey(PROV_CIPHER_CTX *ctx, void *ptr)
+     if (kl == 0 || RAND_priv_bytes_ex(ctx->libctx, ptr, kl, 0) <= 0)
+         return 0;
+     DES_set_odd_parity(deskey);
+-    if (kl >= 16)
++    if (kl >= 16) {
+         DES_set_odd_parity(deskey + 1);
+-    if (kl >= 24) {
+-        DES_set_odd_parity(deskey + 2);
+-        return 1;
++        if (kl >= 24)
++            DES_set_odd_parity(deskey + 2);
+     }
+-    return 0;
++    return 1;
+ }
+ 
+ int ossl_tdes_get_ctx_params(void *vctx, OSSL_PARAM params[])
+diff --git a/test/destest.c b/test/destest.c
+index e0c4b30f90..41977ff6e0 100644
+--- a/test/destest.c
++++ b/test/destest.c
+@@ -838,6 +838,29 @@ static int test_des_check_bad_parity(int n)
+ 
+     return TEST_int_eq(DES_check_key_parity(key), bad_parity_keys[n].expect);
+ }
++
++/* Test that two key 3DES can generate a random key without error */
++static int test_des_two_key(void)
++{
++    int res = 0;
++    EVP_CIPHER *cipher = NULL;
++    EVP_CIPHER_CTX *ctx = NULL;
++    unsigned char key[16];
++
++    if (!TEST_ptr(cipher = EVP_CIPHER_fetch(NULL, "DES-EDE-ECB", NULL))
++            || !TEST_ptr(ctx = EVP_CIPHER_CTX_new())
++            || !EVP_CipherInit_ex(ctx, cipher, NULL, NULL, NULL, 1)
++            || !EVP_CIPHER_CTX_set_key_length(ctx, sizeof(key))
++            || !EVP_CIPHER_CTX_rand_key(ctx, key))
++        goto err;
++
++    res = 1;
++ err:
++    EVP_CIPHER_free(cipher);
++    EVP_CIPHER_CTX_free(ctx);
++    return res;
++}
++
+ #endif
+ 
+ int setup_tests(void)
+@@ -866,6 +889,7 @@ int setup_tests(void)
+     ADD_ALL_TESTS(test_des_key_wrap, OSSL_NELEM(test_des_key_wrap_sizes));
+     ADD_ALL_TESTS(test_des_weak_keys, OSSL_NELEM(weak_keys));
+     ADD_ALL_TESTS(test_des_check_bad_parity, OSSL_NELEM(bad_parity_keys));
++    ADD_TEST(test_des_two_key);
+ #endif
+     return 1;
+ }
+-- 
+2.34.1
+

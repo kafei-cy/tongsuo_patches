@@ -1,0 +1,81 @@
+From 7e58f38dbf7f292f86f0813f699535668ce25371 Mon Sep 17 00:00:00 2001
+From: Yi Li <yi1.li@intel.com>
+Date: Fri, 5 May 2023 11:30:05 +0800
+Subject: [PATCH 155/381] provider: return error if buf too small when getting
+ ec pubkey param
+
+Fixes #20889
+
+There was an incorrect value passed to EC_POINT_point2oct() for the
+buffer size of the param passed-in.
+
+Added testcases.
+
+Signed-off-by: Yi Li <yi1.li@intel.com>
+
+Reviewed-by: Paul Dale <pauli@openssl.org>
+Reviewed-by: Tomas Mraz <tomas@openssl.org>
+(Merged from https://github.com/openssl/openssl/pull/20890)
+
+(cherry picked from commit 91070877adb905f51eb4b19b730d42fc257bae13)
+---
+ providers/implementations/keymgmt/ec_kmgmt.c |  2 +-
+ test/evp_extra_test.c                        | 22 ++++++++++++++++++++
+ 2 files changed, 23 insertions(+), 1 deletion(-)
+
+diff --git a/providers/implementations/keymgmt/ec_kmgmt.c b/providers/implementations/keymgmt/ec_kmgmt.c
+index 3f1dc9e191..a37cbbdba8 100644
+--- a/providers/implementations/keymgmt/ec_kmgmt.c
++++ b/providers/implementations/keymgmt/ec_kmgmt.c
+@@ -745,7 +745,7 @@ int common_get_params(void *key, OSSL_PARAM params[], int sm2)
+         }
+         p->return_size = EC_POINT_point2oct(ecg, ecp,
+                                             POINT_CONVERSION_UNCOMPRESSED,
+-                                            p->data, p->return_size, bnctx);
++                                            p->data, p->data_size, bnctx);
+         if (p->return_size == 0)
+             goto err;
+     }
+diff --git a/test/evp_extra_test.c b/test/evp_extra_test.c
+index 3747532ff0..9907c490e8 100644
+--- a/test/evp_extra_test.c
++++ b/test/evp_extra_test.c
+@@ -899,6 +899,8 @@ static int test_EC_priv_pub(void)
+     BIGNUM *priv = NULL;
+     int ret = 0;
+     unsigned char *encoded = NULL;
++    size_t len = 0;
++    unsigned char buffer[128];
+ 
+     /*
+      * Setup the parameters for our pkey object. For our purposes they don't
+@@ -1018,6 +1020,26 @@ static int test_EC_priv_pub(void)
+         goto err;
+     }
+ 
++    /* Positive and negative testcase for EVP_PKEY_get_octet_string_param */
++    if (!TEST_int_eq(EVP_PKEY_get_octet_string_param(params_and_pub,
++                                                     OSSL_PKEY_PARAM_ENCODED_PUBLIC_KEY,
++                                                     buffer, sizeof(buffer), &len), 1)
++        || !TEST_int_eq(len, 65))
++        goto err;
++
++    len = 0;
++    if (!TEST_int_eq(EVP_PKEY_get_octet_string_param(params_and_pub,
++                                                     OSSL_PKEY_PARAM_ENCODED_PUBLIC_KEY,
++                                                     NULL, 0, &len), 1)
++        || !TEST_int_eq(len, 65))
++        goto err;
++
++    /* too-short buffer len*/
++    if (!TEST_int_eq(EVP_PKEY_get_octet_string_param(params_and_pub,
++                                                     OSSL_PKEY_PARAM_ENCODED_PUBLIC_KEY,
++                                                     buffer, 10, &len), 0))
++        goto err;
++
+     ret = 1;
+  err:
+     OSSL_PARAM_free(params);
+-- 
+2.34.1
+

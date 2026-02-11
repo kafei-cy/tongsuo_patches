@@ -1,0 +1,184 @@
+From 9c85390e345199032c84628c95fc0e7659a3855e Mon Sep 17 00:00:00 2001
+From: Alois Klink <alois@aloisklink.com>
+Date: Sun, 16 Apr 2023 15:40:01 +0100
+Subject: [PATCH 114/381] bn_nist: replace pointer bit-fiddling with ternary
+
+Bit-fiddling pointers is technically implementation defined behavior
+in the C specification so the following code is not supported in all
+platforms:
+
+    PTR_SIZE_INT mask;
+    void * a, b, c;
+    int boolean_flag;
+
+    mask = 0 - boolean_flag;
+    /* Not guaranteed to be a valid ptr to a or b on all platforms  */
+    a = (void *)
+        ((((PTR_SIZE_INT) b & ~mask) | (((PTR_SIZE_INT)) c & mask)));
+
+Using a ternary conditional operator is supported on all platforms
+(i.e. `a = boolean_flag ? b : c;`).
+
+On most modern compilers/CPUs, this will be faster, since it will
+get converted to a CMOV instruction.
+
+Reviewed-by: Richard Levitte <levitte@openssl.org>
+Reviewed-by: Paul Dale <pauli@openssl.org>
+(Merged from https://github.com/openssl/openssl/pull/20748)
+
+(cherry picked from commit 326af4ad171b849ba1e76fd425d8f337718c4108)
+---
+ crypto/bn/bn_nist.c | 64 ++++++++++++++-------------------------------
+ 1 file changed, 19 insertions(+), 45 deletions(-)
+
+diff --git a/crypto/bn/bn_nist.c b/crypto/bn/bn_nist.c
+index da10c4054a..60918f02c7 100644
+--- a/crypto/bn/bn_nist.c
++++ b/crypto/bn/bn_nist.c
+@@ -338,7 +338,6 @@ int BN_nist_mod_192(BIGNUM *r, const BIGNUM *a, const BIGNUM *field,
+                         sizeof(unsigned int)];
+     } buf;
+     BN_ULONG c_d[BN_NIST_192_TOP], *res;
+-    PTR_SIZE_INT mask;
+     static const BIGNUM ossl_bignum_nist_p_192_sqr = {
+         (BN_ULONG *)_nist_p_192_sqr,
+         OSSL_NELEM(_nist_p_192_sqr),
+@@ -439,13 +438,9 @@ int BN_nist_mod_192(BIGNUM *r, const BIGNUM *a, const BIGNUM *field,
+      * 'tmp=result-modulus; if (!carry || !borrow) result=tmp;'
+      * this is what happens below, but without explicit if:-) a.
+      */
+-    mask =
+-        0 - (PTR_SIZE_INT) bn_sub_words(c_d, r_d, _nist_p_192[0],
+-                                        BN_NIST_192_TOP);
+-    mask &= 0 - (PTR_SIZE_INT) carry;
+-    res = c_d;
+-    res = (BN_ULONG *)
+-        (((PTR_SIZE_INT) res & ~mask) | ((PTR_SIZE_INT) r_d & mask));
++    res = (bn_sub_words(c_d, r_d, _nist_p_192[0], BN_NIST_192_TOP) && carry)
++        ? r_d
++        : c_d;
+     nist_cp_bn(r_d, res, BN_NIST_192_TOP);
+     r->top = BN_NIST_192_TOP;
+     bn_correct_top(r);
+@@ -479,7 +474,6 @@ int BN_nist_mod_224(BIGNUM *r, const BIGNUM *a, const BIGNUM *field,
+                         sizeof(unsigned int)];
+     } buf;
+     BN_ULONG c_d[BN_NIST_224_TOP], *res;
+-    PTR_SIZE_INT mask;
+     union {
+         bn_addsub_f f;
+         PTR_SIZE_INT p;
+@@ -616,19 +610,14 @@ int BN_nist_mod_224(BIGNUM *r, const BIGNUM *a, const BIGNUM *field,
+         carry =
+             (int)bn_add_words(r_d, r_d, _nist_p_224[-carry - 1],
+                               BN_NIST_224_TOP);
+-        mask = 0 - (PTR_SIZE_INT) carry;
+-        u.p = ((PTR_SIZE_INT) bn_sub_words & mask) |
+-            ((PTR_SIZE_INT) bn_add_words & ~mask);
++        u.f = carry ? bn_sub_words : bn_add_words;
+     } else
+         carry = 1;
+ 
+     /* otherwise it's effectively same as in BN_nist_mod_192... */
+-    mask =
+-        0 - (PTR_SIZE_INT) (*u.f) (c_d, r_d, _nist_p_224[0], BN_NIST_224_TOP);
+-    mask &= 0 - (PTR_SIZE_INT) carry;
+-    res = c_d;
+-    res = (BN_ULONG *)(((PTR_SIZE_INT) res & ~mask) |
+-                       ((PTR_SIZE_INT) r_d & mask));
++    res = ((*u.f) (c_d, r_d, _nist_p_224[0], BN_NIST_224_TOP) && carry)
++        ? r_d
++        : c_d;
+     nist_cp_bn(r_d, res, BN_NIST_224_TOP);
+     r->top = BN_NIST_224_TOP;
+     bn_correct_top(r);
+@@ -660,7 +649,6 @@ int BN_nist_mod_256(BIGNUM *r, const BIGNUM *a, const BIGNUM *field,
+                         sizeof(unsigned int)];
+     } buf;
+     BN_ULONG c_d[BN_NIST_256_TOP], *res;
+-    PTR_SIZE_INT mask;
+     union {
+         bn_addsub_f f;
+         PTR_SIZE_INT p;
+@@ -859,18 +847,13 @@ int BN_nist_mod_256(BIGNUM *r, const BIGNUM *a, const BIGNUM *field,
+         carry =
+             (int)bn_add_words(r_d, r_d, _nist_p_256[-carry - 1],
+                               BN_NIST_256_TOP);
+-        mask = 0 - (PTR_SIZE_INT) carry;
+-        u.p = ((PTR_SIZE_INT) bn_sub_words & mask) |
+-            ((PTR_SIZE_INT) bn_add_words & ~mask);
++        u.f = carry ? bn_sub_words : bn_add_words;
+     } else
+         carry = 1;
+ 
+-    mask =
+-        0 - (PTR_SIZE_INT) (*u.f) (c_d, r_d, _nist_p_256[0], BN_NIST_256_TOP);
+-    mask &= 0 - (PTR_SIZE_INT) carry;
+-    res = c_d;
+-    res = (BN_ULONG *)(((PTR_SIZE_INT) res & ~mask) |
+-                       ((PTR_SIZE_INT) r_d & mask));
++    res = ((*u.f) (c_d, r_d, _nist_p_256[0], BN_NIST_256_TOP) && carry)
++        ? r_d
++        : c_d;
+     nist_cp_bn(r_d, res, BN_NIST_256_TOP);
+     r->top = BN_NIST_256_TOP;
+     bn_correct_top(r);
+@@ -906,7 +889,6 @@ int BN_nist_mod_384(BIGNUM *r, const BIGNUM *a, const BIGNUM *field,
+                         sizeof(unsigned int)];
+     } buf;
+     BN_ULONG c_d[BN_NIST_384_TOP], *res;
+-    PTR_SIZE_INT mask;
+     union {
+         bn_addsub_f f;
+         PTR_SIZE_INT p;
+@@ -1140,18 +1122,13 @@ int BN_nist_mod_384(BIGNUM *r, const BIGNUM *a, const BIGNUM *field,
+         carry =
+             (int)bn_add_words(r_d, r_d, _nist_p_384[-carry - 1],
+                               BN_NIST_384_TOP);
+-        mask = 0 - (PTR_SIZE_INT) carry;
+-        u.p = ((PTR_SIZE_INT) bn_sub_words & mask) |
+-            ((PTR_SIZE_INT) bn_add_words & ~mask);
++        u.f = carry ? bn_sub_words : bn_add_words;
+     } else
+         carry = 1;
+ 
+-    mask =
+-        0 - (PTR_SIZE_INT) (*u.f) (c_d, r_d, _nist_p_384[0], BN_NIST_384_TOP);
+-    mask &= 0 - (PTR_SIZE_INT) carry;
+-    res = c_d;
+-    res = (BN_ULONG *)(((PTR_SIZE_INT) res & ~mask) |
+-                       ((PTR_SIZE_INT) r_d & mask));
++    res = ((*u.f) (c_d, r_d, _nist_p_384[0], BN_NIST_384_TOP) && carry)
++        ? r_d
++        : c_d;
+     nist_cp_bn(r_d, res, BN_NIST_384_TOP);
+     r->top = BN_NIST_384_TOP;
+     bn_correct_top(r);
+@@ -1168,7 +1145,6 @@ int BN_nist_mod_521(BIGNUM *r, const BIGNUM *a, const BIGNUM *field,
+ {
+     int top = a->top, i;
+     BN_ULONG *r_d, *a_d = a->d, t_d[BN_NIST_521_TOP], val, tmp, *res;
+-    PTR_SIZE_INT mask;
+     static const BIGNUM ossl_bignum_nist_p_521_sqr = {
+         (BN_ULONG *)_nist_p_521_sqr,
+         OSSL_NELEM(_nist_p_521_sqr),
+@@ -1221,12 +1197,10 @@ int BN_nist_mod_521(BIGNUM *r, const BIGNUM *a, const BIGNUM *field,
+     r_d[i] &= BN_NIST_521_TOP_MASK;
+ 
+     bn_add_words(r_d, r_d, t_d, BN_NIST_521_TOP);
+-    mask =
+-        0 - (PTR_SIZE_INT) bn_sub_words(t_d, r_d, _nist_p_521,
+-                                        BN_NIST_521_TOP);
+-    res = t_d;
+-    res = (BN_ULONG *)(((PTR_SIZE_INT) res & ~mask) |
+-                       ((PTR_SIZE_INT) r_d & mask));
++    res = bn_sub_words(t_d, r_d, _nist_p_521,
++                       BN_NIST_521_TOP)
++        ? r_d
++        : t_d;
+     nist_cp_bn(r_d, res, BN_NIST_521_TOP);
+     r->top = BN_NIST_521_TOP;
+     bn_correct_top(r);
+-- 
+2.34.1
+

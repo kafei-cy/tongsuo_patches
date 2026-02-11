@@ -1,0 +1,117 @@
+From aba72bdf81e3ef594605b0098e268e9f2cf71bba Mon Sep 17 00:00:00 2001
+From: slontis <shane.lontis@oracle.com>
+Date: Mon, 27 Feb 2023 16:35:41 +1000
+Subject: [PATCH 045/381] Fix FFC mdprop setting bugs.
+
+Coverage testing showed that ossl_ffc_params_fromdata() was not setting
+OSSL_PKEY_PARAM_FFC_DIGEST_PROPS.
+Adding a negative test also showed that ossl_ffc_params_copy() did not
+do a shallow copy of the digest or digest property.
+
+Reviewed-by: Matt Caswell <matt@openssl.org>
+Reviewed-by: Paul Dale <pauli@openssl.org>
+(Merged from https://github.com/openssl/openssl/pull/20385)
+
+(cherry picked from commit 3307338e26862070eaacad6ec7537a63a63b8a90)
+---
+ crypto/ffc/ffc_backend.c |  1 +
+ crypto/ffc/ffc_params.c  |  2 ++
+ test/evp_extra_test2.c   | 43 ++++++++++++++++++++++++++++++++++++++++
+ 3 files changed, 46 insertions(+)
+
+diff --git a/crypto/ffc/ffc_backend.c b/crypto/ffc/ffc_backend.c
+index dbd28b0e66..01982bd6af 100644
+--- a/crypto/ffc/ffc_backend.c
++++ b/crypto/ffc/ffc_backend.c
+@@ -111,6 +111,7 @@ int ossl_ffc_params_fromdata(FFC_PARAMS *ffc, const OSSL_PARAM params[])
+         if (p1 != NULL) {
+             if (p1->data_type != OSSL_PARAM_UTF8_STRING)
+                 goto err;
++            props = p1->data;
+         }
+         if (!ossl_ffc_set_digest(ffc, prm->data, props))
+             goto err;
+diff --git a/crypto/ffc/ffc_params.c b/crypto/ffc/ffc_params.c
+index fb558f8221..647d356eca 100644
+--- a/crypto/ffc/ffc_params.c
++++ b/crypto/ffc/ffc_params.c
+@@ -182,6 +182,8 @@ int ossl_ffc_params_copy(FFC_PARAMS *dst, const FFC_PARAMS *src)
+         || !ffc_bn_cpy(&dst->j, src->j))
+         return 0;
+ 
++    dst->mdname = src->mdname;
++    dst->mdprops = src->mdprops;
+     OPENSSL_free(dst->seed);
+     dst->seedlen = src->seedlen;
+     if (src->seed != NULL) {
+diff --git a/test/evp_extra_test2.c b/test/evp_extra_test2.c
+index 5430ec462b..153e21224e 100644
+--- a/test/evp_extra_test2.c
++++ b/test/evp_extra_test2.c
+@@ -387,6 +387,7 @@ static int test_dh_paramgen(void)
+     EVP_PKEY_free(pkey);
+     return ret;
+ }
++
+ #endif
+ 
+ #ifndef OPENSSL_NO_EC
+@@ -974,6 +975,47 @@ err:
+     OSSL_PARAM_free(to_params);
+     return ret;
+ }
++
++/*
++ * Test that OSSL_PKEY_PARAM_FFC_DIGEST_PROPS is set properly when using fromdata
++ * This test:
++ *   checks for failure when the property query is bad (tstid == 0)
++ *   checks for success when the property query is valid (tstid == 1)
++ */
++static int test_dsa_fromdata_digest_prop(int tstid)
++{
++    EVP_PKEY_CTX *ctx = NULL, *gctx = NULL;
++    EVP_PKEY *pkey = NULL,  *pkey2 = NULL;
++    OSSL_PARAM params[4], *p = params;
++    int ret = 0;
++    int expected = (tstid == 0 ? 0 : 1);
++    unsigned int pbits = 512; /* minimum allowed for speed */
++
++    *p++ = OSSL_PARAM_construct_uint(OSSL_PKEY_PARAM_FFC_PBITS, &pbits);
++    *p++ = OSSL_PARAM_construct_utf8_string(OSSL_PKEY_PARAM_FFC_DIGEST, "SHA512", 0);
++    /* Setting a bad prop query here should fail during paramgen - when it tries to do a fetch */
++    *p++ = OSSL_PARAM_construct_utf8_string(OSSL_PKEY_PARAM_FFC_DIGEST_PROPS,
++                                            tstid == 0 ? "provider=unknown" : "provider=default", 0);
++    *p++ = OSSL_PARAM_construct_end();
++
++    if (!TEST_ptr(ctx = EVP_PKEY_CTX_new_from_name(mainctx, "DSA", NULL))
++        || !TEST_int_eq(EVP_PKEY_fromdata_init(ctx), 1)
++        || !TEST_int_eq(EVP_PKEY_fromdata(ctx, &pkey, EVP_PKEY_KEY_PARAMETERS, params), 1))
++        goto err;
++
++    if (!TEST_ptr(gctx = EVP_PKEY_CTX_new_from_pkey(mainctx, pkey, NULL))
++        || !TEST_int_eq(EVP_PKEY_paramgen_init(gctx), 1)
++        || !TEST_int_eq(EVP_PKEY_paramgen(gctx, &pkey2), expected))
++        goto err;
++
++    ret = 1;
++err:
++    EVP_PKEY_free(pkey2);
++    EVP_PKEY_free(pkey);
++    EVP_PKEY_CTX_free(ctx);
++    EVP_PKEY_CTX_free(gctx);
++    return ret;
++}
+ #endif /* OPENSSL_NO_DSA */
+ 
+ static int test_pkey_todata_null(void)
+@@ -1155,6 +1197,7 @@ int setup_tests(void)
+ #ifndef OPENSSL_NO_DSA
+     ADD_TEST(test_dsa_todata);
+     ADD_TEST(test_dsa_tofrom_data_select);
++    ADD_ALL_TESTS(test_dsa_fromdata_digest_prop, 2);
+ #endif
+ #ifndef OPENSSL_NO_DH
+     ADD_TEST(test_dh_tofrom_data_select);
+-- 
+2.34.1
+

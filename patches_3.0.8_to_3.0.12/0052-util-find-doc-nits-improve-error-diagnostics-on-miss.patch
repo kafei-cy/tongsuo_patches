@@ -1,0 +1,78 @@
+From 2dde9fbe51c14e5987acb970f362ec9f536a6dbb Mon Sep 17 00:00:00 2001
+From: "Dr. David von Oheimb" <David.von.Oheimb@siemens.com>
+Date: Fri, 24 Feb 2023 14:04:10 +0100
+Subject: [PATCH 052/381] util/find-doc-nits: improve error diagnostics on
+ missing man section numbers in links
+
+Reviewed-by: Hugo Landau <hlandau@openssl.org>
+Reviewed-by: Matt Caswell <matt@openssl.org>
+Reviewed-by: David von Oheimb <david.von.oheimb@siemens.com>
+(Merged from https://github.com/openssl/openssl/pull/20369)
+
+(cherry picked from commit 9a2f78e14a67eeaadefc77d05f0778fc9684d26c)
+---
+ util/find-doc-nits | 16 ++++++++++------
+ 1 file changed, 10 insertions(+), 6 deletions(-)
+
+diff --git a/util/find-doc-nits b/util/find-doc-nits
+index 7244c589e8..33f1d44bad 100755
+--- a/util/find-doc-nits
++++ b/util/find-doc-nits
+@@ -701,17 +701,21 @@ sub check {
+     my $dirname = basename(dirname($filename));
+     my $contents = $podinfo{contents};
+ 
++    # Find what section this page is in; presume 3.
++    my $mansect = 3;
++    $mansect = $1 if $filename =~ /man([1-9])/;
++
+     my $id = "${filename}:1:";
+     check_head_style($id, $contents);
+ 
+     # Check ordering of some sections in man3
+-    if ( $filename =~ m|man3/| ) {
++    if ( $mansect == 3 ) {
+         check_section_location($id, $contents, "RETURN VALUES", "EXAMPLES");
+         check_section_location($id, $contents, "SEE ALSO", "HISTORY");
+         check_section_location($id, $contents, "EXAMPLES", "SEE ALSO");
+     }
+ 
+-    # Make sure every link has a section.
++    # Make sure every link has a man section number.
+     while ( $contents =~ /$markup_re/msg ) {
+         my $target = $1;
+         next unless $target =~ /^L<(.*)>$/;     # Skip if not L<...>
+@@ -722,7 +726,7 @@ sub check {
+         next if $target =~ /::/;                #   links to a Perl module, or
+         next if $target =~ /^https?:/;          #   is a URL link, or
+         next if $target =~ /\([1357]\)$/;       #   it has a section
+-        err($id, "Section missing in $target")
++        err($id, "Missing man section number (likely, $mansect) in L<$target>")
+     }
+     # Check for proper links to commands.
+     while ( $contents =~ /L<([^>]*)\(1\)(?:\/.*)?>/g ) {
+@@ -741,10 +745,10 @@ sub check {
+     }
+ 
+     unless ( $contents =~ /^=for openssl generic/ms ) {
+-        if ( $filename =~ m|man3/| ) {
++        if ( $mansect == 3 ) {
+             name_synopsis($id, $filename, $contents);
+             functionname_check($id, $filename, $contents);
+-        } elsif ( $filename =~ m|man1/| ) {
++        } elsif ( $mansect == 1 ) {
+             option_check($id, $filename, $contents)
+         }
+     }
+@@ -808,7 +812,7 @@ sub check {
+     close $OUT;
+     unlink $temp || warn "Can't remove $temp, $!";
+ 
+-    # Find what section this page is in; assume 3.
++    # Find what section this page is in; presume 3.
+     my $section = 3;
+     $section = $1 if $dirname =~ /man([1-9])/;
+ 
+-- 
+2.34.1
+

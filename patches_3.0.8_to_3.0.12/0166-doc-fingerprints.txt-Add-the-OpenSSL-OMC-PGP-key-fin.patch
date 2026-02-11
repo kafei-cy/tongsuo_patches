@@ -1,0 +1,37 @@
+From 9a3690e79436ec3dd5a9bea8e1efc723fab640ea Mon Sep 17 00:00:00 2001
+From: Richard Levitte <levitte@openssl.org>
+Date: Mon, 22 May 2023 13:11:30 +0200
+Subject: [PATCH 166/381] doc/fingerprints.txt: Add the OpenSSL OMC PGP key
+ fingerprint
+
+We want to move to using this key for tarball and announcement signatures.
+It won't happen immediately, though, as we must have it specified in the
+latest update of each release branch, so people can verify properly.
+
+Reviewed-by: Matt Caswell <matt@openssl.org>
+Reviewed-by: Paul Dale <pauli@openssl.org>
+Reviewed-by: Tomas Mraz <tomas@openssl.org>
+(Merged from https://github.com/openssl/openssl/pull/21015)
+
+(cherry picked from commit f925bfebbb287321133b9251e72bee869a0f58b4)
+---
+ doc/fingerprints.txt | 3 +++
+ 1 file changed, 3 insertions(+)
+
+diff --git a/doc/fingerprints.txt b/doc/fingerprints.txt
+index 4f95f2beae..9a26f7c667 100644
+--- a/doc/fingerprints.txt
++++ b/doc/fingerprints.txt
+@@ -12,6 +12,9 @@ in the file named openssl-1.0.1h.tar.gz.asc.
+ The following is the list of fingerprints for the keys that are
+ currently in use to sign OpenSSL distributions:
+ 
++OpenSSL OMC:
++EFC0 A467 D613 CB83 C7ED 6D30 D894 E2CE 8B3D 79F5
++
+ Richard Levitte:
+ 7953 AC1F BC3D C8B3 B292 393E D5E9 E43F 7DF9 EE8C
+ 
+-- 
+2.34.1
+

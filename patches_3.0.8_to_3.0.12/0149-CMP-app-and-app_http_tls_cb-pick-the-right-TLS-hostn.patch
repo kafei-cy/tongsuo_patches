@@ -1,0 +1,61 @@
+From 6ce19b7e2d231821078775c99a9cee65fb8d88a8 Mon Sep 17 00:00:00 2001
+From: "Dr. David von Oheimb" <David.von.Oheimb@siemens.com>
+Date: Thu, 12 Jan 2023 10:54:50 +0100
+Subject: [PATCH 149/381] CMP app and app_http_tls_cb(): pick the right TLS
+ hostname (also without port)
+
+Fixes #20031
+
+Reviewed-by: Tomas Mraz <tomas@openssl.org>
+Reviewed-by: Matt Caswell <matt@openssl.org>
+Reviewed-by: Hugo Landau <hlandau@openssl.org>
+(Merged from https://github.com/openssl/openssl/pull/20034)
+
+(cherry picked from commit 30b9a6ec89d97152b5a564b3acf3a94ee57185a7)
+---
+ apps/cmp.c      | 2 +-
+ apps/lib/apps.c | 8 ++++++--
+ 2 files changed, 7 insertions(+), 3 deletions(-)
+
+diff --git a/apps/cmp.c b/apps/cmp.c
+index e5b2a62cc2..8dc44ea50f 100644
+--- a/apps/cmp.c
++++ b/apps/cmp.c
+@@ -1956,7 +1956,7 @@ static int setup_client_ctx(OSSL_CMP_CTX *ctx, ENGINE *engine)
+         if ((info = OPENSSL_zalloc(sizeof(*info))) == NULL)
+             goto err;
+         (void)OSSL_CMP_CTX_set_http_cb_arg(ctx, info);
+-        info->server = opt_server;
++        info->server = host;
+         info->port = server_port;
+         /* workaround for callback design flaw, see #17088: */
+         info->use_proxy = proxy_host != NULL;
+diff --git a/apps/lib/apps.c b/apps/lib/apps.c
+index 0d7a20b52a..cfab72ae91 100644
+--- a/apps/lib/apps.c
++++ b/apps/lib/apps.c
+@@ -2474,6 +2474,10 @@ BIO *app_http_tls_cb(BIO *bio, void *arg, int connect, int detail)
+     if (connect) {
+         SSL *ssl;
+         BIO *sbio = NULL;
++        X509_STORE *ts = SSL_CTX_get_cert_store(ssl_ctx);
++        X509_VERIFY_PARAM *vpm = X509_STORE_get0_param(ts);
++        const char *host = vpm == NULL ? NULL :
++            X509_VERIFY_PARAM_get0_host(vpm, 0 /* first hostname */);
+ 
+         /* adapt after fixing callback design flaw, see #17088 */
+         if ((info->use_proxy
+@@ -2488,8 +2492,8 @@ BIO *app_http_tls_cb(BIO *bio, void *arg, int connect, int detail)
+             return NULL;
+         }
+ 
+-        /* adapt after fixing callback design flaw, see #17088 */
+-        SSL_set_tlsext_host_name(ssl, info->server); /* not critical to do */
++        if (vpm != NULL)
++            SSL_set_tlsext_host_name(ssl, host /* may be NULL */);
+ 
+         SSL_set_connect_state(ssl);
+         BIO_set_ssl(sbio, ssl, BIO_CLOSE);
+-- 
+2.34.1
+

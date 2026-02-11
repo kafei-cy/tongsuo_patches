@@ -1,0 +1,38 @@
+From 673671c7d5cc37ad66f67bdc2587edbadf17f6a5 Mon Sep 17 00:00:00 2001
+From: ndossche <niels.dossche@ugent.be>
+Date: Mon, 30 Jan 2023 15:24:01 +0100
+Subject: [PATCH 008/381] Fix error check on default_check() helper function
+
+default_check() can return a zero value to indicate an internal error in
+one condition for the PRE_CTRL_STR_TO_PARAMS state. This state can be
+reached from the default_fixup_args() function which does not check for
+a zero value. All other callers of default_check() in that file do check
+for a zero return value. Fix it by changing the check to <= 0.
+
+CLA: trivial
+
+Reviewed-by: Hugo Landau <hlandau@openssl.org>
+Reviewed-by: Tomas Mraz <tomas@openssl.org>
+(Merged from https://github.com/openssl/openssl/pull/20175)
+
+(cherry picked from commit 650f0474282330e3eb2a3df0eff5864bbdcf5845)
+---
+ crypto/evp/ctrl_params_translate.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/crypto/evp/ctrl_params_translate.c b/crypto/evp/ctrl_params_translate.c
+index c767c31643..d493ad505b 100644
+--- a/crypto/evp/ctrl_params_translate.c
++++ b/crypto/evp/ctrl_params_translate.c
+@@ -387,7 +387,7 @@ static int default_fixup_args(enum state state,
+ {
+     int ret;
+ 
+-    if ((ret = default_check(state, translation, ctx)) < 0)
++    if ((ret = default_check(state, translation, ctx)) <= 0)
+         return ret;
+ 
+     switch (state) {
+-- 
+2.34.1
+

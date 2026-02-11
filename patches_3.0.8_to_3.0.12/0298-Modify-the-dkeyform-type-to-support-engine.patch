@@ -1,0 +1,35 @@
+From 457fd058da314cbbfe01443275a077cd930125f5 Mon Sep 17 00:00:00 2001
+From: wangcheng <bangwangnj@163.com>
+Date: Wed, 6 Sep 2023 21:29:38 +0800
+Subject: [PATCH 298/381] Modify the dkeyform type to support engine
+
+The valtype value of dkeyform defined in the s_server_options structure is F, which leads to the judgment that the engine is not supported when processing parameters in the opt_next function.
+This the valtype value of dkeyform should be changed to "f".
+
+CLA: trivial
+
+Reviewed-by: Tomas Mraz <tomas@openssl.org>
+Reviewed-by: Paul Dale <pauli@openssl.org>
+(Merged from https://github.com/openssl/openssl/pull/21982)
+
+(cherry picked from commit b9a189ce87fde1de4bf691031624538262f005c5)
+---
+ apps/s_server.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/apps/s_server.c b/apps/s_server.c
+index a203d6a091..c8ccdfd03c 100644
+--- a/apps/s_server.c
++++ b/apps/s_server.c
+@@ -789,7 +789,7 @@ const OPTIONS s_server_options[] = {
+      "second server certificate chain file in PEM format"},
+     {"dkey", OPT_DKEY, '<',
+      "Second private key file to use (usually for DSA)"},
+-    {"dkeyform", OPT_DKEYFORM, 'F',
++    {"dkeyform", OPT_DKEYFORM, 'f',
+      "Second key file format (ENGINE, other values ignored)"},
+     {"dpass", OPT_DPASS, 's',
+      "Second private key and cert file pass phrase source"},
+-- 
+2.34.1
+

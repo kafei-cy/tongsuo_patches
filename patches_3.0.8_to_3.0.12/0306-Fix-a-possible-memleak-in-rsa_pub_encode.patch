@@ -1,0 +1,68 @@
+From b98fdb318b367d73cae7680eb264c4424098d537 Mon Sep 17 00:00:00 2001
+From: Bernd Edlinger <bernd.edlinger@hotmail.de>
+Date: Thu, 7 Sep 2023 19:22:25 +0200
+Subject: [PATCH 306/381] Fix a possible memleak in rsa_pub_encode
+
+That seems to be only an issue for RSA-PSS with parameters.
+Spotted by code review, so it looks like there is no test coverage for this.
+
+Reviewed-by: Dmitry Belyavskiy <beldmit@gmail.com>
+Reviewed-by: Tomas Mraz <tomas@openssl.org>
+(Merged from https://github.com/openssl/openssl/pull/22032)
+
+(cherry picked from commit 285eb1688f05ad477fefc681bf05d0afedc46d40)
+---
+ crypto/rsa/rsa_ameth.c        |  5 ++++-
+ test/recipes/15-test_rsapss.t | 10 +++++++++-
+ 2 files changed, 13 insertions(+), 2 deletions(-)
+
+diff --git a/crypto/rsa/rsa_ameth.c b/crypto/rsa/rsa_ameth.c
+index e819780e7d..07734077e3 100644
+--- a/crypto/rsa/rsa_ameth.c
++++ b/crypto/rsa/rsa_ameth.c
+@@ -60,13 +60,16 @@ static int rsa_pub_encode(X509_PUBKEY *pk, const EVP_PKEY *pkey)
+     if (!rsa_param_encode(pkey, &str, &strtype))
+         return 0;
+     penclen = i2d_RSAPublicKey(pkey->pkey.rsa, &penc);
+-    if (penclen <= 0)
++    if (penclen <= 0) {
++        ASN1_STRING_free(str);
+         return 0;
++    }
+     if (X509_PUBKEY_set0_param(pk, OBJ_nid2obj(pkey->ameth->pkey_id),
+                                strtype, str, penc, penclen))
+         return 1;
+ 
+     OPENSSL_free(penc);
++    ASN1_STRING_free(str);
+     return 0;
+ }
+ 
+diff --git a/test/recipes/15-test_rsapss.t b/test/recipes/15-test_rsapss.t
+index ea1d9aceae..4773252185 100644
+--- a/test/recipes/15-test_rsapss.t
++++ b/test/recipes/15-test_rsapss.t
+@@ -16,7 +16,7 @@ use OpenSSL::Test::Utils;
+ 
+ setup("test_rsapss");
+ 
+-plan tests => 11;
++plan tests => 13;
+ 
+ #using test/testrsa.pem which happens to be a 512 bit RSA
+ ok(run(app(['openssl', 'dgst', '-sign', srctop_file('test', 'testrsa.pem'), '-sha1',
+@@ -89,3 +89,11 @@ ok(run(app(['openssl', 'dgst', '-prverify', srctop_file('test', 'testrsa.pem'),
+ ok(!run(app([ 'openssl', 'rsa',
+              '-in' => data_file('negativesaltlen.pem')],
+              '-out' => 'badout')));
++
++ok(run(app(['openssl', 'genpkey', '-algorithm', 'RSA-PSS', '-pkeyopt', 'rsa_keygen_bits:1024',
++            '-pkeyopt', 'rsa_pss_keygen_md:SHA256', '-pkeyopt', 'rsa_pss_keygen_saltlen:10',
++            '-out', 'testrsapss.pem'])),
++   "openssl genpkey RSA-PSS with pss parameters");
++ok(run(app(['openssl', 'pkey', '-in', 'testrsapss.pem', '-pubout', '-text'])),
++   "openssl pkey, execute rsa_pub_encode with pss parameters");
++unlink 'testrsapss.pem';
+-- 
+2.34.1
+

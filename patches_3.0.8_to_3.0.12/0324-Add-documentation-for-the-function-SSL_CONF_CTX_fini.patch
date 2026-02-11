@@ -1,0 +1,78 @@
+From 27f4243dd795465f31b70ee9ea2a8da5fe0d0734 Mon Sep 17 00:00:00 2001
+From: Sumitra Sharma <sumitraartsy@gmail.com>
+Date: Mon, 18 Sep 2023 16:38:11 +0530
+Subject: [PATCH 324/381] Add documentation for the function
+ SSL_CONF_CTX_finish.
+
+Add documentation for the function SSL_CONF_CTX_finish() in man3.
+
+Fixes #22084
+
+Signed-off-by: Sumitra Sharma <sumitraartsy@gmail.com>
+
+Reviewed-by: Matt Caswell <matt@openssl.org>
+Reviewed-by: Tomas Mraz <tomas@openssl.org>
+Reviewed-by: Paul Dale <pauli@openssl.org>
+(Merged from https://github.com/openssl/openssl/pull/22128)
+
+(cherry picked from commit 955c133ccccd2b6e3f5a1b1342045111fe8b3e86)
+---
+ doc/man3/SSL_CONF_CTX_set_ssl_ctx.pod | 8 ++++++++
+ util/missingssl.txt                   | 1 -
+ 2 files changed, 8 insertions(+), 1 deletion(-)
+
+diff --git a/doc/man3/SSL_CONF_CTX_set_ssl_ctx.pod b/doc/man3/SSL_CONF_CTX_set_ssl_ctx.pod
+index 06cc1e4ec5..b74c869b83 100644
+--- a/doc/man3/SSL_CONF_CTX_set_ssl_ctx.pod
++++ b/doc/man3/SSL_CONF_CTX_set_ssl_ctx.pod
+@@ -2,6 +2,7 @@
+ 
+ =head1 NAME
+ 
++SSL_CONF_CTX_finish,
+ SSL_CONF_CTX_set_ssl_ctx, SSL_CONF_CTX_set_ssl - set context to configure
+ 
+ =head1 SYNOPSIS
+@@ -10,6 +11,7 @@ SSL_CONF_CTX_set_ssl_ctx, SSL_CONF_CTX_set_ssl - set context to configure
+ 
+  void SSL_CONF_CTX_set_ssl_ctx(SSL_CONF_CTX *cctx, SSL_CTX *ctx);
+  void SSL_CONF_CTX_set_ssl(SSL_CONF_CTX *cctx, SSL *ssl);
++ int SSL_CONF_CTX_finish(SSL_CONF_CTX *cctx);
+ 
+ =head1 DESCRIPTION
+ 
+@@ -23,6 +25,10 @@ B<SSL> structure B<ssl>. Any previous B<SSL> or B<SSL_CTX> associated with
+ B<cctx> is cleared. Subsequent calls to SSL_CONF_cmd() will be sent to
+ B<ssl>.
+ 
++The function SSL_CONF_CTX_finish() must be called after all configuration
++operations have been completed. It is used to finalise any operations
++or to process defaults.
++
+ =head1 NOTES
+ 
+ The context need not be set or it can be set to B<NULL> in which case only
+@@ -32,6 +38,8 @@ syntax checking of commands is performed, where possible.
+ 
+ SSL_CONF_CTX_set_ssl_ctx() and SSL_CTX_set_ssl() do not return a value.
+ 
++SSL_CONF_CTX_finish() returns 1 for success and 0 for failure.
++
+ =head1 SEE ALSO
+ 
+ L<ssl(7)>,
+diff --git a/util/missingssl.txt b/util/missingssl.txt
+index 48219fd99a..41ca8a8bbc 100644
+--- a/util/missingssl.txt
++++ b/util/missingssl.txt
+@@ -3,7 +3,6 @@ ERR_load_SSL_strings(3)
+ SRP_Calc_A_param(3)
+ SSL_COMP_get_name(3)
+ SSL_COMP_set0_compression_methods(3)
+-SSL_CONF_CTX_finish(3)
+ SSL_CTX_SRP_CTX_free(3)
+ SSL_CTX_SRP_CTX_init(3)
+ SSL_CTX_get0_certificate(3)
+-- 
+2.34.1
+

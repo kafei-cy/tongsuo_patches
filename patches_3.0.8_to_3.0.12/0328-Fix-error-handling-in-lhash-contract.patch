@@ -1,0 +1,41 @@
+From bf01afe9ad625e0ad92c40865192ba4a5a12f20e Mon Sep 17 00:00:00 2001
+From: Bernd Edlinger <bernd.edlinger@hotmail.de>
+Date: Wed, 20 Sep 2023 15:45:56 +0200
+Subject: [PATCH 328/381] Fix error handling in lhash contract
+
+When the realloc fails in contract, this not a fatal
+error, since the memory is only shrinked. It is also no
+option to exit the function at this point, since that
+would leave the hash table in an inconsistent state.
+
+Reviewed-by: Tomas Mraz <tomas@openssl.org>
+Reviewed-by: Paul Dale <pauli@openssl.org>
+(Merged from https://github.com/openssl/openssl/pull/22154)
+
+(cherry picked from commit 5fbfd641aeebdf4b29a0749e13a79a1e59502878)
+---
+ crypto/lhash/lhash.c | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/crypto/lhash/lhash.c b/crypto/lhash/lhash.c
+index 1cd988f01f..bd39b1ba57 100644
+--- a/crypto/lhash/lhash.c
++++ b/crypto/lhash/lhash.c
+@@ -266,12 +266,12 @@ static void contract(OPENSSL_LHASH *lh)
+         if (n == NULL) {
+             /* fputs("realloc error in lhash",stderr); */
+             lh->error++;
+-            return;
++        } else {
++            lh->b = n;
+         }
+         lh->num_alloc_nodes /= 2;
+         lh->pmax /= 2;
+         lh->p = lh->pmax - 1;
+-        lh->b = n;
+     } else
+         lh->p--;
+ 
+-- 
+2.34.1
+

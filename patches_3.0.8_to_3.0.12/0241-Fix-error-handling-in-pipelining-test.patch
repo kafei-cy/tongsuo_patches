@@ -1,0 +1,37 @@
+From 6bcb6d297e8e06611fb70976e8c4a8fbb39edbd7 Mon Sep 17 00:00:00 2001
+From: Bernd Edlinger <bernd.edlinger@hotmail.de>
+Date: Fri, 21 Jul 2023 07:34:39 +0200
+Subject: [PATCH 241/381] Fix error handling in pipelining test
+
+When an early error happens in the test_pipelining
+function and idx == 5 the error handling would try
+to call OPENSSL_free(msg), but msg is at that time
+just a string constant in read-only memory, so a
+crash would be the result. Fixed that by using
+fragsize as an indication when to free msg.
+
+Reviewed-by: Tom Cosgrove <tom.cosgrove@arm.com>
+Reviewed-by: Tomas Mraz <tomas@openssl.org>
+(Merged from https://github.com/openssl/openssl/pull/21512)
+
+(cherry picked from commit 06a0d40322e96dbba816b35f82226871f635ec5a)
+---
+ test/sslapitest.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/test/sslapitest.c b/test/sslapitest.c
+index 41eb44419d..a27f5b881c 100644
+--- a/test/sslapitest.c
++++ b/test/sslapitest.c
+@@ -10309,7 +10309,7 @@ end:
+     ENGINE_finish(e);
+     ENGINE_free(e);
+     OPENSSL_free(buf);
+-    if (idx == 5)
++    if (fragsize == SSL3_RT_MAX_PLAIN_LENGTH)
+         OPENSSL_free(msg);
+     return testresult;
+ }
+-- 
+2.34.1
+

@@ -1,0 +1,33 @@
+From 193b8ea3eddc8747dccac246d44849c43d41ed29 Mon Sep 17 00:00:00 2001
+From: olszomal <Malgorzata.Olszowka@stunnel.org>
+Date: Tue, 22 Aug 2023 10:20:07 +0200
+Subject: [PATCH 282/381] Fixed default value of the "ess_cert_id_alg" option
+ in man openssl-ts(1)
+
+CLA: trivial
+
+Reviewed-by: Tom Cosgrove <tom.cosgrove@arm.com>
+Reviewed-by: Tomas Mraz <tomas@openssl.org>
+(Merged from https://github.com/openssl/openssl/pull/21805)
+
+(cherry picked from commit 5ffad4bad9bd701cc3d14c96304484884ace0831)
+---
+ doc/man1/openssl-ts.pod.in | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/doc/man1/openssl-ts.pod.in b/doc/man1/openssl-ts.pod.in
+index 6f71820202..0f9049d2a4 100644
+--- a/doc/man1/openssl-ts.pod.in
++++ b/doc/man1/openssl-ts.pod.in
+@@ -490,7 +490,7 @@ Default is no.  (Optional)
+ =item B<ess_cert_id_alg>
+ 
+ This option specifies the hash function to be used to calculate the TSA's
+-public key certificate identifier. Default is sha256. (Optional)
++public key certificate identifier. Default is sha1. (Optional)
+ 
+ =back
+ 
+-- 
+2.34.1
+

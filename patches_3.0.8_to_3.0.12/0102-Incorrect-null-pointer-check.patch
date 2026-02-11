@@ -1,0 +1,35 @@
+From 871a7332b9c27954f456782ce7e51b7e856e2bc3 Mon Sep 17 00:00:00 2001
+From: afshinpir <afshinpir@users.noreply.github.com>
+Date: Thu, 30 Mar 2023 11:26:44 +1300
+Subject: [PATCH 102/381] Incorrect null pointer check
+
+CLA: trivial
+There is an incorrect null pointer check and this ccommit resolves it.
+
+Reviewed-by: Shane Lontis <shane.lontis@oracle.com>
+Reviewed-by: Paul Dale <pauli@openssl.org>
+Reviewed-by: Todd Short <todd.short@me.com>
+(Merged from https://github.com/openssl/openssl/pull/20646)
+
+(cherry picked from commit 6469043bbabc9728aed61d7708c32e2ae319be1d)
+(cherry picked from commit cb0ead0e1676361b8e95adc69fc305c36d49cd2b)
+---
+ crypto/evp/keymgmt_meth.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/crypto/evp/keymgmt_meth.c b/crypto/evp/keymgmt_meth.c
+index 90fd8068dc..f93a5313cb 100644
+--- a/crypto/evp/keymgmt_meth.c
++++ b/crypto/evp/keymgmt_meth.c
+@@ -378,7 +378,7 @@ void *evp_keymgmt_gen(const EVP_KEYMGMT *keymgmt, void *genctx,
+ 
+ void evp_keymgmt_gen_cleanup(const EVP_KEYMGMT *keymgmt, void *genctx)
+ {
+-    if (keymgmt->gen != NULL)
++    if (keymgmt->gen_cleanup != NULL)
+         keymgmt->gen_cleanup(genctx);
+ }
+ 
+-- 
+2.34.1
+

@@ -1,0 +1,47 @@
+From fc46712f2eacc6307d4e1f2a27d41cb5d51b6f5a Mon Sep 17 00:00:00 2001
+From: Ingo Franzki <ifranzki@linux.ibm.com>
+Date: Wed, 30 Aug 2023 08:41:43 +0200
+Subject: [PATCH 288/381] OPENSSL_init_crypto load config into initial global
+ default library context
+
+OPENSSL_init_crypto() with OPENSSL_INIT_LOAD_CONFIG must load the configuration
+into the initial global default library context, not the currently set default
+library context.
+
+OPENSSL_init_crypto() with OPENSSL_INIT_LOAD_CONFIG may be called within other
+OpenSSL API functions, e.g. from within EVP_PKEY_CTX_new_xxx() when initializing
+a pkey context, to perform implicit initialization, if it has not been
+initialized yet. This implicit initialization may happen at a time when an
+application has already create its own library context and made it the default
+library context. So loading the config into the current default library context
+would load it into the applications library context.
+
+Signed-off-by: Ingo Franzki <ifranzki@linux.ibm.com>
+
+Reviewed-by: Dmitry Belyavskiy <beldmit@gmail.com>
+Reviewed-by: Matt Caswell <matt@openssl.org>
+Reviewed-by: Tomas Mraz <tomas@openssl.org>
+(Merged from https://github.com/openssl/openssl/pull/21897)
+
+(cherry picked from commit ecb6cdf02a302af18fe4bc20097a9ea3177f897c)
+---
+ crypto/conf/conf_sap.c | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/crypto/conf/conf_sap.c b/crypto/conf/conf_sap.c
+index 513f8bfc1f..3019bcf31a 100644
+--- a/crypto/conf/conf_sap.c
++++ b/crypto/conf/conf_sap.c
+@@ -65,7 +65,8 @@ int ossl_config_int(const OPENSSL_INIT_SETTINGS *settings)
+ #endif
+ 
+ #ifndef OPENSSL_SYS_UEFI
+-    ret = CONF_modules_load_file(filename, appname, flags);
++    ret = CONF_modules_load_file_ex(OSSL_LIB_CTX_get0_global_default(),
++                                    filename, appname, flags);
+ #else
+     ret = 1;
+ #endif
+-- 
+2.34.1
+

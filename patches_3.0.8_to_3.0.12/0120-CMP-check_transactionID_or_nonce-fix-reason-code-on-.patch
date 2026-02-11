@@ -1,0 +1,29 @@
+From 40eea44884dff96ffd753bfe66c025145a69191b Mon Sep 17 00:00:00 2001
+From: "Dr. David von Oheimb" <David.von.Oheimb@siemens.com>
+Date: Wed, 1 Feb 2023 15:37:21 +0100
+Subject: [PATCH 120/381] CMP check_transactionID_or_nonce(): fix reason code
+ on unmatched recipNonce
+
+Reviewed-by: Tomas Mraz <tomas@openssl.org>
+Reviewed-by: Paul Dale <pauli@openssl.org>
+Reviewed-by: David von Oheimb <david.von.oheimb@siemens.com>
+(Merged from https://github.com/openssl/openssl/pull/20257)
+---
+ crypto/cmp/cmp_vfy.c | 1 -
+ 1 file changed, 1 deletion(-)
+
+diff --git a/crypto/cmp/cmp_vfy.c b/crypto/cmp/cmp_vfy.c
+index e6143b99d6..aae332cc7b 100644
+--- a/crypto/cmp/cmp_vfy.c
++++ b/crypto/cmp/cmp_vfy.c
+@@ -642,7 +642,6 @@ int OSSL_CMP_validate_msg(OSSL_CMP_CTX *ctx, const OSSL_CMP_MSG *msg)
+     return 0;
+ }
+ 
+-
+ /*-
+  * Check received message (i.e., response by server or request from client)
+  * Any msg->extraCerts are prepended to ctx->untrusted.
+-- 
+2.34.1
+

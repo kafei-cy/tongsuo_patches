@@ -1,0 +1,48 @@
+From 6044b436d0c8aed6a8d2fcc66bf45470fe685a23 Mon Sep 17 00:00:00 2001
+From: Matt Caswell <matt@openssl.org>
+Date: Fri, 3 Feb 2023 17:03:09 +0000
+Subject: [PATCH 029/381] Do not have more data in a pipeline than the
+ split_send_fragment
+
+We shouldn't be putting more data into a pipeline than the value of
+split_send_fragment.
+
+This is a backport of a fix which was included in a much larger commit in
+master (c6186792b98) related to moving the pipelining code into the new
+record layer that exists there.
+
+Reviewed-by: Tomas Mraz <tomas@openssl.org>
+Reviewed-by: Hugo Landau <hlandau@openssl.org>
+Reviewed-by: Paul Dale <pauli@openssl.org>
+(Merged from https://github.com/openssl/openssl/pull/20208)
+
+(cherry picked from commit 2c4b1c7b7b09c0e3f9f4246e8d6747678ea90363)
+---
+ ssl/record/rec_layer_s3.c | 7 +++----
+ 1 file changed, 3 insertions(+), 4 deletions(-)
+
+diff --git a/ssl/record/rec_layer_s3.c b/ssl/record/rec_layer_s3.c
+index edcedbe04c..ad01c6050b 100644
+--- a/ssl/record/rec_layer_s3.c
++++ b/ssl/record/rec_layer_s3.c
+@@ -608,14 +608,13 @@ int ssl3_write_bytes(SSL *s, int type, const void *buf_, size_t len,
+         if (numpipes > maxpipes)
+             numpipes = maxpipes;
+ 
+-        if (n / numpipes >= max_send_fragment) {
++        if (n / numpipes >= split_send_fragment) {
+             /*
+              * We have enough data to completely fill all available
+              * pipelines
+              */
+-            for (j = 0; j < numpipes; j++) {
+-                pipelens[j] = max_send_fragment;
+-            }
++            for (j = 0; j < numpipes; j++)
++                pipelens[j] = split_send_fragment;
+         } else {
+             /* We can partially fill all available pipelines */
+             tmppipelen = n / numpipes;
+-- 
+2.34.1
+

@@ -1,0 +1,32 @@
+From eca5796c400df5a0b02d8c202aa05ee948285f9c Mon Sep 17 00:00:00 2001
+From: Pauli <pauli@openssl.org>
+Date: Fri, 3 Mar 2023 10:14:39 +1100
+Subject: [PATCH 049/381] Fix cast.
+
+Fixes #20424
+
+Reviewed-by: Shane Lontis <shane.lontis@oracle.com>
+Reviewed-by: Hugo Landau <hlandau@openssl.org>
+(Merged from https://github.com/openssl/openssl/pull/20425)
+
+(cherry picked from commit b1cd268c034268f4d37c665ee4b5148f9d8700bb)
+---
+ crypto/evp/digest.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/crypto/evp/digest.c b/crypto/evp/digest.c
+index e6e03eaf34..09bd132611 100644
+--- a/crypto/evp/digest.c
++++ b/crypto/evp/digest.c
+@@ -447,7 +447,7 @@ int EVP_DigestFinal_ex(EVP_MD_CTX *ctx, unsigned char *md, unsigned int *isize)
+ 
+     if (isize != NULL) {
+         if (size <= UINT_MAX) {
+-            *isize = (int)size;
++            *isize = (unsigned int)size;
+         } else {
+             ERR_raise(ERR_LIB_EVP, EVP_R_FINAL_ERROR);
+             ret = 0;
+-- 
+2.34.1
+

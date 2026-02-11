@@ -1,0 +1,33 @@
+From 3801c689b206147d30d991bddefdde48993accc6 Mon Sep 17 00:00:00 2001
+From: "Dr. David von Oheimb" <dev@ddvo.net>
+Date: Fri, 13 Oct 2023 22:30:31 +0200
+Subject: [PATCH 359/381] PKCS7_SIGNER_INFO: point out confusing names of
+ digest_enc_alg and enc_digest fields
+
+Reviewed-by: Viktor Dukhovni <viktor@openssl.org>
+Reviewed-by: Tomas Mraz <tomas@openssl.org>
+(Merged from https://github.com/openssl/openssl/pull/22390)
+
+(cherry picked from commit e15891b477fe9c3d3dc6f331812c9e8afc48dc05)
+---
+ include/openssl/pkcs7.h.in | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/include/openssl/pkcs7.h.in b/include/openssl/pkcs7.h.in
+index f5c55a3fbe..e53b9d3b08 100644
+--- a/include/openssl/pkcs7.h.in
++++ b/include/openssl/pkcs7.h.in
+@@ -57,8 +57,8 @@ typedef struct pkcs7_signer_info_st {
+     PKCS7_ISSUER_AND_SERIAL *issuer_and_serial;
+     X509_ALGOR *digest_alg;
+     STACK_OF(X509_ATTRIBUTE) *auth_attr; /* [ 0 ] */
+-    X509_ALGOR *digest_enc_alg;
+-    ASN1_OCTET_STRING *enc_digest;
++    X509_ALGOR *digest_enc_alg; /* confusing name, actually used for signing */
++    ASN1_OCTET_STRING *enc_digest; /* confusing name, actually signature */
+     STACK_OF(X509_ATTRIBUTE) *unauth_attr; /* [ 1 ] */
+     /* The private key to sign with */
+     EVP_PKEY *pkey;
+-- 
+2.34.1
+

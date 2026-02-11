@@ -1,0 +1,44 @@
+From 386893bbe9865367457b5e22a1964953904dd51e Mon Sep 17 00:00:00 2001
+From: Tomas Mraz <tomas@openssl.org>
+Date: Wed, 15 Mar 2023 09:10:59 +0100
+Subject: [PATCH 072/381] cms_ec.c: Fix broken backport of size_t fix in
+ ecdh_cms_encrypt
+
+Reviewed-by: Paul Dale <pauli@openssl.org>
+Reviewed-by: Matt Caswell <matt@openssl.org>
+(Merged from https://github.com/openssl/openssl/pull/20516)
+
+(cherry picked from commit 172498697abb685770c7e9d56a8e0e2e81a6f676)
+---
+ crypto/cms/cms_ec.c | 10 +++++-----
+ 1 file changed, 5 insertions(+), 5 deletions(-)
+
+diff --git a/crypto/cms/cms_ec.c b/crypto/cms/cms_ec.c
+index 176c7eb62c..417ad1e2a8 100644
+--- a/crypto/cms/cms_ec.c
++++ b/crypto/cms/cms_ec.c
+@@ -277,16 +277,16 @@ static int ecdh_cms_encrypt(CMS_RecipientInfo *ri)
+         /* Set the key */
+         size_t enckeylen;
+ 
+-        penclen = EVP_PKEY_get1_encoded_public_key(pkey, &penc);
+-        if (penclen > INT_MAX || penclen == 0)
++        enckeylen = EVP_PKEY_get1_encoded_public_key(pkey, &penc);
++        if (enckeylen > INT_MAX || enckeylen == 0)
+             goto err;
+-        ASN1_STRING_set0(pubkey, penc, penclen);
++        ASN1_STRING_set0(pubkey, penc, (int)enckeylen);
+         pubkey->flags &= ~(ASN1_STRING_FLAG_BITS_LEFT | 0x07);
+         pubkey->flags |= ASN1_STRING_FLAG_BITS_LEFT;
+ 
+         penc = NULL;
+-        X509_ALGOR_set0(talg, OBJ_nid2obj(NID_X9_62_id_ecPublicKey),
+-                        V_ASN1_UNDEF, NULL);
++        (void)X509_ALGOR_set0(talg, OBJ_nid2obj(NID_X9_62_id_ecPublicKey),
++                              V_ASN1_UNDEF, NULL); /* cannot fail */
+     }
+ 
+     /* See if custom parameters set */
+-- 
+2.34.1
+

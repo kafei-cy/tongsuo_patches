@@ -1,0 +1,55 @@
+From 5e721ecee5a8c9c27e392fb3770d221709bde1a7 Mon Sep 17 00:00:00 2001
+From: "Dr. David von Oheimb" <David.von.Oheimb@siemens.com>
+Date: Sat, 3 Jun 2023 17:17:14 +0200
+Subject: [PATCH 318/381] CMP app and API doc: add note on critical server auth
+ on receiving trust anchor certs
+
+Reviewed-by: Paul Dale <pauli@openssl.org>
+Reviewed-by: Matt Caswell <matt@openssl.org>
+Reviewed-by: David von Oheimb <david.von.oheimb@siemens.com>
+(Merged from https://github.com/openssl/openssl/pull/21138)
+---
+ doc/man1/openssl-cmp.pod.in        | 7 +++++++
+ doc/man3/OSSL_CMP_exec_certreq.pod | 8 ++++++++
+ 2 files changed, 15 insertions(+)
+
+diff --git a/doc/man1/openssl-cmp.pod.in b/doc/man1/openssl-cmp.pod.in
+index 35a9057a9a..9240916fce 100644
+--- a/doc/man1/openssl-cmp.pod.in
++++ b/doc/man1/openssl-cmp.pod.in
+@@ -1099,6 +1099,13 @@ only affect the certificate verification enabled via the B<-out_trusted> option.
+ 
+ =head1 NOTES
+ 
++When a client obtains from a CMP server CA certificates that it is going to
++trust, for instance via the C<caPubs> field of a certificate response,
++authentication of the CMP server is particularly critical.
++So special care must be taken setting up server authentication
++using B<-trusted> and related options for certificate-based authentication
++or B<-secret> for MAC-based protection.
++
+ When setting up CMP configurations and experimenting with enrollment options
+ typically various errors occur until the configuration is correct and complete.
+ When the CMP server reports an error the client will by default
+diff --git a/doc/man3/OSSL_CMP_exec_certreq.pod b/doc/man3/OSSL_CMP_exec_certreq.pod
+index 5c24b27a47..ef3451f754 100644
+--- a/doc/man3/OSSL_CMP_exec_certreq.pod
++++ b/doc/man3/OSSL_CMP_exec_certreq.pod
+@@ -122,6 +122,14 @@ CMP is defined in RFC 4210 (and CRMF in RFC 4211).
+ The CMP client implementation is limited to one request per CMP message
+ (and consequently to at most one response component per CMP message).
+ 
++When a client obtains from a CMP server CA certificates that it is going to
++trust, for instance via the caPubs field of a certificate response,
++authentication of the CMP server is particularly critical.
++So special care must be taken setting up server authentication in I<ctx>
++using functions such as
++L<OSSL_CMP_CTX_set0_trustedStore(3)> (for certificate-based authentication) or
++L<OSSL_CMP_CTX_set1_secretValue(3)> (for MAC-based protection).
++
+ =head1 RETURN VALUES
+ 
+ OSSL_CMP_exec_certreq(), OSSL_CMP_exec_IR_ses(), OSSL_CMP_exec_CR_ses(),
+-- 
+2.34.1
+

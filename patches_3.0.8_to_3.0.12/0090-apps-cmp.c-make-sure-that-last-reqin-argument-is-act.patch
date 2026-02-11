@@ -1,0 +1,95 @@
+From d27f73ad31691d81715b4affe01264fa10f5da9e Mon Sep 17 00:00:00 2001
+From: "Dr. David von Oheimb" <David.von.Oheimb@siemens.com>
+Date: Thu, 2 Feb 2023 19:24:56 +0100
+Subject: [PATCH 090/381] apps/cmp.c: make sure that last -reqin argument is
+ actually used
+
+Reviewed-by: Tomas Mraz <tomas@openssl.org>
+Reviewed-by: Paul Dale <pauli@openssl.org>
+Reviewed-by: David von Oheimb <david.von.oheimb@siemens.com>
+(Merged from https://github.com/openssl/openssl/pull/20204)
+
+(cherry picked from commit f1e144f277fd98a0fde73b884aae541fdc73d063)
+---
+ apps/cmp.c                                         | 14 ++++++++------
+ .../80-test_cmp_http_data/test_commands.csv        |  9 ++++++---
+ 2 files changed, 14 insertions(+), 9 deletions(-)
+
+diff --git a/apps/cmp.c b/apps/cmp.c
+index 62c277cd73..a8781dc0ec 100644
+--- a/apps/cmp.c
++++ b/apps/cmp.c
+@@ -757,12 +757,12 @@ static int write_PKIMESSAGE(const OSSL_CMP_MSG *msg, char **filenames)
+ }
+ 
+ /* read DER-encoded OSSL_CMP_MSG from the specified file name item */
+-static OSSL_CMP_MSG *read_PKIMESSAGE(char **filenames)
++static OSSL_CMP_MSG *read_PKIMESSAGE(const char *desc, char **filenames)
+ {
+     char *file;
+     OSSL_CMP_MSG *ret;
+ 
+-    if (filenames == NULL) {
++    if (filenames == NULL || desc == NULL) {
+         CMP_err("NULL arg to read_PKIMESSAGE");
+         return NULL;
+     }
+@@ -777,6 +777,8 @@ static OSSL_CMP_MSG *read_PKIMESSAGE(char **filenames)
+     ret = OSSL_CMP_MSG_read(file, app_get0_libctx(), app_get0_propq());
+     if (ret == NULL)
+         CMP_err1("cannot read PKIMessage from file '%s'", file);
++    else
++        CMP_info2("%s %s", desc, file);
+     return ret;
+ }
+ 
+@@ -798,7 +800,7 @@ static OSSL_CMP_MSG *read_write_req_resp(OSSL_CMP_CTX *ctx,
+             && !write_PKIMESSAGE(req, &opt_reqout))
+         goto err;
+     if (opt_reqin != NULL && opt_rspin == NULL) {
+-        if ((req_new = read_PKIMESSAGE(&opt_reqin)) == NULL)
++        if ((req_new = read_PKIMESSAGE("actually sending", &opt_reqin)) == NULL)
+             goto err;
+         /*-
+          * The transaction ID in req_new read from opt_reqin may not be fresh.
+@@ -811,9 +813,9 @@ static OSSL_CMP_MSG *read_write_req_resp(OSSL_CMP_CTX *ctx,
+     }
+ 
+     if (opt_rspin != NULL) {
+-        res = read_PKIMESSAGE(&opt_rspin);
++        res = read_PKIMESSAGE("actually using", &opt_rspin);
+     } else {
+-        const OSSL_CMP_MSG *actual_req = opt_reqin != NULL ? req_new : req;
++        const OSSL_CMP_MSG *actual_req = req_new != NULL ? req_new : req;
+ 
+         res = opt_use_mock_srv
+             ? OSSL_CMP_CTX_server_perform(ctx, actual_req)
+@@ -822,7 +824,7 @@ static OSSL_CMP_MSG *read_write_req_resp(OSSL_CMP_CTX *ctx,
+     if (res == NULL)
+         goto err;
+ 
+-    if (opt_reqin != NULL || prev_opt_rspin != NULL) {
++    if (req_new != NULL || prev_opt_rspin != NULL) {
+         /* need to satisfy nonce and transactionID checks */
+         ASN1_OCTET_STRING *nonce;
+         ASN1_OCTET_STRING *tid;
+diff --git a/test/recipes/80-test_cmp_http_data/test_commands.csv b/test/recipes/80-test_cmp_http_data/test_commands.csv
+index 7395b42791..dd60e3e6e1 100644
+--- a/test/recipes/80-test_cmp_http_data/test_commands.csv
++++ b/test/recipes/80-test_cmp_http_data/test_commands.csv
+@@ -54,6 +54,9 @@ expected,description, -section,val, -cmd,val,val2, -cacertsout,val,val2, -infoty
+ 0,geninfo bad syntax: double ':', -section,, -cmd,cr,, -cert,signer.crt, -key,signer.p12, -keypass,pass:12345,BLANK,, -geninfo,1.2.3:int::987,,,,
+ 0,geninfo bad syntax: missing ':int', -section,, -cmd,cr,, -cert,signer.crt, -key,signer.p12, -keypass,pass:12345,BLANK,, -geninfo,1.2.3,,,,
+ ,,,,,,,,,,,,,,,,,,,
+-1,reqout+rspout, -section,, -cmd,ir,,-reqout,_RESULT_DIR/req1.der _RESULT_DIR/req2.der,,-rspout,_RESULT_DIR/rsp1.der _RESULT_DIR/rsp2.der,,BLANK,,BLANK,
+-1,reqin, -section,, -cmd,ir,,-reqin,_RESULT_DIR/req1.der _RESULT_DIR/req2.der,,BLANK,,,BLANK,,BLANK,
+-1,rspin, -section,, -cmd,ir,,BLANK,,,-rspin,_RESULT_DIR/rsp1.der _RESULT_DIR/rsp2.der,,BLANK,,BLANK,
++1,reqout ir+certConf rspout ip+pkiConf, -section,, -cmd,ir,,-reqout,_RESULT_DIR/ir.der _RESULT_DIR/certConf.der,,-rspout,_RESULT_DIR/ip.der _RESULT_DIR/pkiConf.der,,BLANK,,BLANK,
++1,reqout cr rspout cp, -section,, -cmd,cr,,-reqout,_RESULT_DIR/cr.der,,-rspout,_RESULT_DIR/cp.der,,BLANK,,BLANK,
++1,reqin old tid, -section,, -cmd,ir,,-reqin,_RESULT_DIR/ir.der _RESULT_DIR/certConf.der,,BLANK,,,BLANK,,BLANK,BLANK
++1,reqin new tid, -section,, -cmd,ir,,-reqin,_RESULT_DIR/ir.der _RESULT_DIR/certConf.der,,BLANK,,,BLANK,,BLANK,-reqin_new_tid
++0,reqin wrong req, -section,, -cmd,ir,,-reqin,_RESULT_DIR/cr.der _RESULT_DIR/certConf.der,,BLANK,,,BLANK,,BLANK,BLANK
++1,rspin, -section,, -cmd,ir,,BLANK,,,-rspin,_RESULT_DIR/ip.der _RESULT_DIR/pkiConf.der,,BLANK,,BLANK,
+-- 
+2.34.1
+

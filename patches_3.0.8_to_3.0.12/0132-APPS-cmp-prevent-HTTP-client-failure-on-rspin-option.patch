@@ -1,0 +1,310 @@
+From 3eac47be72ea51b73e2fd65af4f592ca454c8c98 Mon Sep 17 00:00:00 2001
+From: "Dr. David von Oheimb" <David.von.Oheimb@siemens.com>
+Date: Tue, 14 Feb 2023 13:18:40 +0100
+Subject: [PATCH 132/381] APPS/cmp: prevent HTTP client failure on -rspin
+ option with too few filenames
+
+The logic for handling inconsistent use of -rspin etc., -port, -server,
+and -use_mock_srv options proved faulty.  This is fixed here, updating and
+correcting also the documentation and diagnostics of the involved options.
+
+In particular, the case that -rspin (or -rspout. reqin, -reqout) does not
+provide enough message file names was not properly described and handled.
+
+Reviewed-by: Tomas Mraz <tomas@openssl.org>
+Reviewed-by: Paul Dale <pauli@openssl.org>
+Reviewed-by: David von Oheimb <david.von.oheimb@siemens.com>
+(Merged from https://github.com/openssl/openssl/pull/20295)
+
+(cherry picked from commit 1f757df1f3de0c18cc22a4992d66e9a7b113f61d)
+---
+ apps/cmp.c                                    | 69 +++++++++++++------
+ doc/man1/openssl-cmp.pod.in                   | 65 +++++++++++------
+ .../80-test_cmp_http_data/test_commands.csv   |  2 +
+ 3 files changed, 94 insertions(+), 42 deletions(-)
+
+diff --git a/apps/cmp.c b/apps/cmp.c
+index 11999ecaf5..e5b2a62cc2 100644
+--- a/apps/cmp.c
++++ b/apps/cmp.c
+@@ -158,6 +158,7 @@ static char *opt_reqin = NULL;
+ static int opt_reqin_new_tid = 0;
+ static char *opt_reqout = NULL;
+ static char *opt_rspin = NULL;
++static int rspin_in_use = 0;
+ static char *opt_rspout = NULL;
+ static int opt_use_mock_srv = 0;
+ 
+@@ -471,7 +472,7 @@ const OPTIONS cmp_options[] = {
+     {"rspin", OPT_RSPIN, 's',
+      "Process sequence of CMP responses provided in file(s), skipping server"},
+     {"rspout", OPT_RSPOUT, 's',
+-     "Save sequence of received CMP responses to file(s)"},
++     "Save sequence of actually used CMP responses to file(s)"},
+ 
+     {"use_mock_srv", OPT_USE_MOCK_SRV, '-',
+      "Use internal mock server at API level, bypassing socket-based HTTP"},
+@@ -824,9 +825,24 @@ static OSSL_CMP_MSG *read_write_req_resp(OSSL_CMP_CTX *ctx,
+     } else {
+         const OSSL_CMP_MSG *actual_req = req_new != NULL ? req_new : req;
+ 
+-        res = opt_use_mock_srv
+-            ? OSSL_CMP_CTX_server_perform(ctx, actual_req)
+-            : OSSL_CMP_MSG_http_perform(ctx, actual_req);
++        if (opt_use_mock_srv) {
++            if (rspin_in_use)
++                CMP_warn("too few -rspin filename arguments; resorting to using mock server");
++            res = OSSL_CMP_CTX_server_perform(ctx, actual_req);
++        } else {
++#ifndef OPENSSL_NO_SOCK
++            if (opt_server == NULL) {
++                CMP_err("missing -server or -use_mock_srv option, or too few -rspin filename arguments");
++                goto err;
++            }
++            if (rspin_in_use)
++                CMP_warn("too few -rspin filename arguments; resorting to contacting server");
++            res = OSSL_CMP_MSG_http_perform(ctx, actual_req);
++#else
++            CMP_err("-server not supported on no-sock build; missing -use_mock_srv option or too few -rspin filename arguments");
++#endif
++        }
++        rspin_in_use = 0;
+     }
+     if (res == NULL)
+         goto err;
+@@ -1036,10 +1052,10 @@ static OSSL_CMP_SRV_CTX *setup_srv_ctx(ENGINE *engine)
+                 goto err;
+         }
+     } else if (opt_srv_cert == NULL) {
+-        CMP_err("mock server credentials must be given if -use_mock_srv or -port is used");
++        CMP_err("server credentials (-srv_secret or -srv_cert) must be given if -use_mock_srv or -port is used");
+         goto err;
+     } else {
+-        CMP_warn("mock server will not be able to handle PBM-protected requests since -srv_secret is not given");
++        CMP_warn("server will not be able to handle PBM-protected requests since -srv_secret is not given");
+     }
+ 
+     if (opt_srv_secret == NULL
+@@ -1911,8 +1927,11 @@ static int setup_client_ctx(OSSL_CMP_CTX *ctx, ENGINE *engine)
+         (void)OSSL_CMP_CTX_set_option(ctx, OSSL_CMP_OPT_TOTAL_TIMEOUT,
+                                       opt_total_timeout);
+ 
+-    if (opt_reqin != NULL && opt_rspin != NULL)
+-        CMP_warn("-reqin is ignored since -rspin is present");
++    if (opt_rspin != NULL) {
++        rspin_in_use = 1;
++        if (opt_reqin != NULL)
++            CMP_warn("-reqin is ignored since -rspin is present");
++    }
+     if (opt_reqin_new_tid && opt_reqin == NULL)
+         CMP_warn("-reqin_new_tid is ignored since -reqin is not present");
+     if (opt_reqin != NULL || opt_reqout != NULL
+@@ -1966,7 +1985,9 @@ static int setup_client_ctx(OSSL_CMP_CTX *ctx, ENGINE *engine)
+ 
+     /* not printing earlier, to minimize confusion in case setup fails before */
+     if (opt_rspin != NULL)
+-        CMP_info("will not contact any server since -rspin is given");
++        CMP_info2("will contact %s%s "
++                  "only if -rspin argument gives too few filenames",
++                  server_buf, proxy_buf);
+     else
+         CMP_info2("will contact %s%s", server_buf, proxy_buf);
+ 
+@@ -2861,8 +2882,16 @@ int cmp_main(int argc, char **argv)
+             CMP_err("-tls_used option not supported with -port option");
+             goto err;
+         }
+-        if (opt_use_mock_srv || opt_server != NULL || opt_rspin != NULL) {
+-            CMP_err("cannot use -port with -use_mock_srv, -server, or -rspin options");
++        if (opt_server != NULL || opt_use_mock_srv) {
++            CMP_err("The -port option excludes -server and -use_mock_srv");
++            goto err;
++        }
++        if (opt_reqin != NULL || opt_reqout != NULL) {
++            CMP_err("The -port option does not support -reqin and -reqout");
++            goto err;
++        }
++        if (opt_rspin != NULL || opt_rspout != NULL) {
++            CMP_err("The -port option does not support -rspin and -rspout");
+             goto err;
+         }
+     }
+@@ -2871,10 +2900,6 @@ int cmp_main(int argc, char **argv)
+         goto err;
+     }
+ #endif
+-    if (opt_rspin != NULL && opt_use_mock_srv) {
+-        CMP_err("cannot use both -rspin and -use_mock_srv options");
+-        goto err;
+-    }
+ 
+     if (opt_use_mock_srv
+ #ifndef OPENSSL_NO_SOCK
+@@ -2895,8 +2920,8 @@ int cmp_main(int argc, char **argv)
+     }
+ 
+ #ifndef OPENSSL_NO_SOCK
+-    if (opt_tls_used && (opt_use_mock_srv || opt_rspin != NULL)) {
+-        CMP_warn("ignoring -tls_used option since -use_mock_srv or -rspin is given");
++    if (opt_tls_used && (opt_use_mock_srv || opt_server == NULL)) {
++        CMP_warn("ignoring -tls_used option since -use_mock_srv is given or -server is not given");
+         opt_tls_used = 0;
+     }
+ 
+@@ -2907,11 +2932,11 @@ int cmp_main(int argc, char **argv)
+ 
+     /* act as CMP client, possibly using internal mock server */
+ 
+-    if (opt_server != NULL) {
+-        if (opt_rspin != NULL) {
+-            CMP_warn("ignoring -server option since -rspin is given");
+-            opt_server = NULL;
+-        }
++    if (opt_rspin != NULL) {
++        if (opt_server != NULL)
++            CMP_warn("-server option is not used if enough filenames given for -rspin");
++        if (opt_use_mock_srv)
++            CMP_warn("-use_mock_srv option is not used if enough filenames given for -rspin");
+     }
+ #endif
+ 
+diff --git a/doc/man1/openssl-cmp.pod.in b/doc/man1/openssl-cmp.pod.in
+index 1bcb974164..094a246c08 100644
+--- a/doc/man1/openssl-cmp.pod.in
++++ b/doc/man1/openssl-cmp.pod.in
+@@ -444,7 +444,8 @@ Reason numbers defined in RFC 5280 are:
+ 
+ The DNS hostname or IP address and optionally port
+ of the CMP server to connect to using HTTP(S).
+-This excludes I<-port> and I<-use_mock_srv> and is ignored with I<-rspin>.
++This option excludes I<-port> and I<-use_mock_srv>.
++It is ignored if I<-rspin> is given with enough filename arguments.
+ 
+ The scheme C<https> may be given only if the B<-tls_used> option is used.
+ In this case the default port is 443, else 80.
+@@ -802,11 +803,14 @@ B<-tls_key>.
+ 
+ =item B<-tls_used>
+ 
+-Enable using TLS (even when other TLS_related options are not set)
+-when connecting to CMP server via HTTP.
+-This option is not supported with the I<-port> option
+-and is ignored with the I<-use_mock_srv> and I<-rspin> options
+-or if the I<-server> option is not given.
++Enable using TLS (even when other TLS-related options are not set)
++for message exchange with CMP server via HTTP.
++This option is not supported with the I<-port> option.
++It is ignored if the I<-server> option is not given or I<-use_mock_srv> is given
++or I<-rspin> is given with enough filename arguments.
++
++The following TLS-related options are ignored
++if B<-tls_used> is not given or does not take effect.
+ 
+ =item B<-tls_cert> I<filename>|I<uri>
+ 
+@@ -868,16 +872,23 @@ Default is one invocation.
+ 
+ =item B<-reqin> I<filenames>
+ 
+-Take the sequence of CMP requests to send to the server from file(s).
++Take the sequence of CMP requests to send to the server from the given file(s)
++rather than from the sequence of requests produced internally.
++
+ This option is ignored if the B<-rspin> option is given
+ because in the latter case no requests are actually sent.
+-Except for first request, the client needs to update the recipNonce field in any
+-further request in order to satisfy the checks to be performed by the server.
+-This causes re-protection (if protecting requests is required).
+ 
+ Multiple filenames may be given, separated by commas and/or whitespace
+ (where in the latter case the whole argument must be enclosed in "...").
+-As many files are read as needed for a complete transaction.
++
++The files are read as far as needed to complete the transaction
++and filenames have been provided.  If more requests are needed,
++the remaining ones are taken from the items at the respective position
++in the sequence of requests produced internally.
++
++The client needs to update the recipNonce field in the given requests (except
++for the first one) in order to satisfy the checks to be performed by the server.
++This causes re-protection (if protecting requests is required).
+ 
+ =item B<-reqin_new_tid>
+ 
+@@ -888,32 +899,44 @@ and the CMP server complains that the transaction ID has already been used.
+ 
+ =item B<-reqout> I<filenames>
+ 
+-Save the sequence of CMP requests created by the client to file(s).
++Save the sequence of CMP requests created by the client to the given file(s).
+ These requests are not sent to the server if the B<-reqin> option is used, too.
+ 
+ Multiple filenames may be given, separated by commas and/or whitespace.
+-As many files are written as needed to store the complete transaction.
++
++Files are written as far as needed to save the transaction
++and filenames have been provided.
++If the transaction contains more requests, the remaining ones are not saved.
+ 
+ =item B<-rspin> I<filenames>
+ 
+-Process the sequence of CMP responses provided in file(s), skipping server.
+-This excludes I<-server>, I<-port>, and I<-use_mock_srv>.
++Process the sequence of CMP responses provided in the given file(s),
++not contacting any given server,
++as long as enough filenames are provided to complete the transaction.
+ 
+ Multiple filenames may be given, separated by commas and/or whitespace.
+-As many files are read as needed for the complete transaction.
++
++Any server specified via the I<-server> or I<-use_mock_srv> options is contacted
++only if more responses are needed to complete the transaction.
++In this case the transaction will fail
++unless the server has been prepared to continue the already started transaction.
+ 
+ =item B<-rspout> I<filenames>
+ 
+-Save the sequence of received CMP responses to file(s).
++Save the sequence of actually used CMP responses to the given file(s).
++These have been received from the server unless B<-rspin> takes effect.
+ 
+ Multiple filenames may be given, separated by commas and/or whitespace.
+-As many files are written as needed to store the complete transaction.
++
++Files are written as far as needed to save the responses
++contained in the transaction and filenames have been provided.
++If the transaction contains more responses, the remaining ones are not saved.
+ 
+ =item B<-use_mock_srv>
+ 
+ Test the client using the internal CMP server mock-up at API level,
+ bypassing socket-based transfer via HTTP.
+-This excludes I<-server>, I<-port>, and I<-rspin>.
++This excludes the B<-server> and B<-port> options.
+ 
+ =back
+ 
+@@ -924,7 +947,9 @@ This excludes I<-server>, I<-port>, and I<-rspin>.
+ =item B<-port> I<number>
+ 
+ Act as HTTP-based CMP server mock-up listening on the given port.
+-This excludes I<-server>, I<-rspin>, and I<-use_mock_srv>.
++This excludes the B<-server> and B<-use_mock_srv> options.
++The B<-rspin>, B<-rspout>, B<-reqin>, and B<-reqout> options
++so far are not supported in this mode.
+ 
+ =item B<-max_msgs> I<number>
+ 
+diff --git a/test/recipes/80-test_cmp_http_data/test_commands.csv b/test/recipes/80-test_cmp_http_data/test_commands.csv
+index dd60e3e6e1..1e574b2f71 100644
+--- a/test/recipes/80-test_cmp_http_data/test_commands.csv
++++ b/test/recipes/80-test_cmp_http_data/test_commands.csv
+@@ -60,3 +60,5 @@ expected,description, -section,val, -cmd,val,val2, -cacertsout,val,val2, -infoty
+ 1,reqin new tid, -section,, -cmd,ir,,-reqin,_RESULT_DIR/ir.der _RESULT_DIR/certConf.der,,BLANK,,,BLANK,,BLANK,-reqin_new_tid
+ 0,reqin wrong req, -section,, -cmd,ir,,-reqin,_RESULT_DIR/cr.der _RESULT_DIR/certConf.der,,BLANK,,,BLANK,,BLANK,BLANK
+ 1,rspin, -section,, -cmd,ir,,BLANK,,,-rspin,_RESULT_DIR/ip.der _RESULT_DIR/pkiConf.der,,BLANK,,BLANK,
++0,rspin too few files - server must reject, -section,, -cmd,ir,,BLANK,,,-rspin,_RESULT_DIR/ip.der,,BLANK,,BLANK,-secret,_PBM_SECRET
++0,rspin too few files - no server, -section,, -cmd,ir,,BLANK,,,-rspin,_RESULT_DIR/ip.der,,BLANK,,BLANK, -server, """"
+-- 
+2.34.1
+

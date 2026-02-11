@@ -1,0 +1,37 @@
+From 259c7f61e6273c5bb23c99b7e132dcb4a017ce28 Mon Sep 17 00:00:00 2001
+From: Dimitri Papadopoulos
+ <3234522+DimitriPapadopoulos@users.noreply.github.com>
+Date: Tue, 9 May 2023 11:50:06 +0200
+Subject: [PATCH 148/381] Fix a typo found by codespell in a Makefile variable
+
+I have no experience with building on Windows, so I don't know the
+effect of fixing this typo. I guess that this will fix a bug at worst.
+
+CLA: trivial
+
+Reviewed-by: Hugo Landau <hlandau@openssl.org>
+Reviewed-by: Paul Dale <pauli@openssl.org>
+Reviewed-by: Richard Levitte <levitte@openssl.org>
+(Merged from https://github.com/openssl/openssl/pull/20911)
+
+(cherry picked from commit e5a054b7fcafc98a1dbf4358da390dc6e7759de5)
+---
+ Configurations/windows-makefile.tmpl | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/Configurations/windows-makefile.tmpl b/Configurations/windows-makefile.tmpl
+index 5d41af41bc..b8a1abc8f4 100644
+--- a/Configurations/windows-makefile.tmpl
++++ b/Configurations/windows-makefile.tmpl
+@@ -765,7 +765,7 @@ EOF
+           my $generator;
+           if ($gen0 =~ /\.pl$/) {
+               $generator = '"$(PERL)"'.$gen_incs.' "'.$gen0.'"'.$gen_args
+-                  .' "$(PERLASM_SCHEME)"'.$incs.' '.$cppflags.$defs.' $(PROCESSSOR)';
++                  .' "$(PERLASM_SCHEME)"'.$incs.' '.$cppflags.$defs.' $(PROCESSOR)';
+           } elsif ($gen0 =~ /\.S$/) {
+               $generator = undef;
+           } else {
+-- 
+2.34.1
+

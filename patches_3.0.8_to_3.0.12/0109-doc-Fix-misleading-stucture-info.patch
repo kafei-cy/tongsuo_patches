@@ -1,0 +1,34 @@
+From 39a11d624233d7067b2efbf1df45c706a59f8f5c Mon Sep 17 00:00:00 2001
+From: Ladislav Marko <LadislavMarko@seznam.cz>
+Date: Tue, 11 Apr 2023 15:56:11 +0200
+Subject: [PATCH 109/381] doc: Fix misleading stucture info
+
+CLA: trivial
+
+The thing created by `OSSL_FUNC_signature_newctx()` and `OSSL_FUNC_signature_dupctx()` is a signature context, not a signature. It's in the name of the function and surrounding documentation.
+
+Reviewed-by: Tomas Mraz <tomas@openssl.org>
+Reviewed-by: Hugo Landau <hlandau@openssl.org>
+(Merged from https://github.com/openssl/openssl/pull/20705)
+
+(cherry picked from commit b2023d5dfc957cf5a3cfca16961f97e79842b941)
+---
+ doc/man7/provider-signature.pod | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/doc/man7/provider-signature.pod b/doc/man7/provider-signature.pod
+index fa38be1b16..5a373c4c6e 100644
+--- a/doc/man7/provider-signature.pod
++++ b/doc/man7/provider-signature.pod
+@@ -411,7 +411,7 @@ respectively.
+ =head1 RETURN VALUES
+ 
+ OSSL_FUNC_signature_newctx() and OSSL_FUNC_signature_dupctx() should return the newly created
+-provider side signature, or NULL on failure.
++provider side signature context, or NULL on failure.
+ 
+ OSSL_FUNC_signature_gettable_ctx_params(), OSSL_FUNC_signature_settable_ctx_params(),
+ OSSL_FUNC_signature_gettable_md_ctx_params() and OSSL_FUNC_signature_settable_md_ctx_params(),
+-- 
+2.34.1
+

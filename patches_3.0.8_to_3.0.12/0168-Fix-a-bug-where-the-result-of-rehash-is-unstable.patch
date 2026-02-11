@@ -1,0 +1,46 @@
+From 16ec1b06bbac4d3130635f74cd0e09e40f222f8e Mon Sep 17 00:00:00 2001
+From: "minyong.ha" <minyong.ha@lge.com>
+Date: Mon, 22 May 2023 14:44:13 +0900
+Subject: [PATCH 168/381] Fix a bug where the result of rehash is unstable
+
+The root cause is that the file entries targeted for rehash are not actually sorted.
+Sort was skipped because the compare function was null.
+So a compare function has been implemented to allow file entries to be sorted.
+
+Reviewed-by: Richard Levitte <levitte@openssl.org>
+Reviewed-by: Tomas Mraz <tomas@openssl.org>
+(Merged from https://github.com/openssl/openssl/pull/21013)
+
+(cherry picked from commit 31c94b5e1159b5435b2354e6525355ec33683ecc)
+---
+ apps/rehash.c | 7 ++++++-
+ 1 file changed, 6 insertions(+), 1 deletion(-)
+
+diff --git a/apps/rehash.c b/apps/rehash.c
+index e4a4e14fd4..77e04f3a32 100644
+--- a/apps/rehash.c
++++ b/apps/rehash.c
+@@ -340,6 +340,11 @@ static int ends_with_dirsep(const char *path)
+     return *path == '/';
+ }
+ 
++static int sk_strcmp(const char * const *a, const char * const *b)
++{
++    return strcmp(*a, *b);
++}
++
+ /*
+  * Process a directory; return number of errors found.
+  */
+@@ -369,7 +374,7 @@ static int do_dir(const char *dirname, enum Hash h)
+     if (verbose)
+         BIO_printf(bio_out, "Doing %s\n", dirname);
+ 
+-    if ((files = sk_OPENSSL_STRING_new_null()) == NULL) {
++    if ((files = sk_OPENSSL_STRING_new(sk_strcmp)) == NULL) {
+         BIO_printf(bio_err, "Skipping %s, out of memory\n", dirname);
+         errs = 1;
+         goto err;
+-- 
+2.34.1
+

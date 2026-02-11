@@ -1,0 +1,32 @@
+From 0e34367e323c0c749d665b473b57e0e690de2d34 Mon Sep 17 00:00:00 2001
+From: "Dr. David von Oheimb" <David.von.Oheimb@siemens.com>
+Date: Fri, 4 Aug 2023 19:02:28 +0200
+Subject: [PATCH 296/381] apps/cmp.c: fix bug not allowing to reset -csr and
+ -serial option values
+
+Reviewed-by: Tomas Mraz <tomas@openssl.org>
+Reviewed-by: Paul Dale <pauli@openssl.org>
+Reviewed-by: Hugo Landau <hlandau@openssl.org>
+(Merged from https://github.com/openssl/openssl/pull/21659)
+
+(cherry picked from commit 374945a9aa545d4d6f015de0b48cbed6a90258e0)
+---
+ apps/cmp.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/apps/cmp.c b/apps/cmp.c
+index a317fdb0bf..c479b15496 100644
+--- a/apps/cmp.c
++++ b/apps/cmp.c
+@@ -2512,7 +2512,7 @@ static int get_opts(int argc, char **argv)
+             }
+             break;
+         case OPT_CSR:
+-            opt_csr = opt_arg();
++            opt_csr = opt_str();
+             break;
+         case OPT_OUT_TRUSTED:
+             opt_out_trusted = opt_str();
+-- 
+2.34.1
+

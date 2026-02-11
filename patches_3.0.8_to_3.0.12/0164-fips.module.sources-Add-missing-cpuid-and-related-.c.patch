@@ -1,0 +1,33 @@
+From 51e1a6e4833106647fb4fd0eca11e7e2fc4f89b8 Mon Sep 17 00:00:00 2001
+From: Tomas Mraz <tomas@openssl.org>
+Date: Fri, 12 May 2023 12:55:24 +0200
+Subject: [PATCH 164/381] fips.module.sources: Add missing cpuid and related .c
+ sources for other architectures
+
+Reviewed-by: Paul Dale <pauli@openssl.org>
+Reviewed-by: Dmitry Belyavskiy <beldmit@gmail.com>
+Reviewed-by: Todd Short <todd.short@me.com>
+(Merged from https://github.com/openssl/openssl/pull/20949)
+
+(cherry picked from commit c509c040223aebd2a681fb64b60177c3c21f76d1)
+---
+ Configurations/unix-Makefile.tmpl | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/Configurations/unix-Makefile.tmpl b/Configurations/unix-Makefile.tmpl
+index ebf20965b7..17e194f1ef 100644
+--- a/Configurations/unix-Makefile.tmpl
++++ b/Configurations/unix-Makefile.tmpl
+@@ -1227,7 +1227,8 @@ providers/fips.module.sources.new: configdata.pm
+ 		   crypto/ec/asm/*.pl \
+ 		   crypto/modes/asm/*.pl \
+ 		   crypto/sha/asm/*.pl \
+-		   crypto/x86_64cpuid.pl; do \
++		   crypto/*cpuid.pl crypto/*cpuid.S \
++		   crypto/*cap.c; do \
+ 	    echo "$$x"; \
+ 	  done \
+ 	) | sort | uniq > providers/fips.module.sources.new
+-- 
+2.34.1
+

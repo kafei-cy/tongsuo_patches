@@ -1,0 +1,36 @@
+From 54d31fe913017cc194fad9cbc6e17ac45ee80d2b Mon Sep 17 00:00:00 2001
+From: Pauli <pauli@openssl.org>
+Date: Wed, 1 Mar 2023 12:22:49 +1100
+Subject: [PATCH 047/381] Coverity 1521557: Error handling issues
+
+Check the return from DSA_set0_key and generate an error on failure.
+Technically a false positive since the function always returns success.
+
+Reviewed-by: Tomas Mraz <tomas@openssl.org>
+Reviewed-by: Shane Lontis <shane.lontis@oracle.com>
+(Merged from https://github.com/openssl/openssl/pull/20409)
+
+(cherry picked from commit dd573a2fc1e8806c67420a5d6df0de175745aaf8)
+---
+ crypto/dsa/dsa_backend.c | 5 ++++-
+ 1 file changed, 4 insertions(+), 1 deletion(-)
+
+diff --git a/crypto/dsa/dsa_backend.c b/crypto/dsa/dsa_backend.c
+index f9a71bdc9e..692692b148 100644
+--- a/crypto/dsa/dsa_backend.c
++++ b/crypto/dsa/dsa_backend.c
+@@ -173,7 +173,10 @@ DSA *ossl_dsa_key_from_pkcs8(const PKCS8_PRIV_KEY_INFO *p8inf,
+         ERR_raise(ERR_LIB_DSA, DSA_R_BN_ERROR);
+         goto dsaerr;
+     }
+-    DSA_set0_key(dsa, dsa_pubkey, dsa_privkey);
++    if (!DSA_set0_key(dsa, dsa_pubkey, dsa_privkey)) {
++        ERR_raise(ERR_LIB_DSA, ERR_R_INTERNAL_ERROR);
++        goto dsaerr;
++    }
+ 
+     goto done;
+ 
+-- 
+2.34.1
+

@@ -1,0 +1,53 @@
+From 2255f6c74e6c8b702adcf352b04c5d3e6c759745 Mon Sep 17 00:00:00 2001
+From: Tomas Mraz <tomas@openssl.org>
+Date: Tue, 25 Jul 2023 15:23:43 +0200
+Subject: [PATCH 246/381] dhtest.c: Add test of DH_check() with q = p + 1
+
+This must fail with DH_CHECK_INVALID_Q_VALUE and
+with DH_CHECK_Q_NOT_PRIME unset.
+
+Reviewed-by: Matt Caswell <matt@openssl.org>
+Reviewed-by: Paul Dale <pauli@openssl.org>
+Reviewed-by: Tom Cosgrove <tom.cosgrove@arm.com>
+Reviewed-by: Todd Short <todd.short@me.com>
+(Merged from https://github.com/openssl/openssl/pull/21550)
+
+(cherry picked from commit ad5d35572695d7b5748b2bd4fb1afaa189b29e28)
+(cherry picked from commit 1478ffad3f123550ec1014642d5c880dfbe270ef)
+---
+ test/dhtest.c | 12 ++++++++++++
+ 1 file changed, 12 insertions(+)
+
+diff --git a/test/dhtest.c b/test/dhtest.c
+index f8dd8f3aa7..d02b3b7c58 100644
+--- a/test/dhtest.c
++++ b/test/dhtest.c
+@@ -124,6 +124,15 @@ static int dh_test(void)
+     /* We'll have a stale error on the queue from the above test so clear it */
+     ERR_clear_error();
+ 
++    if (!TEST_ptr(BN_copy(q, p)) || !TEST_true(BN_add(q, q, BN_value_one())))
++        goto err3;
++
++    if (!TEST_true(DH_check(dh, &i)))
++        goto err3;
++    if (!TEST_true(i & DH_CHECK_INVALID_Q_VALUE)
++        || !TEST_false(i & DH_CHECK_Q_NOT_PRIME))
++        goto err3;
++
+     /* Modulus of size: dh check max modulus bits + 1 */
+     if (!TEST_true(BN_set_word(p, 1))
+             || !TEST_true(BN_lshift(p, p, OPENSSL_DH_CHECK_MAX_MODULUS_BITS)))
+@@ -135,6 +144,9 @@ static int dh_test(void)
+     if (!TEST_false(DH_check(dh, &i)))
+         goto err3;
+ 
++    /* We'll have a stale error on the queue from the above test so clear it */
++    ERR_clear_error();
++
+     /*
+      * II) key generation
+      */
+-- 
+2.34.1
+

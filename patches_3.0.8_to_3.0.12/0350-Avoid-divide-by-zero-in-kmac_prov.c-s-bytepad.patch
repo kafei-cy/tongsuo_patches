@@ -1,0 +1,43 @@
+From 73c5668a968bd47262ef8acd96d18c044b97d550 Mon Sep 17 00:00:00 2001
+From: Klavishnik <evg.shtanov@gmail.com>
+Date: Wed, 9 Aug 2023 17:05:03 +0300
+Subject: [PATCH 350/381] Avoid divide-by-zero in kmac_prov.c's bytepad()
+
+This would happen if EVP_MD_get_block_size() returned 0
+so we return an error instead.
+
+Reviewed-by: Paul Dale <pauli@openssl.org>
+Reviewed-by: Tim Hudson <tjh@openssl.org>
+Reviewed-by: Tomas Mraz <tomas@openssl.org>
+(Merged from https://github.com/openssl/openssl/pull/21698)
+
+(cherry picked from commit 91895e39b10033178e662fc7427a09d7562cf8e1)
+---
+ providers/implementations/macs/kmac_prov.c | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/providers/implementations/macs/kmac_prov.c b/providers/implementations/macs/kmac_prov.c
+index b2f85398b4..8ad454b2dc 100644
+--- a/providers/implementations/macs/kmac_prov.c
++++ b/providers/implementations/macs/kmac_prov.c
+@@ -249,7 +249,7 @@ static int kmac_setkey(struct kmac_data_st *kctx, const unsigned char *key,
+         ERR_raise(ERR_LIB_PROV, PROV_R_INVALID_KEY_LENGTH);
+         return 0;
+     }
+-    if (w < 0) {
++    if (w <= 0) {
+         ERR_raise(ERR_LIB_PROV, PROV_R_INVALID_DIGEST_LENGTH);
+         return 0;
+     }
+@@ -289,7 +289,7 @@ static int kmac_init(void *vmacctx, const unsigned char *key,
+         return 0;
+ 
+     t = EVP_MD_get_block_size(ossl_prov_digest_md(&kctx->digest));
+-    if (t < 0) {
++    if (t <= 0) {
+         ERR_raise(ERR_LIB_PROV, PROV_R_INVALID_DIGEST_LENGTH);
+         return 0;
+     }
+-- 
+2.34.1
+

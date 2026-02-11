@@ -1,0 +1,43 @@
+From 4010d7b5edb49f727d9b774c19076cff69a13a82 Mon Sep 17 00:00:00 2001
+From: Ladislav Marko <LadislavMarko@seznam.cz>
+Date: Thu, 13 Apr 2023 17:13:36 +0200
+Subject: [PATCH 142/381] Fix broken links on asym_cipher manpages
+
+Links were missing starting tags
+
+Reviewed-by: Richard Levitte <levitte@openssl.org>
+Reviewed-by: Hugo Landau <hlandau@openssl.org>
+Reviewed-by: Paul Dale <pauli@openssl.org>
+(Merged from https://github.com/openssl/openssl/pull/20729)
+
+(cherry picked from commit 010333be5362a07508888124c83efac35b28760f)
+---
+ doc/man7/provider-asym_cipher.pod | 5 ++---
+ 1 file changed, 2 insertions(+), 3 deletions(-)
+
+diff --git a/doc/man7/provider-asym_cipher.pod b/doc/man7/provider-asym_cipher.pod
+index ac3f627196..ccc8ff4431 100644
+--- a/doc/man7/provider-asym_cipher.pod
++++ b/doc/man7/provider-asym_cipher.pod
+@@ -127,8 +127,7 @@ pointer to a provider key object in the I<provkey> parameter.
+ The I<params>, if not NULL, should be set on the context in a manner similar to
+ using OSSL_FUNC_asym_cipher_set_ctx_params().
+ The key object should have been previously generated, loaded or imported into
+-the provider using the key management (OSSL_OP_KEYMGMT) operation (see
+-provider-keymgmt(7)>.
++the provider using the key management (OSSL_OP_KEYMGMT) operation (see L<provider-keymgmt(7)>).
+ OSSL_FUNC_asym_cipher_encrypt() performs the actual encryption itself.
+ A previously initialised asymmetric cipher context is passed in the I<ctx>
+ parameter.
+@@ -150,7 +149,7 @@ The I<params>, if not NULL, should be set on the context in a manner similar to
+ using OSSL_FUNC_asym_cipher_set_ctx_params().
+ The key object should have been previously generated, loaded or imported into
+ the provider using the key management (OSSL_OP_KEYMGMT) operation (see
+-provider-keymgmt(7)>.
++L<provider-keymgmt(7)>).
+ 
+ OSSL_FUNC_asym_cipher_decrypt() performs the actual decryption itself.
+ A previously initialised asymmetric cipher context is passed in the I<ctx>
+-- 
+2.34.1
+

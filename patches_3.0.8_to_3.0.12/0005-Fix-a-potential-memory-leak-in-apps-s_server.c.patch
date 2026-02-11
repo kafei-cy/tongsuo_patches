@@ -1,0 +1,41 @@
+From 82d4f9378072947dfadaedb336f790c21d34bf93 Mon Sep 17 00:00:00 2001
+From: besher <beshoux@outlook.fr>
+Date: Sun, 5 Feb 2023 00:08:14 +0100
+Subject: [PATCH 005/381] Fix a potential memory leak in apps/s_server.c
+
+Allocate memory for a new SSL session.
+If any of these steps fail,
+free the key memory and the tmpsess object
+before returning 0 to prevent a memory leak.
+
+Fixes: #20110
+
+CLA: trivial
+
+Reviewed-by: Paul Yang <kaishen.yy@antfin.com>
+Reviewed-by: Tomas Mraz <tomas@openssl.org>
+Reviewed-by: Paul Dale <pauli@openssl.org>
+Reviewed-by: Todd Short <todd.short@me.com>
+(Merged from https://github.com/openssl/openssl/pull/20213)
+
+(cherry picked from commit 8e2552b1eac4957214fed55457f64d7d5164ca37)
+(cherry picked from commit 4cfae921af8809c1f1dd567629c6c3310a9218ca)
+---
+ apps/s_server.c | 1 +
+ 1 file changed, 1 insertion(+)
+
+diff --git a/apps/s_server.c b/apps/s_server.c
+index 2b0b6ba381..4197c5fdee 100644
+--- a/apps/s_server.c
++++ b/apps/s_server.c
+@@ -229,6 +229,7 @@ static int psk_find_session_cb(SSL *ssl, const unsigned char *identity,
+             || !SSL_SESSION_set_cipher(tmpsess, cipher)
+             || !SSL_SESSION_set_protocol_version(tmpsess, SSL_version(ssl))) {
+         OPENSSL_free(key);
++        SSL_SESSION_free(tmpsess);
+         return 0;
+     }
+     OPENSSL_free(key);
+-- 
+2.34.1
+

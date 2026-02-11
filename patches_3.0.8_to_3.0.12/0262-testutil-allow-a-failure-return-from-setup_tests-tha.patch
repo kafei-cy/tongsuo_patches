@@ -1,0 +1,62 @@
+From 21f0c0d6c3f812b7bd34b69166fabca54428b882 Mon Sep 17 00:00:00 2001
+From: Pauli <pauli@openssl.org>
+Date: Wed, 2 Aug 2023 10:40:23 +1000
+Subject: [PATCH 262/381] testutil: allow a failure return from setup_tests
+ that doesn't print help
+
+Reviewed-by: Matt Caswell <matt@openssl.org>
+Reviewed-by: Shane Lontis <shane.lontis@oracle.com>
+(Merged from https://github.com/openssl/openssl/pull/21621)
+
+(cherry picked from commit badf3c162d2b67635beee3fc948db32f13d274af)
+---
+ test/README-dev.md   | 6 +++++-
+ test/testutil/main.c | 5 +++--
+ 2 files changed, 8 insertions(+), 3 deletions(-)
+
+diff --git a/test/README-dev.md b/test/README-dev.md
+index d015bcf5bf..d8922de000 100644
+--- a/test/README-dev.md
++++ b/test/README-dev.md
+@@ -130,7 +130,11 @@ Generic form of C test executables
+     int setup_tests(void)
+     {
+         ADD_TEST(my_test);                  /* Add each test separately     */
+-        return 1;                           /* Indicate success             */
++        return 1;                           /* Indicates success.  Return 0 */
++                                            /* to produce an error with a   */
++                                            /* usage message and -1 for     */
++                                            /* failure to set up with no    */
++                                            /* usage message.               */
+     }
+ 
+ You should use the `TEST_xxx` macros provided by `testutil.h` to test all failure
+diff --git a/test/testutil/main.c b/test/testutil/main.c
+index 6716750a30..2945bb52b8 100644
+--- a/test/testutil/main.c
++++ b/test/testutil/main.c
+@@ -15,6 +15,7 @@
+ int main(int argc, char *argv[])
+ {
+     int ret = EXIT_FAILURE;
++    int setup_res;
+ 
+     test_open_streams();
+ 
+@@ -26,11 +27,11 @@ int main(int argc, char *argv[])
+     if (!setup_test_framework(argc, argv))
+         goto end;
+ 
+-    if (setup_tests()) {
++    if ((setup_res = setup_tests()) > 0) {
+         ret = run_tests(argv[0]);
+         cleanup_tests();
+         opt_check_usage();
+-    } else {
++    } else if (setup_res == 0) {
+         opt_help(test_get_options());
+     }
+ end:
+-- 
+2.34.1
+

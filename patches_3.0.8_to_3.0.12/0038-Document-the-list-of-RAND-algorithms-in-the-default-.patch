@@ -1,0 +1,74 @@
+From 5ecc3107795336232c7bf49cfae09ca18f3f45d0 Mon Sep 17 00:00:00 2001
+From: slontis <shane.lontis@oracle.com>
+Date: Thu, 23 Feb 2023 09:09:57 +1000
+Subject: [PATCH 038/381] Document the list of RAND algorithms in the default
+ and fips providers.
+
+Reviewed-by: Matt Caswell <matt@openssl.org>
+Reviewed-by: Hugo Landau <hlandau@openssl.org>
+Reviewed-by: Paul Dale <pauli@openssl.org>
+(Merged from https://github.com/openssl/openssl/pull/20361)
+
+(cherry picked from commit 7066c57dce88994778daa10ba2c81490fc5cf0c7)
+---
+ doc/man7/OSSL_PROVIDER-FIPS.pod    | 16 ++++++++++++++++
+ doc/man7/OSSL_PROVIDER-default.pod | 16 ++++++++++++++++
+ 2 files changed, 32 insertions(+)
+
+diff --git a/doc/man7/OSSL_PROVIDER-FIPS.pod b/doc/man7/OSSL_PROVIDER-FIPS.pod
+index 58008ae59f..dd6d2f5bfc 100644
+--- a/doc/man7/OSSL_PROVIDER-FIPS.pod
++++ b/doc/man7/OSSL_PROVIDER-FIPS.pod
+@@ -172,6 +172,22 @@ The OpenSSL FIPS provider supports these operations and algorithms:
+ 
+ =back
+ 
++=head2 Random Number Generation
++
++=over 4
++
++=item CTR-DRBG, see L<EVP_RAND-CTR-DRBG(7)>
++
++=item HASH-DRBG, see L<EVP_RAND-HASH-DRBG(7)>
++
++=item HMAC-DRBG, see L<EVP_RAND-HMAC-DRBG(7)>
++
++=item TEST-RAND, see L<EVP_RAND-TEST-RAND(7)>
++
++TEST-RAND is an unapproved algorithm.
++
++=back
++
+ =head1 SELF TESTING
+ 
+ One of the requirements for the FIPS module is self testing. An optional callback
+diff --git a/doc/man7/OSSL_PROVIDER-default.pod b/doc/man7/OSSL_PROVIDER-default.pod
+index 3be5c59319..719d7e023b 100644
+--- a/doc/man7/OSSL_PROVIDER-default.pod
++++ b/doc/man7/OSSL_PROVIDER-default.pod
+@@ -220,6 +220,22 @@ The OpenSSL default provider supports these operations and algorithms:
+ 
+ =back
+ 
++=head2 Random Number Generation
++
++=over 4
++
++=item CTR-DRBG, see L<EVP_RAND-CTR-DRBG(7)>
++
++=item HASH-DRBG, see L<EVP_RAND-HASH-DRBG(7)>
++
++=item HMAC-DRBG, see L<EVP_RAND-HMAC-DRBG(7)>
++
++=item SEED-SRC,  see L<EVP_RAND-SEED-SRC(7)>
++
++=item TEST-RAND, see L<EVP_RAND-TEST-RAND(7)>
++
++=back
++
+ =head2 Asymmetric Key Encoder
+ 
+ The default provider also includes all of the encoding algorithms
+-- 
+2.34.1
+

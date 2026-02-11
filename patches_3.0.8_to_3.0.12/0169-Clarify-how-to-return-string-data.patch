@@ -1,0 +1,36 @@
+From bdac6bcc50bb93b61989cee3f74a65c34abe1bd2 Mon Sep 17 00:00:00 2001
+From: Watson Ladd <watsonbladd@gmail.com>
+Date: Fri, 19 May 2023 13:55:08 -0700
+Subject: [PATCH 169/381] Clarify how to return string data
+
+Reviewed-by: Paul Dale <pauli@openssl.org>
+Reviewed-by: Tomas Mraz <tomas@openssl.org>
+(Merged from https://github.com/openssl/openssl/pull/21004)
+
+(cherry picked from commit eab96453bb145cde8e447f420a4ba099a5fa7004)
+---
+ doc/man3/OSSL_PARAM.pod | 8 ++++++++
+ 1 file changed, 8 insertions(+)
+
+diff --git a/doc/man3/OSSL_PARAM.pod b/doc/man3/OSSL_PARAM.pod
+index 78a465c8fd..4bc0bcf3c0 100644
+--- a/doc/man3/OSSL_PARAM.pod
++++ b/doc/man3/OSSL_PARAM.pod
+@@ -267,6 +267,14 @@ B<OSSL_PARAM_OCTET_STRING>), but this is in no way mandatory.
+ 
+ =item *
+ 
++If I<data> for a B<OSSL_PARAM_OCTET_STRING> or a
++B<OSSL_PARAM_UTF8_STRING> is NULL, the I<responder> should
++set I<return_size> to the size of the item to be returned
++and return success. Later the responder will be called again
++with I<data> pointing at the place for the value to be put.
++
++=item *
++
+ If a I<responder> finds that some data sizes are too small for the
+ requested data, it must set I<return_size> for each such
+ B<OSSL_PARAM> item to the minimum required size, and eventually return
+-- 
+2.34.1
+

@@ -1,0 +1,205 @@
+From d5e50bdf87053d99e8fce50ac57d94bbed571b56 Mon Sep 17 00:00:00 2001
+From: "Dr. David von Oheimb" <David.von.Oheimb@siemens.com>
+Date: Mon, 19 Dec 2022 10:56:50 +0100
+Subject: [PATCH 087/381] CMP app and doc: improve texts on (un-)trusted certs,
+ srvCert, etc.
+
+Reviewed-by: Hugo Landau <hlandau@openssl.org>
+Reviewed-by: Paul Dale <pauli@openssl.org>
+Reviewed-by: David von Oheimb <david.von.oheimb@siemens.com>
+(Merged from https://github.com/openssl/openssl/pull/20277)
+---
+ apps/cmp.c                    |  4 ++--
+ doc/man1/openssl-cmp.pod.in   | 39 ++++++++++++++++++-----------------
+ doc/man3/OSSL_CMP_CTX_new.pod | 33 +++++++++++++++--------------
+ 3 files changed, 40 insertions(+), 36 deletions(-)
+
+diff --git a/apps/cmp.c b/apps/cmp.c
+index bb7b124c48..23adf6804e 100644
+--- a/apps/cmp.c
++++ b/apps/cmp.c
+@@ -371,7 +371,7 @@ const OPTIONS cmp_options[] = {
+ 
+     OPT_SECTION("Server authentication"),
+     {"trusted", OPT_TRUSTED, 's',
+-     "Certificates to trust as chain roots when verifying signed CMP responses"},
++     "Certificates to use as trust anchors when verifying signed CMP responses"},
+     {OPT_MORE_STR, 0, 0, "unless -srvcert is given"},
+     {"untrusted", OPT_UNTRUSTED, 's',
+      "Intermediate CA certs for chain construction for CMP/TLS/enrolled certs"},
+@@ -417,7 +417,7 @@ const OPTIONS cmp_options[] = {
+     {OPT_MORE_STR, 0, 0,
+      "This can be used as the default CMP signer cert chain to include"},
+     {"unprotected_requests", OPT_UNPROTECTED_REQUESTS, '-',
+-     "Send messages without CMP-level protection"},
++     "Send request messages without CMP-level protection"},
+ 
+     OPT_SECTION("Credentials format"),
+     {"certform", OPT_CERTFORM, 's',
+diff --git a/doc/man1/openssl-cmp.pod.in b/doc/man1/openssl-cmp.pod.in
+index 82ff95d3c9..917fc5d2e6 100644
+--- a/doc/man1/openssl-cmp.pod.in
++++ b/doc/man1/openssl-cmp.pod.in
+@@ -524,15 +524,15 @@ Default is 0.
+ 
+ =item B<-trusted> I<filenames>|I<uris>
+ 
+-When validating signature-based protection of CMP response messages,
+-these are the CA certificate(s) to trust while checking certificate chains
+-during CMP server authentication.
+-This option gives more flexibility than the B<-srvcert> option because the
+-server-side CMP signer certificate is not pinned but may be any certificate
+-for which a chain to one of the given trusted certificates can be constructed.
++The certificate(s), typically of root CAs, the client shall use as trust anchors
++when validating signature-based protection of CMP response messages.
++This option is ignored if the B<-srvcert> option is given as well.
++It provides more flexibility than B<-srvcert> because the CMP protection
++certificate of the server is not pinned but may be any certificate
++from which a chain to one of the given trust anchors can be constructed.
+ 
+-If no B<-trusted>, B<-srvcert>, and B<-secret> option is given
+-then protected response messages from the server are not authenticated.
++If none of B<-trusted>, B<-srvcert>, and B<-secret> is given, message validation
++errors will be thrown unless B<-unprotected_errors> permits an exception.
+ 
+ Multiple sources may be given, separated by commas and/or whitespace
+ (where in the latter case the whole argument must be enclosed in "...").
+@@ -547,24 +547,24 @@ have no effect on the certificate verification enabled via this option.
+ Non-trusted intermediate CA certificate(s).
+ Any extra certificates given with the B<-cert> option are appended to it.
+ All these certificates may be useful for cert path construction
+-for the CMP client certificate (to include in the extraCerts field of outgoing
+-messages) and for the TLS client certificate (if TLS is enabled)
++for the own CMP signer certificate (to include in the extraCerts field of
++request messages) and for the TLS client certificate (if TLS is enabled)
+ as well as for chain building
+-when validating the CMP server certificate (checking signature-based
++when validating server certificates (checking signature-based
+ CMP message protection) and when validating newly enrolled certificates.
+ 
+-Multiple sources may be given, separated by commas and/or whitespace.
+-Each file may contain multiple certificates.
++Multiple filenames or URLs may be given, separated by commas and/or whitespace.
++Each source may contain multiple certificates.
+ 
+ =item B<-srvcert> I<filename>|I<uri>
+ 
+ The specific CMP server certificate to expect and directly trust (even if it is
+-expired) when validating signature-based protection of CMP response messages.
+-May be set alternatively to the B<-trusted> option to pin the accepted server.
++expired) when verifying signature-based protection of CMP response messages.
++This pins the accepted server and results in ignoring the B<-trusted> option.
+ 
+ If set, the subject of the certificate is also used
+ as default value for the recipient of CMP requests
+-and as default value for the expected sender of incoming CMP messages.
++and as default value for the expected sender of CMP responses.
+ 
+ =item B<-expect_sender> I<name>
+ 
+@@ -584,8 +584,8 @@ For details see the description of the B<-subject> option.
+ =item B<-ignore_keyusage>
+ 
+ Ignore key usage restrictions in CMP signer certificates when validating
+-signature-based protection of incoming CMP messages,
+-else C<digitalSignature> must be allowed for signer certificate.
++signature-based protection of incoming CMP messages.
++By default, C<digitalSignature> must be allowed by CMP signer certificates.
+ 
+ =item B<-unprotected_errors>
+ 
+@@ -733,7 +733,7 @@ Each source may contain multiple certificates.
+ 
+ =item B<-unprotected_requests>
+ 
+-Send messages without CMP-level protection.
++Send request messages without CMP-level protection.
+ 
+ =back
+ 
+@@ -1023,6 +1023,7 @@ Accept missing or invalid protection of requests.
+ =item B<-accept_unprot_err>
+ 
+ Accept unprotected error messages from client.
++So far this has no effect because the server does not accept any error messages.
+ 
+ =item B<-accept_raverified>
+ 
+diff --git a/doc/man3/OSSL_CMP_CTX_new.pod b/doc/man3/OSSL_CMP_CTX_new.pod
+index 7f3e28ff7f..c0c41a226b 100644
+--- a/doc/man3/OSSL_CMP_CTX_new.pod
++++ b/doc/man3/OSSL_CMP_CTX_new.pod
+@@ -290,7 +290,7 @@ RFC 4210.
+ 
+ =item B<OSSL_CMP_OPT_UNPROTECTED_SEND>
+ 
+-        Send messages without CMP-level protection.
++        Send request or response messages without CMP-level protection.
+ 
+ =item B<OSSL_CMP_OPT_UNPROTECTED_ERRORS>
+ 
+@@ -410,8 +410,8 @@ OSSL_CMP_CTX_set_transfer_cb_arg() or NULL if unset.
+ 
+ OSSL_CMP_CTX_set1_srvCert() sets the expected server cert in I<ctx> and trusts
+ it directly (even if it is expired) when verifying signed response messages.
+-May be used alternatively to OSSL_CMP_CTX_set0_trustedStore()
+-to pin the accepted server.
++This pins the accepted CMP server and
++results in ignoring whatever may be set using OSSL_CMP_CTX_set0_trustedStore().
+ Any previously set value is freed.
+ The I<cert> argument may be NULL to clear the entry.
+ If set, the subject of the certificate is also used
+@@ -419,7 +419,7 @@ as default value for the recipient of CMP requests
+ and as default value for the expected sender of CMP responses.
+ 
+ OSSL_CMP_CTX_set1_expected_sender() sets the Distinguished Name (DN)
+-expected in the sender field of CMP response messages.
++expected in the sender field of incoming CMP messages.
+ Defaults to the subject of the pinned server certificate, if any.
+ This can be used to make sure that only a particular entity is accepted as
+ CMP message signer, and attackers are not able to use arbitrary certificates
+@@ -428,27 +428,30 @@ Note that this gives slightly more freedom than OSSL_CMP_CTX_set1_srvCert(),
+ which pins the server to the holder of a particular certificate, while the
+ expected sender name will continue to match after updates of the server cert.
+ 
+-OSSL_CMP_CTX_set0_trustedStore() sets the certificate store of type X509_STORE
+-containing trusted (root) CA certificates.
+-The store may also hold CRLs and
+-a certificate verification callback function used for CMP server authentication.
++OSSL_CMP_CTX_set0_trustedStore()
++sets in the CMP context I<ctx> the certificate store of type X509_STORE
++containing trusted certificates, typically of root CAs.
++This is ignored when a certificate is pinned using OSSL_CMP_CTX_set1_srvCert().
++The store may also hold CRLs and a certificate verification callback function
++used for signature-based peer authentication.
+ Any store entry already set before is freed.
+ When given a NULL parameter the entry is cleared.
+ 
+-OSSL_CMP_CTX_get0_trustedStore() returns a pointer to the currently set
+-certificate store containing trusted cert etc., or an empty store if unset.
++OSSL_CMP_CTX_get0_trustedStore()
++extracts from the CMP context I<ctx> the pointer to the currently set
++certificate store containing trust anchors etc., or an empty store if unset.
+ 
+ OSSL_CMP_CTX_set1_untrusted() sets up a list of non-trusted certificates
+-of intermediate CAs that may be useful for path construction for the CMP client
+-certificate, for the TLS client certificate (if any), when verifying
+-the CMP server certificate, and when verifying newly enrolled certificates.
++of intermediate CAs that may be useful for path construction for the own CMP
++signer certificate, for the own TLS certificate (if any), when verifying peer
++CMP protection certificates, and when verifying newly enrolled certificates.
+ The reference counts of those certificates handled successfully are increased.
+ 
+ OSSL_CMP_CTX_get0_untrusted(OSSL_CMP_CTX *ctx) returns a pointer to the
+ list of untrusted certs, which may be empty if unset.
+ 
+-OSSL_CMP_CTX_set1_cert() sets the certificate related to the client's private key
+-used for CMP message protection.
++OSSL_CMP_CTX_set1_cert() sets the CMP signer certificate
++related to the private key used for CMP message protection.
+ Therefore the public key of this I<cert> must correspond to
+ the private key set before or thereafter via OSSL_CMP_CTX_set1_pkey().
+ When using signature-based protection of CMP request messages
+-- 
+2.34.1
+

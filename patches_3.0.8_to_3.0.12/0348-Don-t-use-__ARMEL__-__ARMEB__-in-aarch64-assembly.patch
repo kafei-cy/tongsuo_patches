@@ -1,0 +1,191 @@
+From 8110612b21a6ceb6ae9291067142594b2a11f01d Mon Sep 17 00:00:00 2001
+From: David Benjamin <davidben@google.com>
+Date: Wed, 29 Dec 2021 13:05:12 -0500
+Subject: [PATCH 348/381] Don't use __ARMEL__/__ARMEB__ in aarch64 assembly
+
+GCC's __ARMEL__ and __ARMEB__ defines denote little- and big-endian arm,
+respectively. They are not defined on aarch64, which instead use
+__AARCH64EL__ and __AARCH64EB__.
+
+However, OpenSSL's assembly originally used the 32-bit defines on both
+platforms and even define __ARMEL__ and __ARMEB__ in arm_arch.h. This is
+less portable and can even interfere with other headers, which use
+__ARMEL__ to detect little-endian arm.
+
+Over time, the aarch64 assembly has switched to the correct defines,
+such as in 32bbb62ea634239e7cb91d6450ba23517082bab6. This commit
+finishes the job: poly1305-armv8.pl needed a fix and the dual-arch
+armx.pl files get one more transform to convert from 32-bit to 64-bit.
+
+(There is an even more official endianness detector, __ARM_BIG_ENDIAN in
+the Arm C Language Extensions. But I've stuck with the GCC ones here as
+that would be a larger change.)
+
+Reviewed-by: Matt Caswell <matt@openssl.org>
+Reviewed-by: Tomas Mraz <tomas@openssl.org>
+Reviewed-by: Paul Dale <pauli@openssl.org>
+Reviewed-by: Bernd Edlinger <bernd.edlinger@hotmail.de>
+Reviewed-by: Tom Cosgrove <tom.cosgrove@arm.com>
+(Merged from https://github.com/openssl/openssl/pull/22176)
+---
+ crypto/aes/asm/aesv8-armx.pl          |  3 +++
+ crypto/arm_arch.h                     |  5 -----
+ crypto/modes/asm/ghashv8-armx.pl      |  3 +++
+ crypto/poly1305/asm/poly1305-armv8.pl | 24 ++++++++++++------------
+ 4 files changed, 18 insertions(+), 17 deletions(-)
+
+diff --git a/crypto/aes/asm/aesv8-armx.pl b/crypto/aes/asm/aesv8-armx.pl
+index 544dc7e8ef..d0e0be6187 100755
+--- a/crypto/aes/asm/aesv8-armx.pl
++++ b/crypto/aes/asm/aesv8-armx.pl
+@@ -3661,6 +3661,9 @@ if ($flavour =~ /64/) {			######## 64-bit code
+ 	s/\.[ui]?64//o and s/\.16b/\.2d/go;
+ 	s/\.[42]([sd])\[([0-3])\]/\.$1\[$2\]/o;
+ 
++	# Switch preprocessor checks to aarch64 versions.
++	s/__ARME([BL])__/__AARCH64E$1__/go;
++
+ 	print $_,"\n";
+     }
+ } else {				######## 32-bit code
+diff --git a/crypto/arm_arch.h b/crypto/arm_arch.h
+index 45d7e15564..0b0d5f8d0b 100644
+--- a/crypto/arm_arch.h
++++ b/crypto/arm_arch.h
+@@ -21,11 +21,6 @@
+ #  elif defined(__GNUC__)
+ #   if   defined(__aarch64__)
+ #    define __ARM_ARCH__ 8
+-#    if __BYTE_ORDER__==__ORDER_BIG_ENDIAN__
+-#     define __ARMEB__
+-#    else
+-#     define __ARMEL__
+-#    endif
+   /*
+    * Why doesn't gcc define __ARM_ARCH__? Instead it defines
+    * bunch of below macros. See all_architectures[] table in
+diff --git a/crypto/modes/asm/ghashv8-armx.pl b/crypto/modes/asm/ghashv8-armx.pl
+index b1d35d25b5..1c53ae0690 100644
+--- a/crypto/modes/asm/ghashv8-armx.pl
++++ b/crypto/modes/asm/ghashv8-armx.pl
+@@ -744,6 +744,9 @@ if ($flavour =~ /64/) {			######## 64-bit code
+ 	s/\.[uisp]?64//o and s/\.16b/\.2d/go;
+ 	s/\.[42]([sd])\[([0-3])\]/\.$1\[$2\]/o;
+ 
++	# Switch preprocessor checks to aarch64 versions.
++	s/__ARME([BL])__/__AARCH64E$1__/go;
++
+ 	print $_,"\n";
+     }
+ } else {				######## 32-bit code
+diff --git a/crypto/poly1305/asm/poly1305-armv8.pl b/crypto/poly1305/asm/poly1305-armv8.pl
+index 113a2151b6..0b7d4d8af8 100755
+--- a/crypto/poly1305/asm/poly1305-armv8.pl
++++ b/crypto/poly1305/asm/poly1305-armv8.pl
+@@ -85,7 +85,7 @@ poly1305_init:
+ 	ldp	$r0,$r1,[$inp]		// load key
+ 	mov	$s1,#0xfffffffc0fffffff
+ 	movk	$s1,#0x0fff,lsl#48
+-#ifdef	__ARMEB__
++#ifdef	__AARCH64EB__
+ 	rev	$r0,$r0			// flip bytes
+ 	rev	$r1,$r1
+ #endif
+@@ -132,7 +132,7 @@ poly1305_blocks:
+ .Loop:
+ 	ldp	$t0,$t1,[$inp],#16	// load input
+ 	sub	$len,$len,#16
+-#ifdef	__ARMEB__
++#ifdef	__AARCH64EB__
+ 	rev	$t0,$t0
+ 	rev	$t1,$t1
+ #endif
+@@ -197,13 +197,13 @@ poly1305_emit:
+ 	csel	$h0,$h0,$d0,eq
+ 	csel	$h1,$h1,$d1,eq
+ 
+-#ifdef	__ARMEB__
++#ifdef	__AARCH64EB__
+ 	ror	$t0,$t0,#32		// flip nonce words
+ 	ror	$t1,$t1,#32
+ #endif
+ 	adds	$h0,$h0,$t0		// accumulate nonce
+ 	adc	$h1,$h1,$t1
+-#ifdef	__ARMEB__
++#ifdef	__AARCH64EB__
+ 	rev	$h0,$h0			// flip output bytes
+ 	rev	$h1,$h1
+ #endif
+@@ -335,7 +335,7 @@ poly1305_blocks_neon:
+ 	adcs	$h1,$h1,xzr
+ 	adc	$h2,$h2,xzr
+ 
+-#ifdef	__ARMEB__
++#ifdef	__AARCH64EB__
+ 	rev	$d0,$d0
+ 	rev	$d1,$d1
+ #endif
+@@ -381,7 +381,7 @@ poly1305_blocks_neon:
+ 	ldp	$d0,$d1,[$inp],#16	// load input
+ 	sub	$len,$len,#16
+ 	add	$s1,$r1,$r1,lsr#2	// s1 = r1 + (r1 >> 2)
+-#ifdef	__ARMEB__
++#ifdef	__AARCH64EB__
+ 	rev	$d0,$d0
+ 	rev	$d1,$d1
+ #endif
+@@ -466,7 +466,7 @@ poly1305_blocks_neon:
+ 	lsl	$padbit,$padbit,#24
+ 	add	x15,$ctx,#48
+ 
+-#ifdef	__ARMEB__
++#ifdef	__AARCH64EB__
+ 	rev	x8,x8
+ 	rev	x12,x12
+ 	rev	x9,x9
+@@ -502,7 +502,7 @@ poly1305_blocks_neon:
+ 	ld1	{$S2,$R3,$S3,$R4},[x15],#64
+ 	ld1	{$S4},[x15]
+ 
+-#ifdef	__ARMEB__
++#ifdef	__AARCH64EB__
+ 	rev	x8,x8
+ 	rev	x12,x12
+ 	rev	x9,x9
+@@ -563,7 +563,7 @@ poly1305_blocks_neon:
+ 	umull	$ACC1,$IN23_0,${R1}[2]
+ 	 ldp	x9,x13,[$in2],#48
+ 	umull	$ACC0,$IN23_0,${R0}[2]
+-#ifdef	__ARMEB__
++#ifdef	__AARCH64EB__
+ 	 rev	x8,x8
+ 	 rev	x12,x12
+ 	 rev	x9,x9
+@@ -628,7 +628,7 @@ poly1305_blocks_neon:
+ 	umlal	$ACC4,$IN01_2,${R2}[0]
+ 	umlal	$ACC1,$IN01_2,${S4}[0]
+ 	umlal	$ACC2,$IN01_2,${R0}[0]
+-#ifdef	__ARMEB__
++#ifdef	__AARCH64EB__
+ 	 rev	x8,x8
+ 	 rev	x12,x12
+ 	 rev	x9,x9
+@@ -909,13 +909,13 @@ poly1305_emit_neon:
+ 	csel	$h0,$h0,$d0,eq
+ 	csel	$h1,$h1,$d1,eq
+ 
+-#ifdef	__ARMEB__
++#ifdef	__AARCH64EB__
+ 	ror	$t0,$t0,#32		// flip nonce words
+ 	ror	$t1,$t1,#32
+ #endif
+ 	adds	$h0,$h0,$t0		// accumulate nonce
+ 	adc	$h1,$h1,$t1
+-#ifdef	__ARMEB__
++#ifdef	__AARCH64EB__
+ 	rev	$h0,$h0			// flip output bytes
+ 	rev	$h1,$h1
+ #endif
+-- 
+2.34.1
+

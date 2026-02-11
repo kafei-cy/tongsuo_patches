@@ -1,0 +1,63 @@
+From cb1f87f59d0b290eca9207ec4ef36d8073e6feec Mon Sep 17 00:00:00 2001
+From: Yuri Penkin <yura.penkin@gmail.com>
+Date: Tue, 23 May 2023 23:32:23 +0300
+Subject: [PATCH 179/381] Ignore the fetch error when a legacy algorithm is
+ found
+
+Reviewed-by: Tomas Mraz <tomas@openssl.org>
+Reviewed-by: Dmitry Belyavskiy <beldmit@gmail.com>
+(Merged from https://github.com/openssl/openssl/pull/21035)
+---
+ crypto/evp/p5_crpt2.c    | 3 +++
+ crypto/pkcs12/p12_mutl.c | 5 +++++
+ 2 files changed, 8 insertions(+)
+
+diff --git a/crypto/evp/p5_crpt2.c b/crypto/evp/p5_crpt2.c
+index b7455be1cf..3561739023 100644
+--- a/crypto/evp/p5_crpt2.c
++++ b/crypto/evp/p5_crpt2.c
+@@ -231,13 +231,16 @@ int PKCS5_v2_PBKDF2_keyivgen_ex(EVP_CIPHER_CTX *ctx, const char *pass,
+         goto err;
+     }
+ 
++    (void)ERR_set_mark();
+     prfmd = prfmd_fetch = EVP_MD_fetch(libctx, OBJ_nid2sn(hmac_md_nid), propq);
+     if (prfmd == NULL)
+         prfmd = EVP_get_digestbynid(hmac_md_nid);
+     if (prfmd == NULL) {
++        (void)ERR_clear_last_mark();
+         ERR_raise(ERR_LIB_EVP, EVP_R_UNSUPPORTED_PRF);
+         goto err;
+     }
++    (void)ERR_pop_to_mark();
+ 
+     if (kdf->salt->type != V_ASN1_OCTET_STRING) {
+         ERR_raise(ERR_LIB_EVP, EVP_R_UNSUPPORTED_SALT_TYPE);
+diff --git a/crypto/pkcs12/p12_mutl.c b/crypto/pkcs12/p12_mutl.c
+index afdb8d688b..2fd17a63b2 100644
+--- a/crypto/pkcs12/p12_mutl.c
++++ b/crypto/pkcs12/p12_mutl.c
+@@ -108,15 +108,20 @@ static int pkcs12_gen_mac(PKCS12 *p12, const char *pass, int passlen,
+     X509_ALGOR_get0(&macoid, NULL, NULL, macalg);
+     if (OBJ_obj2txt(md_name, sizeof(md_name), macoid, 0) < 0)
+         return 0;
++
++    (void)ERR_set_mark();
+     md = md_fetch = EVP_MD_fetch(p12->authsafes->ctx.libctx, md_name,
+                                  p12->authsafes->ctx.propq);
+     if (md == NULL)
+         md = EVP_get_digestbynid(OBJ_obj2nid(macoid));
+ 
+     if (md == NULL) {
++        (void)ERR_clear_last_mark();
+         ERR_raise(ERR_LIB_PKCS12, PKCS12_R_UNKNOWN_DIGEST_ALGORITHM);
+         return 0;
+     }
++    (void)ERR_pop_to_mark();
++
+     md_size = EVP_MD_get_size(md);
+     md_nid = EVP_MD_get_type(md);
+     if (md_size < 0)
+-- 
+2.34.1
+

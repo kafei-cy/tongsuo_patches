@@ -1,0 +1,91 @@
+From 7e2ca1edf402c7ef48bdd9a55b396bccb0ba7c32 Mon Sep 17 00:00:00 2001
+From: Pauli <pauli@openssl.org>
+Date: Mon, 25 Sep 2023 09:34:07 +1000
+Subject: [PATCH 344/381] ossl_property_list_to_string: handle quoted strings
+
+ossl_property_list_to_string() didn't quote strings correctly which
+could result in a generated property string being unparsable.
+
+Reviewed-by: Tomas Mraz <tomas@openssl.org>
+Reviewed-by: Matt Caswell <matt@openssl.org>
+(Merged from https://github.com/openssl/openssl/pull/22182)
+
+(cherry picked from commit fb20e66c6b2651067f50bab8cf098c71e2caed4b)
+---
+ crypto/property/property_parse.c | 32 +++++++++++++++++++++++++++++---
+ test/property_test.c             |  3 +++
+ 2 files changed, 32 insertions(+), 3 deletions(-)
+
+diff --git a/crypto/property/property_parse.c b/crypto/property/property_parse.c
+index ca2bd33381..b3d99d2544 100644
+--- a/crypto/property/property_parse.c
++++ b/crypto/property/property_parse.c
+@@ -588,15 +588,38 @@ static void put_char(char ch, char **buf, size_t *remain, size_t *needed)
+ 
+ static void put_str(const char *str, char **buf, size_t *remain, size_t *needed)
+ {
+-    size_t olen, len;
++    size_t olen, len, i;
++    char quote = '\0';
++    int quotes;
+ 
+     len = olen = strlen(str);
+     *needed += len;
+ 
+-    if (*remain == 0)
++    /*
++     * Check to see if we need quotes or not.
++     * Characters that are legal in a PropertyName don't need quoting.
++     * We simply assume all others require quotes.
++     */
++    for (i = 0; i < len; i++)
++        if (!ossl_isalnum(str[i]) && str[i] != '.' && str[i] != '_') {
++            /* Default to single quotes ... */
++            if (quote == '\0')
++                quote = '\'';
++            /* ... but use double quotes if a single is present */
++            if (str[i] == '\'')
++                quote = '"';
++        }
++
++    quotes = quote != '\0';
++    if (*remain == 0) {
++        *needed += 2 * quotes;
+         return;
++    }
+ 
+-    if (*remain < len + 1)
++    if (quotes)
++        put_char(quote, buf, remain, needed);
++
++    if (*remain < len + 1 + quotes)
+         len = *remain - 1;
+ 
+     if (len > 0) {
+@@ -605,6 +628,9 @@ static void put_str(const char *str, char **buf, size_t *remain, size_t *needed)
+         *remain -= len;
+     }
+ 
++    if (quotes)
++        put_char(quote, buf, remain, needed);
++
+     if (len < olen && *remain == 1) {
+         **buf = '\0';
+         ++*buf;
+diff --git a/test/property_test.c b/test/property_test.c
+index 6a405e364b..1005b9952c 100644
+--- a/test/property_test.c
++++ b/test/property_test.c
+@@ -616,6 +616,9 @@ static struct {
+     { "", "" },
+     { "fips=3", "fips=3" },
+     { "fips=-3", "fips=-3" },
++    { "provider='foo bar'", "provider='foo bar'" },
++    { "provider=\"foo bar'\"", "provider=\"foo bar'\"" },
++    { "provider=abc***", "provider='abc***'" },
+     { NULL, "" }
+ };
+ 
+-- 
+2.34.1
+

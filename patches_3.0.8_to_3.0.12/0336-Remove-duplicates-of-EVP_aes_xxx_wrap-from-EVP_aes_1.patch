@@ -1,0 +1,36 @@
+From 315fe88cf3afee4f5e1a2af883e9009482efb4e3 Mon Sep 17 00:00:00 2001
+From: Frederik Wedel-Heinen <frederik.wedel-heinen@dencrypt.dk>
+Date: Mon, 2 Oct 2023 10:58:48 +0200
+Subject: [PATCH 336/381] Remove duplicates of EVP_aes_xxx_wrap() from
+ EVP_aes_128_gcm.pod
+
+Reviewed-by: Tomas Mraz <tomas@openssl.org>
+Reviewed-by: Paul Dale <pauli@openssl.org>
+(Merged from https://github.com/openssl/openssl/pull/22236)
+
+(cherry picked from commit 5c20c202699ba9c08183c5227df0ad4352e0974b)
+---
+ doc/man3/EVP_aes_128_gcm.pod | 6 ------
+ 1 file changed, 6 deletions(-)
+
+diff --git a/doc/man3/EVP_aes_128_gcm.pod b/doc/man3/EVP_aes_128_gcm.pod
+index 09cae99129..067f17e8fc 100644
+--- a/doc/man3/EVP_aes_128_gcm.pod
++++ b/doc/man3/EVP_aes_128_gcm.pod
+@@ -134,13 +134,7 @@ section for details.
+ EVP_aes_192_wrap(),
+ EVP_aes_256_wrap(),
+ EVP_aes_128_wrap_pad(),
+-EVP_aes_128_wrap(),
+-EVP_aes_192_wrap(),
+-EVP_aes_256_wrap(),
+ EVP_aes_192_wrap_pad(),
+-EVP_aes_128_wrap(),
+-EVP_aes_192_wrap(),
+-EVP_aes_256_wrap(),
+ EVP_aes_256_wrap_pad()
+ 
+ AES key wrap with 128, 192 and 256 bit keys, as according to RFC 3394 section
+-- 
+2.34.1
+

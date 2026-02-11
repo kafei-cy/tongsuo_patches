@@ -1,0 +1,35 @@
+From 44ba3901f65b2bb97b3d9f76dd8add3a2e4ae994 Mon Sep 17 00:00:00 2001
+From: Matt Caswell <matt@openssl.org>
+Date: Wed, 12 Jul 2023 15:50:25 +0100
+Subject: [PATCH 227/381] Fix ssl3_do_write() to correctly handle retries
+
+A BIO is documented to return -1 on write retry - but sometimes they return
+0. ssl3_do_write() was incorrectly handling a 0 response.
+
+Fixes #21422
+
+Reviewed-by: Dmitry Belyavskiy <beldmit@gmail.com>
+Reviewed-by: Paul Dale <pauli@openssl.org>
+(Merged from https://github.com/openssl/openssl/pull/21435)
+
+(cherry picked from commit 034ea1d00e5816f35c3e4799d5c122e198e14b59)
+---
+ ssl/statem/statem_lib.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/ssl/statem/statem_lib.c b/ssl/statem/statem_lib.c
+index bcce73bcdc..f504a98f9d 100644
+--- a/ssl/statem/statem_lib.c
++++ b/ssl/statem/statem_lib.c
+@@ -47,7 +47,7 @@ int ssl3_do_write(SSL *s, int type)
+ 
+     ret = ssl3_write_bytes(s, type, &s->init_buf->data[s->init_off],
+                            s->init_num, &written);
+-    if (ret < 0)
++    if (ret <= 0)
+         return -1;
+     if (type == SSL3_RT_HANDSHAKE)
+         /*
+-- 
+2.34.1
+

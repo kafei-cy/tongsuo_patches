@@ -1,0 +1,30 @@
+From b130e18e430b03f90834fd214f550c3d56e1b302 Mon Sep 17 00:00:00 2001
+From: Tomas Mraz <tomas@openssl.org>
+Date: Thu, 19 Oct 2023 09:23:43 +0200
+Subject: [PATCH 372/381] cms_enc.c: Include crypto/asn1.h for struct
+ asn1_object_st
+
+Reviewed-by: Hugo Landau <hlandau@openssl.org>
+Reviewed-by: Matt Caswell <matt@openssl.org>
+(Merged from https://github.com/openssl/openssl/pull/22432)
+
+(cherry picked from commit fa9e6ad46860ea92aa2e1ba997b20c6dff76b42c)
+---
+ crypto/cms/cms_enc.c | 1 +
+ 1 file changed, 1 insertion(+)
+
+diff --git a/crypto/cms/cms_enc.c b/crypto/cms/cms_enc.c
+index 9143433986..b5faf5e3c6 100644
+--- a/crypto/cms/cms_enc.c
++++ b/crypto/cms/cms_enc.c
+@@ -15,6 +15,7 @@
+ #include <openssl/cms.h>
+ #include <openssl/rand.h>
+ #include "crypto/evp.h"
++#include "crypto/asn1.h"
+ #include "cms_local.h"
+ 
+ /* CMS EncryptedData Utilities */
+-- 
+2.34.1
+

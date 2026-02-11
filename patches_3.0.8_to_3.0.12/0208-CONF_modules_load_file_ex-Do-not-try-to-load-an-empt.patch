@@ -1,0 +1,48 @@
+From 5c56cef501c5344a0e1c1061b356e74c24ca1cef Mon Sep 17 00:00:00 2001
+From: Tomas Mraz <tomas@openssl.org>
+Date: Mon, 26 Jun 2023 11:11:57 +0200
+Subject: [PATCH 208/381] CONF_modules_load_file_ex(): Do not try to load an
+ empty file name
+
+Fixes #21258
+
+Reviewed-by: Paul Dale <pauli@openssl.org>
+Reviewed-by: Dmitry Belyavskiy <beldmit@gmail.com>
+Reviewed-by: Matthias St. Pierre <Matthias.St.Pierre@ncp-e.com>
+(Merged from https://github.com/openssl/openssl/pull/21282)
+
+(cherry picked from commit 8b7d5ea7dd602eb7c2c4bc5ad45489dc5fc711f6)
+---
+ crypto/conf/conf_mod.c | 8 +++++++-
+ 1 file changed, 7 insertions(+), 1 deletion(-)
+
+diff --git a/crypto/conf/conf_mod.c b/crypto/conf/conf_mod.c
+index 17bbbf7a27..3f9685a12f 100644
+--- a/crypto/conf/conf_mod.c
++++ b/crypto/conf/conf_mod.c
+@@ -184,15 +184,21 @@ int CONF_modules_load_file_ex(OSSL_LIB_CTX *libctx, const char *filename,
+     CONF *conf = NULL;
+     int ret = 0, diagnostics = 0;
+ 
++    ERR_set_mark();
++
+     if (filename == NULL) {
+         file = CONF_get1_default_config_file();
+         if (file == NULL)
+             goto err;
++        if (*file == '\0') {
++            /* Do not try to load an empty file name but do not error out */
++            ret = 1;
++            goto err;
++        }
+     } else {
+         file = (char *)filename;
+     }
+ 
+-    ERR_set_mark();
+     conf = NCONF_new_ex(libctx, NULL);
+     if (conf == NULL)
+         goto err;
+-- 
+2.34.1
+

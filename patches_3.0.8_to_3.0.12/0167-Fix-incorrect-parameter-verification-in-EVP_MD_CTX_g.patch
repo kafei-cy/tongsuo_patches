@@ -1,0 +1,33 @@
+From 5fbf6dd009fe23fcbd040eed058dd6b5f4d2e717 Mon Sep 17 00:00:00 2001
+From: lan1120 <lanming@huawei.com>
+Date: Mon, 22 May 2023 20:37:59 +0800
+Subject: [PATCH 167/381] Fix incorrect parameter verification in
+ EVP_MD_CTX_get_params
+
+Signed-off-by: lan1120 <lanming@huawei.com>
+
+Reviewed-by: Matt Caswell <matt@openssl.org>
+Reviewed-by: Paul Dale <pauli@openssl.org>
+(Merged from https://github.com/openssl/openssl/pull/21022)
+
+(cherry picked from commit b501df3cefebcdaaeb7d6480b7a7b82d68927873)
+---
+ crypto/evp/digest.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/crypto/evp/digest.c b/crypto/evp/digest.c
+index 09bd132611..58100b7e3a 100644
+--- a/crypto/evp/digest.c
++++ b/crypto/evp/digest.c
+@@ -762,7 +762,7 @@ int EVP_MD_CTX_get_params(EVP_MD_CTX *ctx, OSSL_PARAM params[])
+         return pctx->op.sig.signature->get_ctx_md_params(pctx->op.sig.algctx,
+                                                          params);
+ 
+-    if (ctx->digest != NULL && ctx->digest->get_params != NULL)
++    if (ctx->digest != NULL && ctx->digest->get_ctx_params != NULL)
+         return ctx->digest->get_ctx_params(ctx->algctx, params);
+ 
+     return 0;
+-- 
+2.34.1
+

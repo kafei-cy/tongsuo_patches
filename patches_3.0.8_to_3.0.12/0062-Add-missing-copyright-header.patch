@@ -1,0 +1,39 @@
+From 147098cc3ece46a3acff879c0d3a032b9de6e30f Mon Sep 17 00:00:00 2001
+From: Pauli <pauli@openssl.org>
+Date: Thu, 9 Mar 2023 09:59:25 +1100
+Subject: [PATCH 062/381] Add missing copyright header
+
+This file was only recently introduced and the missing header slipped through
+the review process.
+
+Fixes #20461
+
+Reviewed-by: Richard Levitte <levitte@openssl.org>
+Reviewed-by: Tomas Mraz <tomas@openssl.org>
+(Merged from https://github.com/openssl/openssl/pull/20470)
+
+(cherry picked from commit 93b0a1ea614f9ce3931373fd3d1d1af04795e6d7)
+---
+ crypto/bn/rsa_sup_mul.c | 9 +++++++++
+ 1 file changed, 9 insertions(+)
+
+diff --git a/crypto/bn/rsa_sup_mul.c b/crypto/bn/rsa_sup_mul.c
+index 3b57161b45..2657b6b36e 100644
+--- a/crypto/bn/rsa_sup_mul.c
++++ b/crypto/bn/rsa_sup_mul.c
+@@ -1,3 +1,12 @@
++/*
++ * Copyright 2022-2023 The OpenSSL Project Authors. All Rights Reserved.
++ *
++ * Licensed under the Apache License 2.0 (the "License").  You may not use
++ * this file except in compliance with the License.  You can obtain a copy
++ * in the file LICENSE in the source distribution or at
++ * https://www.openssl.org/source/license.html
++ */
++
+ #include <openssl/e_os2.h>
+ #include <stddef.h>
+ #include <sys/types.h>
+-- 
+2.34.1
+

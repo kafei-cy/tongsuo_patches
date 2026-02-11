@@ -1,0 +1,86 @@
+From 44190234e4f65038f5b093306779a04e79fbd8cd Mon Sep 17 00:00:00 2001
+From: "Dr. David von Oheimb" <David.von.Oheimb@siemens.com>
+Date: Thu, 2 Feb 2023 19:13:47 +0100
+Subject: [PATCH 089/381] CMP app: improve doc and help output on
+ -{req,rsp}{in,out} options
+
+Reviewed-by: Tomas Mraz <tomas@openssl.org>
+Reviewed-by: Paul Dale <pauli@openssl.org>
+Reviewed-by: David von Oheimb <david.von.oheimb@siemens.com>
+(Merged from https://github.com/openssl/openssl/pull/20204)
+
+(cherry picked from commit 77aa00697623bab31b312451855c36789204ed60)
+---
+ apps/cmp.c                  |  9 ++++++---
+ doc/man1/openssl-cmp.pod.in | 11 +++++++----
+ 2 files changed, 13 insertions(+), 7 deletions(-)
+
+diff --git a/apps/cmp.c b/apps/cmp.c
+index 23adf6804e..62c277cd73 100644
+--- a/apps/cmp.c
++++ b/apps/cmp.c
+@@ -462,13 +462,16 @@ const OPTIONS cmp_options[] = {
+      "Do not interactively prompt for input when a password is required etc."},
+     {"repeat", OPT_REPEAT, 'p',
+      "Invoke the transaction the given positive number of times. Default 1"},
+-    {"reqin", OPT_REQIN, 's', "Take sequence of CMP requests from file(s)"},
++    {"reqin", OPT_REQIN, 's',
++     "Take sequence of CMP requests to send to server from file(s)"},
+     {"reqin_new_tid", OPT_REQIN_NEW_TID, '-',
+      "Use fresh transactionID for CMP requests read from -reqin"},
+-    {"reqout", OPT_REQOUT, 's', "Save sequence of CMP requests to file(s)"},
++    {"reqout", OPT_REQOUT, 's',
++     "Save sequence of CMP requests created by the client to file(s)"},
+     {"rspin", OPT_RSPIN, 's',
+      "Process sequence of CMP responses provided in file(s), skipping server"},
+-    {"rspout", OPT_RSPOUT, 's', "Save sequence of CMP responses to file(s)"},
++    {"rspout", OPT_RSPOUT, 's',
++     "Save sequence of received CMP responses to file(s)"},
+ 
+     {"use_mock_srv", OPT_USE_MOCK_SRV, '-',
+      "Use internal mock server at API level, bypassing socket-based HTTP"},
+diff --git a/doc/man1/openssl-cmp.pod.in b/doc/man1/openssl-cmp.pod.in
+index 917fc5d2e6..3276ad916f 100644
+--- a/doc/man1/openssl-cmp.pod.in
++++ b/doc/man1/openssl-cmp.pod.in
+@@ -868,7 +868,9 @@ Default is one invocation.
+ 
+ =item B<-reqin> I<filenames>
+ 
+-Take sequence of CMP requests from file(s).
++Take the sequence of CMP requests to send to the server from file(s).
++This option is ignored if the B<-rspin> option is given
++because in the latter case no requests are actually sent.
+ 
+ Multiple filenames may be given, separated by commas and/or whitespace
+ (where in the latter case the whole argument must be enclosed in "...").
+@@ -883,14 +885,15 @@ and the CMP server complains that the transaction ID has already been used.
+ 
+ =item B<-reqout> I<filenames>
+ 
+-Save sequence of CMP requests to file(s).
++Save the sequence of CMP requests created by the client to file(s).
++These requests are not sent to the server if the B<-reqin> option is used, too.
+ 
+ Multiple filenames may be given, separated by commas and/or whitespace.
+ As many files are written as needed to store the complete transaction.
+ 
+ =item B<-rspin> I<filenames>
+ 
+-Process sequence of CMP responses provided in file(s), skipping server.
++Process the sequence of CMP responses provided in file(s), skipping server.
+ This excludes I<-server>, I<-port>, and I<-use_mock_srv>.
+ 
+ Multiple filenames may be given, separated by commas and/or whitespace.
+@@ -898,7 +901,7 @@ As many files are read as needed for the complete transaction.
+ 
+ =item B<-rspout> I<filenames>
+ 
+-Save sequence of CMP responses to file(s).
++Save the sequence of received CMP responses to file(s).
+ 
+ Multiple filenames may be given, separated by commas and/or whitespace.
+ As many files are written as needed to store the complete transaction.
+-- 
+2.34.1
+

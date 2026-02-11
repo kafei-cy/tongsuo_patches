@@ -1,0 +1,221 @@
+From b75d56dee09ac6f1fdb75169da891668cf181066 Mon Sep 17 00:00:00 2001
+From: "Dr. David von Oheimb" <David.von.Oheimb@siemens.com>
+Date: Fri, 3 Feb 2023 10:31:19 +0100
+Subject: [PATCH 091/381] CMP add: fix -reqin option, which requires adding
+ OSSL_CMP_MSG_update_recipNonce()
+
+Reviewed-by: Tomas Mraz <tomas@openssl.org>
+Reviewed-by: Paul Dale <pauli@openssl.org>
+Reviewed-by: David von Oheimb <david.von.oheimb@siemens.com>
+(Merged from https://github.com/openssl/openssl/pull/20204)
+
+(cherry picked from commit 4b0c27d44514abb4ad2bb1153db96f106910fc04)
+---
+ apps/cmp.c                                 |  9 ++++++++-
+ crypto/cmp/cmp_msg.c                       | 14 ++++++++++++++
+ crypto/cmp/cmp_protect.c                   |  2 ++
+ doc/internal/man3/ossl_cmp_msg_protect.pod |  6 +++++-
+ doc/man1/openssl-cmp.pod.in                |  5 ++++-
+ doc/man3/OSSL_CMP_MSG_get0_header.pod      | 16 +++++++++++++---
+ include/openssl/cmp.h.in                   |  1 +
+ util/libcrypto.num                         |  1 +
+ 8 files changed, 48 insertions(+), 6 deletions(-)
+
+diff --git a/apps/cmp.c b/apps/cmp.c
+index a8781dc0ec..a184361ac7 100644
+--- a/apps/cmp.c
++++ b/apps/cmp.c
+@@ -810,6 +810,13 @@ static OSSL_CMP_MSG *read_write_req_resp(OSSL_CMP_CTX *ctx,
+         if (opt_reqin_new_tid
+                 && !OSSL_CMP_MSG_update_transactionID(ctx, req_new))
+             goto err;
++
++        /*
++         * Except for first request, need to satisfy recipNonce check by server.
++         * Unfortunately requires re-protection if protection is required.
++         */
++        if (!OSSL_CMP_MSG_update_recipNonce(ctx, req_new))
++            goto err;
+     }
+ 
+     if (opt_rspin != NULL) {
+@@ -825,7 +832,7 @@ static OSSL_CMP_MSG *read_write_req_resp(OSSL_CMP_CTX *ctx,
+         goto err;
+ 
+     if (req_new != NULL || prev_opt_rspin != NULL) {
+-        /* need to satisfy nonce and transactionID checks */
++        /* need to satisfy nonce and transactionID checks by client */
+         ASN1_OCTET_STRING *nonce;
+         ASN1_OCTET_STRING *tid;
+ 
+diff --git a/crypto/cmp/cmp_msg.c b/crypto/cmp/cmp_msg.c
+index d341889a01..da78435f02 100644
+--- a/crypto/cmp/cmp_msg.c
++++ b/crypto/cmp/cmp_msg.c
+@@ -1086,6 +1086,20 @@ int OSSL_CMP_MSG_update_transactionID(OSSL_CMP_CTX *ctx, OSSL_CMP_MSG *msg)
+             || ossl_cmp_msg_protect(ctx, msg);
+ }
+ 
++int OSSL_CMP_MSG_update_recipNonce(OSSL_CMP_CTX *ctx, OSSL_CMP_MSG *msg)
++{
++    if (ctx == NULL || msg == NULL || msg->header == NULL) {
++        ERR_raise(ERR_LIB_CMP, CMP_R_NULL_ARGUMENT);
++        return 0;
++    }
++    if (ctx->recipNonce == NULL) /* nothing to do for 1st msg in transaction */
++        return 1;
++    if (!ossl_cmp_asn1_octet_string_set1(&msg->header->recipNonce,
++                                         ctx->recipNonce))
++        return 0;
++    return msg->header->protectionAlg == NULL || ossl_cmp_msg_protect(ctx, msg);
++}
++
+ OSSL_CMP_MSG *OSSL_CMP_MSG_read(const char *file, OSSL_LIB_CTX *libctx,
+                                 const char *propq)
+ {
+diff --git a/crypto/cmp/cmp_protect.c b/crypto/cmp/cmp_protect.c
+index 02526196ad..ed980a956d 100644
+--- a/crypto/cmp/cmp_protect.c
++++ b/crypto/cmp/cmp_protect.c
+@@ -129,6 +129,7 @@ ASN1_BIT_STRING *ossl_cmp_calc_protection(const OSSL_CMP_CTX *ctx,
+     }
+ }
+ 
++/* ctx is not const just because ctx->chain may get adapted */
+ int ossl_cmp_msg_add_extraCerts(OSSL_CMP_CTX *ctx, OSSL_CMP_MSG *msg)
+ {
+     if (!ossl_assert(ctx != NULL && msg != NULL))
+@@ -251,6 +252,7 @@ static int set_senderKID(const OSSL_CMP_CTX *ctx, OSSL_CMP_MSG *msg,
+     return id == NULL || ossl_cmp_hdr_set1_senderKID(msg->header, id);
+ }
+ 
++/* ctx is not const just because ctx->chain may get adapted */
+ int ossl_cmp_msg_protect(OSSL_CMP_CTX *ctx, OSSL_CMP_MSG *msg)
+ {
+     if (!ossl_assert(ctx != NULL && msg != NULL))
+diff --git a/doc/internal/man3/ossl_cmp_msg_protect.pod b/doc/internal/man3/ossl_cmp_msg_protect.pod
+index ae77712807..04da21fd9f 100644
+--- a/doc/internal/man3/ossl_cmp_msg_protect.pod
++++ b/doc/internal/man3/ossl_cmp_msg_protect.pod
+@@ -25,7 +25,7 @@ using the credentials, library context, and property criteria in the I<ctx>.
+ ossl_cmp_msg_protect() (re-)protects the given message I<msg> using an algorithm
+ depending on the available context information given in the I<ctx>.
+ If there is a secretValue it selects PBMAC, else if there is a protection cert
+-it selects Signature and uses L<ossl_cmp_msg_add_extraCerts(3)>.
++it selects Signature and uses ossl_cmp_msg_add_extraCerts (see below).
+ It also sets the protectionAlg field in the message header accordingly.
+ 
+ ossl_cmp_msg_add_extraCerts() adds elements to the extraCerts field in I<msg>.
+@@ -40,6 +40,10 @@ of the chain, i.e, the trust anchor (unless it is part of extraCertsOut).
+ 
+ CMP is defined in RFC 4210 (and CRMF in RFC 4211).
+ 
++The I<ctx> parameter of ossl_cmp_msg_add_extraCerts()
++and thus also of ossl_cmp_msg_protect() cannot be made I<const>
++because I<ctx->chain> may get adapted to cache the chain of the CMP signer cert.
++
+ =head1 RETURN VALUES
+ 
+ ossl_cmp_calc_protection() returns the protection on success, else NULL.
+diff --git a/doc/man1/openssl-cmp.pod.in b/doc/man1/openssl-cmp.pod.in
+index 3276ad916f..1bcb974164 100644
+--- a/doc/man1/openssl-cmp.pod.in
++++ b/doc/man1/openssl-cmp.pod.in
+@@ -871,6 +871,9 @@ Default is one invocation.
+ Take the sequence of CMP requests to send to the server from file(s).
+ This option is ignored if the B<-rspin> option is given
+ because in the latter case no requests are actually sent.
++Except for first request, the client needs to update the recipNonce field in any
++further request in order to satisfy the checks to be performed by the server.
++This causes re-protection (if protecting requests is required).
+ 
+ Multiple filenames may be given, separated by commas and/or whitespace
+ (where in the latter case the whole argument must be enclosed in "...").
+@@ -879,7 +882,7 @@ As many files are read as needed for a complete transaction.
+ =item B<-reqin_new_tid>
+ 
+ Use a fresh transactionID for CMP request messages read using B<-reqin>,
+-which requires re-protecting them as far as they were protected before.
++which causes their reprotection (if protecting requests is required).
+ This may be needed in case the sequence of requests is reused
+ and the CMP server complains that the transaction ID has already been used.
+ 
+diff --git a/doc/man3/OSSL_CMP_MSG_get0_header.pod b/doc/man3/OSSL_CMP_MSG_get0_header.pod
+index c3297a3577..ff94fca973 100644
+--- a/doc/man3/OSSL_CMP_MSG_get0_header.pod
++++ b/doc/man3/OSSL_CMP_MSG_get0_header.pod
+@@ -5,6 +5,7 @@
+ OSSL_CMP_MSG_get0_header,
+ OSSL_CMP_MSG_get_bodytype,
+ OSSL_CMP_MSG_update_transactionID,
++OSSL_CMP_MSG_update_recipNonce,
+ OSSL_CMP_CTX_setup_CRM,
+ OSSL_CMP_MSG_read,
+ OSSL_CMP_MSG_write,
+@@ -19,6 +20,7 @@ i2d_OSSL_CMP_MSG_bio
+   OSSL_CMP_PKIHEADER *OSSL_CMP_MSG_get0_header(const OSSL_CMP_MSG *msg);
+   int OSSL_CMP_MSG_get_bodytype(const OSSL_CMP_MSG *msg);
+   int OSSL_CMP_MSG_update_transactionID(OSSL_CMP_CTX *ctx, OSSL_CMP_MSG *msg);
++  int OSSL_CMP_MSG_update_recipNonce(OSSL_CMP_CTX *ctx, OSSL_CMP_MSG *msg);
+   OSSL_CRMF_MSG *OSSL_CMP_CTX_setup_CRM(OSSL_CMP_CTX *ctx, int for_KUR, int rid);
+   OSSL_CMP_MSG *OSSL_CMP_MSG_read(const char *file, OSSL_LIB_CTX *libctx, const char *propq);
+   int OSSL_CMP_MSG_write(const char *file, const OSSL_CMP_MSG *msg);
+@@ -33,7 +35,12 @@ OSSL_CMP_MSG_get_bodytype() returns the body type of the given CMP message.
+ 
+ OSSL_CMP_MSG_update_transactionID() updates the transactionID field
+ in the header of the given message according to the CMP_CTX.
+-This requires re-protecting the message (if it was protected).
++If I<ctx> does not contain a transaction ID, a fresh one is created before.
++The message gets re-protected (if protecting requests is required).
++
++OSSL_CMP_MSG_update_recipNonce() updates the recipNonce field
++in the header of the given message according to the CMP_CTX.
++The message gets re-protected (if protecting requests is required).
+ 
+ OSSL_CMP_CTX_setup_CRM() creates a CRMF certificate request message
+ from various information provided in the CMP context argument I<ctx>
+@@ -121,8 +128,9 @@ return the parsed CMP message or NULL on error.
+ OSSL_CMP_MSG_write() returns the number of bytes successfully encoded or a
+ negative value if an error occurs.
+ 
+-i2d_OSSL_CMP_MSG_bio() and OSSL_CMP_MSG_update_transactionID() return 1 on
+-success, 0 on error.
++i2d_OSSL_CMP_MSG_bio(), OSSL_CMP_MSG_update_transactionID(),
++and OSSL_CMP_MSG_update_recipNonce()
++return 1 on success, 0 on error.
+ 
+ =head1 SEE ALSO
+ 
+@@ -135,6 +143,8 @@ L<OSSL_CMP_CTX_push1_subjectAltName(3)>, L<OSSL_CMP_CTX_push0_policy(3)>
+ 
+ The OpenSSL CMP support was added in OpenSSL 3.0.
+ 
++OSSL_CMP_MSG_update_recipNonce() was added in OpenSSL 3.0.9.
++
+ =head1 COPYRIGHT
+ 
+ Copyright 2007-2022 The OpenSSL Project Authors. All Rights Reserved.
+diff --git a/include/openssl/cmp.h.in b/include/openssl/cmp.h.in
+index 0b5dc5c422..c628b5c21e 100644
+--- a/include/openssl/cmp.h.in
++++ b/include/openssl/cmp.h.in
+@@ -384,6 +384,7 @@ ASN1_OCTET_STRING *OSSL_CMP_HDR_get0_recipNonce(const OSSL_CMP_PKIHEADER *hdr);
+ OSSL_CMP_PKIHEADER *OSSL_CMP_MSG_get0_header(const OSSL_CMP_MSG *msg);
+ int OSSL_CMP_MSG_get_bodytype(const OSSL_CMP_MSG *msg);
+ int OSSL_CMP_MSG_update_transactionID(OSSL_CMP_CTX *ctx, OSSL_CMP_MSG *msg);
++int OSSL_CMP_MSG_update_recipNonce(OSSL_CMP_CTX *ctx, OSSL_CMP_MSG *msg);
+ OSSL_CRMF_MSG *OSSL_CMP_CTX_setup_CRM(OSSL_CMP_CTX *ctx, int for_KUR, int rid);
+ OSSL_CMP_MSG *OSSL_CMP_MSG_read(const char *file, OSSL_LIB_CTX *libctx,
+                                 const char *propq);
+diff --git a/util/libcrypto.num b/util/libcrypto.num
+index 716aa0cb13..0f6f30be37 100644
+--- a/util/libcrypto.num
++++ b/util/libcrypto.num
+@@ -5428,3 +5428,4 @@ EVP_PKEY_CTX_get0_provider              5555	3_0_0	EXIST::FUNCTION:
+ OPENSSL_strcasecmp                      5556	3_0_3	EXIST::FUNCTION:
+ OPENSSL_strncasecmp                     5557	3_0_3	EXIST::FUNCTION:
+ OSSL_CMP_CTX_reset_geninfo_ITAVs        5558	3_0_8	EXIST::FUNCTION:CMP
++OSSL_CMP_MSG_update_recipNonce          5559	3_0_9	EXIST::FUNCTION:CMP
+-- 
+2.34.1
+

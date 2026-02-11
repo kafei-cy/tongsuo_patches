@@ -1,0 +1,75 @@
+From 55c5421a8c83243acde044a9cf5a57060049c55a Mon Sep 17 00:00:00 2001
+From: Matt Caswell <matt@openssl.org>
+Date: Tue, 25 Oct 2022 15:47:36 +0100
+Subject: [PATCH 027/381] Fix read pipelining
+
+During read pipelining we must ensure that the buffer is sufficiently large
+to read enough data to fill our pipelines. We also remove some code that
+moved data to the start of the packet if we can. This was unnecessary
+because of later code which would end up moving it anyway. The earlier move
+was also incorrect in the case that |clearold| was 0. This would cause the
+read pipelining code to fail with sufficiently large records.
+
+Fixes #20197
+
+Reviewed-by: Tomas Mraz <tomas@openssl.org>
+Reviewed-by: Hugo Landau <hlandau@openssl.org>
+Reviewed-by: Paul Dale <pauli@openssl.org>
+(Merged from https://github.com/openssl/openssl/pull/20208)
+
+(cherry picked from commit 1d06598f0e9d9e39f9c206a2520777e696150257)
+---
+ ssl/record/rec_layer_s3.c | 20 +-------------------
+ ssl/record/ssl3_buffer.c  |  5 +++++
+ 2 files changed, 6 insertions(+), 19 deletions(-)
+
+diff --git a/ssl/record/rec_layer_s3.c b/ssl/record/rec_layer_s3.c
+index 4121f3b2ae..edcedbe04c 100644
+--- a/ssl/record/rec_layer_s3.c
++++ b/ssl/record/rec_layer_s3.c
+@@ -215,25 +215,7 @@ int ssl3_read_n(SSL *s, size_t n, size_t max, int extend, int clearold,
+         /* start with empty packet ... */
+         if (left == 0)
+             rb->offset = align;
+-        else if (align != 0 && left >= SSL3_RT_HEADER_LENGTH) {
+-            /*
+-             * check if next packet length is large enough to justify payload
+-             * alignment...
+-             */
+-            pkt = rb->buf + rb->offset;
+-            if (pkt[0] == SSL3_RT_APPLICATION_DATA
+-                && (pkt[3] << 8 | pkt[4]) >= 128) {
+-                /*
+-                 * Note that even if packet is corrupted and its length field
+-                 * is insane, we can only be led to wrong decision about
+-                 * whether memmove will occur or not. Header values has no
+-                 * effect on memmove arguments and therefore no buffer
+-                 * overrun can be triggered.
+-                 */
+-                memmove(rb->buf + align, pkt, left);
+-                rb->offset = align;
+-            }
+-        }
++
+         s->rlayer.packet = rb->buf + rb->offset;
+         s->rlayer.packet_length = 0;
+         /* ... now we can act as if 'extend' was set */
+diff --git a/ssl/record/ssl3_buffer.c b/ssl/record/ssl3_buffer.c
+index f631829ef6..97b0c26ced 100644
+--- a/ssl/record/ssl3_buffer.c
++++ b/ssl/record/ssl3_buffer.c
+@@ -58,6 +58,11 @@ int ssl3_setup_read_buffer(SSL *s)
+         if (ssl_allow_compression(s))
+             len += SSL3_RT_MAX_COMPRESSED_OVERHEAD;
+ #endif
++
++        /* Ensure our buffer is large enough to support all our pipelines */
++        if (s->max_pipelines > 1)
++            len *= s->max_pipelines;
++
+         if (b->default_len > len)
+             len = b->default_len;
+         if ((p = OPENSSL_malloc(len)) == NULL) {
+-- 
+2.34.1
+

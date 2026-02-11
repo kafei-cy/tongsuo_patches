@@ -1,0 +1,33 @@
+From a8293b44f8a8c8a6159a9a06ce1305fabc463eb1 Mon Sep 17 00:00:00 2001
+From: James Muir <james@openssl.org>
+Date: Wed, 11 Oct 2023 18:11:42 -0400
+Subject: [PATCH 357/381] Fix parenthesis, use a colon
+
+Reviewed-by: Paul Dale <pauli@openssl.org>
+Reviewed-by: Todd Short <todd.short@me.com>
+Reviewed-by: Tomas Mraz <tomas@openssl.org>
+(Merged from https://github.com/openssl/openssl/pull/22356)
+
+(cherry picked from commit 008ca01e506d85acf0cc06ea8f219a883328344c)
+---
+ INSTALL.md | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/INSTALL.md b/INSTALL.md
+index ad4a51026d..fef408e9d1 100644
+--- a/INSTALL.md
++++ b/INSTALL.md
+@@ -2,8 +2,8 @@ Build and Install
+ =================
+ 
+ This document describes installation on all supported operating
+-systems (the Unix/Linux family, including macOS), OpenVMS,
+-and Windows).
++systems: the Unix/Linux family (including macOS), OpenVMS,
++and Windows.
+ 
+ Table of Contents
+ =================
+-- 
+2.34.1
+

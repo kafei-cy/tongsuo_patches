@@ -1,0 +1,44 @@
+From 91208ae9a6208eb7dc27ac688f0e9741a744db4d Mon Sep 17 00:00:00 2001
+From: "Matthias St. Pierre" <matthias.st.pierre@ncp-e.com>
+Date: Sun, 24 Sep 2023 01:24:59 +0200
+Subject: [PATCH 340/381] test: evp_extra: fix indentation error
+
+Reviewed-by: Paul Dale <pauli@openssl.org>
+Reviewed-by: Tomas Mraz <tomas@openssl.org>
+(Merged from https://github.com/openssl/openssl/pull/22185)
+
+(cherry picked from commit b49cafd86b295aa5e177d6c1368b06a1202ec2b3)
+---
+ test/evp_extra_test.c | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/test/evp_extra_test.c b/test/evp_extra_test.c
+index a6667105dc..4a10e7fb04 100644
+--- a/test/evp_extra_test.c
++++ b/test/evp_extra_test.c
+@@ -1133,11 +1133,11 @@ static int test_EVP_PKEY_sign(int tst)
+ 
+     if (tst == 0 ) {
+         if (!TEST_ptr(pkey = load_example_rsa_key()))
+-                goto out;
++            goto out;
+     } else if (tst == 1) {
+ #ifndef OPENSSL_NO_DSA
+         if (!TEST_ptr(pkey = load_example_dsa_key()))
+-                goto out;
++            goto out;
+ #else
+         ret = 1;
+         goto out;
+@@ -1145,7 +1145,7 @@ static int test_EVP_PKEY_sign(int tst)
+     } else {
+ #ifndef OPENSSL_NO_EC
+         if (!TEST_ptr(pkey = load_example_ec_key()))
+-                goto out;
++            goto out;
+ #else
+         ret = 1;
+         goto out;
+-- 
+2.34.1
+

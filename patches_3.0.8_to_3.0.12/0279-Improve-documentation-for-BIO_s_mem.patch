@@ -1,0 +1,87 @@
+From cbf7b6b7bb8645c3ab37d7af018e31e9ade34679 Mon Sep 17 00:00:00 2001
+From: Neil Horman <nhorman@gmail.com>
+Date: Mon, 14 Aug 2023 12:17:11 -0400
+Subject: [PATCH 279/381] Improve documentation for BIO_s_mem
+
+Recent leak discovered by valgrind:
+==1007580== at 0x483C815: malloc (vg_replace_malloc.c:431)
+==1007580== by 0x2C2689: CRYPTO_zalloc (in /home/vien/microedge-c/test)
+==1007580== by 0x295A17: BUF_MEM_new (in /home/vien/microedge-c/test)
+==1007580== by 0x295A78: BUF_MEM_new_ex (in /home/vien/microedge-c/test)
+==1007580== by 0x28CACE: mem_new (in /home/vien/microedge-c/test)
+==1007580== by 0x285EA8: BIO_new_ex (in /home/vien/microedge-c/test)
+==1007580== by 0x231894: convert_pubkey_ECC (tpm2_driver.c:221)
+==1007580== by 0x232B73: create_ephemeral_key (tpm2_driver.c:641)
+==1007580== by 0x232E1F: tpm_gen_keypair (tpm2_driver.c:695)
+==1007580== by 0x22D60A: gen_keypair (se_driver_api.c:275)
+==1007580== by 0x21FF35: generate_keypair (dhkey.c:142)
+==1007580== by 0x24D4C8: __test_dhkey (dhkey_test.c:55)
+
+led me to find that BIO_get_mem_data is informative only, it does not
+transer ownership of a BIO_s_mems data structure to the caller.
+Additionally treating it as such leads to the above leak, or possibly
+data corruption in the event that BIO_set_close(bio, BIO_NOCLOSE) is not
+set properly prior to calling BIO_free.
+
+Made an attempt to fix it in a minimally invasive manner in the 3.1
+branch, but based on discussion, its just not safe to do in an API
+compatible way, so just document the sematics a little more clearly
+here, and fix it properly in a future release
+
+Reviewed-by: Hugo Landau <hlandau@openssl.org>
+Reviewed-by: Tomas Mraz <tomas@openssl.org>
+(Merged from https://github.com/openssl/openssl/pull/21724)
+
+(cherry picked from commit 66d1658b4d88c66b27a8a538b2fb365ef1907936)
+---
+ doc/man3/BIO_s_mem.pod | 20 ++++++++++++++++++++
+ 1 file changed, 20 insertions(+)
+
+diff --git a/doc/man3/BIO_s_mem.pod b/doc/man3/BIO_s_mem.pod
+index 6b3cc6a2da..31b2daf33d 100644
+--- a/doc/man3/BIO_s_mem.pod
++++ b/doc/man3/BIO_s_mem.pod
+@@ -59,6 +59,8 @@ positive return value B<v> should be set to a negative value, typically -1.
+ 
+ BIO_get_mem_data() sets *B<pp> to a pointer to the start of the memory BIOs data
+ and returns the total amount of data available. It is implemented as a macro.
++Note the pointer returned by this call is informative, no transfer of ownership
++of this memory is implied.  See notes on BIO_set_close().
+ 
+ BIO_set_mem_buf() sets the internal BUF_MEM structure to B<bm> and sets the
+ close flag to B<c>, that is B<c> should be either BIO_CLOSE or BIO_NOCLOSE.
+@@ -114,6 +116,10 @@ preceding that write operation cannot be undone.
+ Calling BIO_get_mem_ptr() prior to a BIO_reset() call with
+ BIO_FLAGS_NONCLEAR_RST set has the same effect as a write operation.
+ 
++Calling BIO_set_close() with BIO_NOCLOSE orphans the BUF_MEM internal to the
++BIO, _not_ its actual data buffer. See the examples section for the proper
++method for claiming ownership of the data pointer for a deferred free operation.
++
+ =head1 BUGS
+ 
+ There should be an option to set the maximum size of a memory BIO.
+@@ -151,6 +157,20 @@ Extract the BUF_MEM structure from a memory BIO and then free up the BIO:
+  BIO_set_close(mem, BIO_NOCLOSE); /* So BIO_free() leaves BUF_MEM alone */
+  BIO_free(mem);
+ 
++Extract the BUF_MEM ptr, claim ownership of the internal data and free the BIO
++and BUF_MEM structure:
++
++ BUF_MEM *bptr;
++ char *data;
++
++ BIO_get_mem_data(bio, &data);
++ BIO_get_mem_ptr(bio, &bptr);
++ BIO_set_close(mem, BIO_NOCLOSE); /* So BIO_free orphans BUF_MEM */
++ BIO_free(bio);
++ bptr->data = NULL; /* Tell BUF_MEM to orphan data */
++ BUF_MEM_free(bptr);
++ ...
++ free(data);
+ 
+ =head1 COPYRIGHT
+ 
+-- 
+2.34.1
+

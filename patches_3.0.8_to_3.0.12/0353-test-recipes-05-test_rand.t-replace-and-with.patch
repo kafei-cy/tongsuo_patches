@@ -1,0 +1,51 @@
+From 9255fd88cff4426f6b8202b17b776a67da6b7683 Mon Sep 17 00:00:00 2001
+From: Richard Levitte <levitte@openssl.org>
+Date: Tue, 10 Oct 2023 12:32:40 +0200
+Subject: [PATCH 353/381] test/recipes/05-test_rand.t: replace 'and' with '&&'
+
+The lower priority 'and' seems to have some "interesting" interactions with
+function argument parsing in some perl versions (presumably because 'and' is
+lower priority than the comma).
+
+For the lines that are changed here, perl v5.20.1 says this:
+
+    Useless use of string eq in void context at [.test.recipes]05-test_rand.t line 33.
+    Useless use of numeric eq (==) in void context at [.test.recipes]05-test_rand.t line 39.
+
+Replacing 'and' with '&&' in these two cases fixes the problem.
+
+Replacing
+
+Reviewed-by: Hugo Landau <hlandau@openssl.org>
+Reviewed-by: Matt Caswell <matt@openssl.org>
+Reviewed-by: Paul Dale <pauli@openssl.org>
+Reviewed-by: Tomas Mraz <tomas@openssl.org>
+(Merged from https://github.com/openssl/openssl/pull/22331)
+
+(cherry picked from commit 715242b1ca2b7267a70fb13c3544a84b947a6e81)
+---
+ test/recipes/05-test_rand.t | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/test/recipes/05-test_rand.t b/test/recipes/05-test_rand.t
+index 3f352db9df..1e72f7c20d 100644
+--- a/test/recipes/05-test_rand.t
++++ b/test/recipes/05-test_rand.t
+@@ -29,12 +29,12 @@ SKIP: {
+     @randdata = run(app(['openssl', 'rand', '-engine', 'ossltest', '-hex', '16' ]),
+                     capture => 1, statusvar => \$success);
+     chomp(@randdata);
+-    ok($success and $randdata[0] eq $expected,
++    ok($success && $randdata[0] eq $expected,
+        "rand with ossltest: Check rand output is as expected");
+ 
+     @randdata = run(app(['openssl', 'rand', '-engine', 'dasync', '-hex', '16' ]),
+                     capture => 1, statusvar => \$success);
+     chomp(@randdata);
+-    ok($success and length($randdata[0]) == 32,
++    ok($success && length($randdata[0]) == 32,
+        "rand with dasync: Check rand output is of expected length");
+ }
+-- 
+2.34.1
+

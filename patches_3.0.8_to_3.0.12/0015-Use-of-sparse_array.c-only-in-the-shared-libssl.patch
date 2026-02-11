@@ -1,0 +1,39 @@
+From 6043c183ff7c7ffbb223bbecd1aaed8275ed5f7e Mon Sep 17 00:00:00 2001
+From: Richard Levitte <levitte@openssl.org>
+Date: Wed, 8 Feb 2023 08:23:41 +0100
+Subject: [PATCH 015/381] Use of sparse_array.c only in the shared libssl
+
+Conditioning it on $disabled{shared} isn't right, it will still end up
+in the static variant of the library.  It's better to use SHARED_SOURCE
+for these sorts of things.
+
+Fixes #20238
+
+Reviewed-by: Hugo Landau <hlandau@openssl.org>
+Reviewed-by: Ben Kaduk <kaduk@mit.edu>
+Reviewed-by: Paul Dale <pauli@openssl.org>
+(Merged from https://github.com/openssl/openssl/pull/20240)
+
+(cherry picked from commit cd870db16348d0d09cb05b7393cf9281509c7795)
+---
+ crypto/build.info | 4 +---
+ 1 file changed, 1 insertion(+), 3 deletions(-)
+
+diff --git a/crypto/build.info b/crypto/build.info
+index 16584234fe..b90390ae86 100644
+--- a/crypto/build.info
++++ b/crypto/build.info
+@@ -97,9 +97,7 @@ $UTIL_COMMON=\
+         context.c sparse_array.c asn1_dsa.c packet.c param_build.c \
+         param_build_set.c der_writer.c threads_lib.c params_dup.c
+ 
+-IF[{- !$disabled{shared} -}]
+-  SOURCE[../libssl]=sparse_array.c
+-ENDIF
++SHARED_SOURCE[../libssl]=sparse_array.c
+ 
+ SOURCE[../libcrypto]=$UTIL_COMMON \
+         mem.c mem_sec.c \
+-- 
+2.34.1
+

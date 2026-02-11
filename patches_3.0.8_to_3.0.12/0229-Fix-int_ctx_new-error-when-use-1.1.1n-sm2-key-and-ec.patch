@@ -1,0 +1,32 @@
+From ca11458f14e4787571ccf710f1dc41baf38baa1f Mon Sep 17 00:00:00 2001
+From: lan1120 <lanming@huawei.com>
+Date: Sat, 10 Jun 2023 19:36:17 +0800
+Subject: [PATCH 229/381] Fix int_ctx_new() error when use 1.1.1n sm2 key and
+ ec method engine
+
+Signed-off-by: lan1120 <lanming@huawei.com>
+
+Reviewed-by: Tomas Mraz <tomas@openssl.org>
+Reviewed-by: Paul Dale <pauli@openssl.org>
+(Merged from https://github.com/openssl/openssl/pull/21170)
+
+(cherry picked from commit 4c4fefa5c78a49b63113aec35a2bc8d6d9432436)
+---
+ crypto/evp/p_lib.c | 1 +
+ 1 file changed, 1 insertion(+)
+
+diff --git a/crypto/evp/p_lib.c b/crypto/evp/p_lib.c
+index f6acb5b47e..aa6ec31dab 100644
+--- a/crypto/evp/p_lib.c
++++ b/crypto/evp/p_lib.c
+@@ -722,6 +722,7 @@ static void detect_foreign_key(EVP_PKEY *pkey)
+         break;
+ #  ifndef OPENSSL_NO_EC
+     case EVP_PKEY_SM2:
++        break;
+     case EVP_PKEY_EC:
+         pkey->foreign = pkey->pkey.ec != NULL
+                         && ossl_ec_key_is_foreign(pkey->pkey.ec);
+-- 
+2.34.1
+

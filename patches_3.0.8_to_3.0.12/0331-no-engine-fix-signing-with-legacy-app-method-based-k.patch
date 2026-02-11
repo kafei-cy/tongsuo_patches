@@ -1,0 +1,48 @@
+From 553d3c05ae6d2b85161b2bdc0f14516b6fd35f67 Mon Sep 17 00:00:00 2001
+From: "Matthias St. Pierre" <matthias.st.pierre@ncp-e.com>
+Date: Thu, 21 Sep 2023 16:43:43 +0200
+Subject: [PATCH 331/381] no-engine: fix signing with legacy app method based
+ keys
+
+Signing with an app method based key (i.e. an `EVP_PKEY` which wraps an
+`RSA` key with an application defined `RSA_METHOD`) used to work in 1.1.1.
+That feature was broken in commit 60488d2434, but later on fixed by @t8m
+in commit b247113c05 (see #14859).
+
+This commit corrects a  minor flaw of the fix, which affects only
+`no-engine` builds: the special treatment for foreign keys is guarded
+by an `OPENSSL_NO_ENGINE` check.
+
+Reviewed-by: Tomas Mraz <tomas@openssl.org>
+Reviewed-by: Matt Caswell <matt@openssl.org>
+Reviewed-by: Dmitry Belyavskiy <beldmit@gmail.com>
+Reviewed-by: Todd Short <todd.short@me.com>
+(Merged from https://github.com/openssl/openssl/pull/22163)
+
+(cherry picked from commit 1acc3e8cc3c69187b55cc557c1bc03278ab38063)
+(cherry picked from commit c67a1988fcf8fe34b1d31e29849f2528d553dd66)
+---
+ crypto/evp/pmeth_lib.c | 5 +++--
+ 1 file changed, 3 insertions(+), 2 deletions(-)
+
+diff --git a/crypto/evp/pmeth_lib.c b/crypto/evp/pmeth_lib.c
+index ce6e1a1ccb..ba1971ce46 100644
+--- a/crypto/evp/pmeth_lib.c
++++ b/crypto/evp/pmeth_lib.c
+@@ -251,10 +251,11 @@ static EVP_PKEY_CTX *int_ctx_new(OSSL_LIB_CTX *libctx,
+      */
+     if (e != NULL)
+         pmeth = ENGINE_get_pkey_meth(e, id);
+-    else if (pkey != NULL && pkey->foreign)
++    else
++# endif /* OPENSSL_NO_ENGINE */
++    if (pkey != NULL && pkey->foreign)
+         pmeth = EVP_PKEY_meth_find(id);
+     else
+-# endif
+         app_pmeth = pmeth = evp_pkey_meth_find_added_by_application(id);
+ 
+     /* END legacy */
+-- 
+2.34.1
+

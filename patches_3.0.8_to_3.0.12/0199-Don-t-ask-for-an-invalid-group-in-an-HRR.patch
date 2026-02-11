@@ -1,0 +1,41 @@
+From c036f1573e8a6063c2275af9a1ba0ad5b3944f8b Mon Sep 17 00:00:00 2001
+From: Matt Caswell <matt@openssl.org>
+Date: Fri, 9 Jun 2023 09:09:06 +0100
+Subject: [PATCH 199/381] Don't ask for an invalid group in an HRR
+
+If the client sends us a group in a key_share that is in our
+supported_groups list but is otherwise not suitable (e.g. not compatible
+with TLSv1.3) we reject it. We should not ask for that same group again
+in a subsequent HRR.
+
+Fixes #21157
+
+Reviewed-by: Tomas Mraz <tomas@openssl.org>
+Reviewed-by: Todd Short <todd.short@me.com>
+(Merged from https://github.com/openssl/openssl/pull/21163)
+
+(cherry picked from commit 7a949ae5f1799a6629cf6deb44ae0f38455a73dd)
+---
+ ssl/statem/extensions.c | 6 +++++-
+ 1 file changed, 5 insertions(+), 1 deletion(-)
+
+diff --git a/ssl/statem/extensions.c b/ssl/statem/extensions.c
+index 8c9c16ec21..66c97c01c8 100644
+--- a/ssl/statem/extensions.c
++++ b/ssl/statem/extensions.c
+@@ -1392,7 +1392,11 @@ static int final_key_share(SSL *s, unsigned int context, int sent)
+                     group_id = pgroups[i];
+ 
+                     if (check_in_list(s, group_id, clntgroups, clnt_num_groups,
+-                                      1))
++                                      1)
++                            && tls_group_allowed(s, group_id,
++                                                 SSL_SECOP_CURVE_SUPPORTED)
++                            && tls_valid_group(s, group_id, TLS1_3_VERSION,
++                                               TLS1_3_VERSION, 0, NULL))
+                         break;
+                 }
+ 
+-- 
+2.34.1
+

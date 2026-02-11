@@ -1,0 +1,46 @@
+From d12cde7fc5561d463badcd8a73079cf92864c31e Mon Sep 17 00:00:00 2001
+From: Nicky Mouha <nmouha@users.noreply.github.com>
+Date: Wed, 17 May 2023 16:46:41 -0400
+Subject: [PATCH 161/381] Update hkdf.c to avoid potentially vulnerable code
+ pattern
+
+The expression "if (a+b>c) a=c-b" is incorrect if "a+b" overflows.
+It should be replaced by "if (a>c-b) a=c-b", which avoids the
+potential overflow and is much easier to understand.
+
+This pattern is the root cause of CVE-2022-37454, a buffer overflow
+vulnerability in the "official" SHA-3 implementation.
+
+It has been confirmed that the addition in
+https://github.com/openssl/openssl/blob/master/providers/implementations/kdfs/hkdf.c#L534
+cannot overflow. So this is only a minor change proposal to avoid
+a potentially vulnerable code pattern and to improve readability.
+More information: https://github.com/github/codeql/pull/12036#issuecomment-1466056959
+
+CLA: trivial
+
+Reviewed-by: Paul Dale <pauli@openssl.org>
+Reviewed-by: Tomas Mraz <tomas@openssl.org>
+(Merged from https://github.com/openssl/openssl/pull/20990)
+
+(cherry picked from commit 56a51b5a1ecd54eadc80bed4bfe5044a340787c1)
+---
+ providers/implementations/kdfs/hkdf.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/providers/implementations/kdfs/hkdf.c b/providers/implementations/kdfs/hkdf.c
+index dfa7786bde..f57c018d5a 100644
+--- a/providers/implementations/kdfs/hkdf.c
++++ b/providers/implementations/kdfs/hkdf.c
+@@ -554,7 +554,7 @@ static int HKDF_Expand(const EVP_MD *evp_md,
+         if (!HMAC_Final(hmac, prev, NULL))
+             goto err;
+ 
+-        copy_len = (done_len + dig_len > okm_len) ?
++        copy_len = (dig_len > okm_len - done_len) ?
+                        okm_len - done_len :
+                        dig_len;
+ 
+-- 
+2.34.1
+

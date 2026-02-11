@@ -1,0 +1,50 @@
+From 98be1f56352e624fcf245d5138901d5a9e1a9c83 Mon Sep 17 00:00:00 2001
+From: Watson Ladd <watsonbladd@gmail.com>
+Date: Thu, 27 Apr 2023 10:14:51 -0700
+Subject: [PATCH 152/381] Clear ownership when duplicating sessions
+
+Reviewed-by: Matt Caswell <matt@openssl.org>
+Reviewed-by: Todd Short <todd.short@me.com>
+Reviewed-by: Tomas Mraz <tomas@openssl.org>
+(Merged from https://github.com/openssl/openssl/pull/20848)
+
+(cherry picked from commit 9fdf9a44bbe3827fe653165a07281ccae8ab0947)
+---
+ ssl/ssl_sess.c    | 3 ++-
+ test/sslapitest.c | 4 +++-
+ 2 files changed, 5 insertions(+), 2 deletions(-)
+
+diff --git a/ssl/ssl_sess.c b/ssl/ssl_sess.c
+index 68b57a532b..d071508356 100644
+--- a/ssl/ssl_sess.c
++++ b/ssl/ssl_sess.c
+@@ -190,9 +190,10 @@ SSL_SESSION *ssl_session_dup(const SSL_SESSION *src, int ticket)
+     dest->ticket_appdata = NULL;
+     memset(&dest->ex_data, 0, sizeof(dest->ex_data));
+ 
+-    /* We deliberately don't copy the prev and next pointers */
++    /* As the copy is not in the cache, we remove the associated pointers */
+     dest->prev = NULL;
+     dest->next = NULL;
++    dest->owner = NULL;
+ 
+     dest->references = 1;
+ 
+diff --git a/test/sslapitest.c b/test/sslapitest.c
+index 0b3aa44f3a..3d571011bd 100644
+--- a/test/sslapitest.c
++++ b/test/sslapitest.c
+@@ -2250,7 +2250,9 @@ static int execute_test_session(int maxprot, int use_int_cache,
+          */
+         if (use_int_cache && maxprot != TLS1_3_VERSION) {
+             if (!TEST_ptr(tmp = SSL_SESSION_dup(sess2))
+-                    || !TEST_true(SSL_CTX_remove_session(sctx, sess2)))
++                || !TEST_true(sess2->owner != NULL)
++                || !TEST_true(tmp->owner == NULL)
++                || !TEST_true(SSL_CTX_remove_session(sctx, sess2)))
+                 goto end;
+             SSL_SESSION_free(sess2);
+         }
+-- 
+2.34.1
+

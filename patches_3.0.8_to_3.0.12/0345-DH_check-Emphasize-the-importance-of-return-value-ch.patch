@@ -1,0 +1,34 @@
+From ff0995ca8b90765814712ccbc6eec34b648d9a2c Mon Sep 17 00:00:00 2001
+From: Tomas Mraz <tomas@openssl.org>
+Date: Tue, 3 Oct 2023 14:43:13 +0200
+Subject: [PATCH 345/381] DH_check: Emphasize the importance of return value
+ check
+
+Reviewed-by: Matt Caswell <matt@openssl.org>
+Reviewed-by: Tom Cosgrove <tom.cosgrove@arm.com>
+Reviewed-by: Paul Dale <pauli@openssl.org>
+(Merged from https://github.com/openssl/openssl/pull/22262)
+
+(cherry picked from commit f7b80136a3df4396b19ebb86d4814d8cefe6d6db)
+---
+ doc/man3/DH_generate_parameters.pod | 4 ++++
+ 1 file changed, 4 insertions(+)
+
+diff --git a/doc/man3/DH_generate_parameters.pod b/doc/man3/DH_generate_parameters.pod
+index 1098a161ea..fa4ac54fb8 100644
+--- a/doc/man3/DH_generate_parameters.pod
++++ b/doc/man3/DH_generate_parameters.pod
+@@ -128,6 +128,10 @@ The parameter B<j> is invalid.
+ 
+ =back
+ 
++If 0 is returned or B<*codes> is set to a nonzero value the supplied
++parameters should not be used for Diffie-Hellman operations otherwise
++the security properties of the key exchange are not guaranteed.
++
+ DH_check_ex(), DH_check_params() and DH_check_pub_key_ex() are similar to
+ DH_check() and DH_check_params() respectively, but the error reasons are added
+ to the thread's error queue instead of provided as return values from the
+-- 
+2.34.1
+

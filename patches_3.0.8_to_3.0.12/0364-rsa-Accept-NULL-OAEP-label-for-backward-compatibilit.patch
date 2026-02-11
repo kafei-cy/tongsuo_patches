@@ -1,0 +1,109 @@
+From 86f3fae5f8fb4d9cb96ea9b34250cd3abc3038ef Mon Sep 17 00:00:00 2001
+From: Daiki Ueno <dueno@redhat.com>
+Date: Mon, 16 Oct 2023 14:42:12 +0900
+Subject: [PATCH 364/381] rsa: Accept NULL OAEP label for backward
+ compatibility
+
+According to the manual page, EVP_PKEY_CTX_set0_rsa_oaep_label()
+should accept NULL as the label argument, though the function
+currently rejects it while setting the corresponding octet string
+parameter with OSSL_PARAM_construct_octet_string, which expects
+non-NULL input.  This adds a workaround to the caller for backward
+compatibility.
+
+Signed-off-by: Daiki Ueno <dueno@redhat.com>
+
+Reviewed-by: Dmitry Belyavskiy <beldmit@gmail.com>
+Reviewed-by: Tomas Mraz <tomas@openssl.org>
+(Merged from https://github.com/openssl/openssl/pull/22397)
+
+(cherry picked from commit 21b98da9d80c561b6273b0c51c259196d6740e70)
+---
+ crypto/rsa/rsa_lib.c  | 12 +++++++++++-
+ test/evp_extra_test.c | 31 +++++++++++++++++++++++++++++++
+ 2 files changed, 42 insertions(+), 1 deletion(-)
+
+diff --git a/crypto/rsa/rsa_lib.c b/crypto/rsa/rsa_lib.c
+index 449097b8b2..709ecb5daa 100644
+--- a/crypto/rsa/rsa_lib.c
++++ b/crypto/rsa/rsa_lib.c
+@@ -1084,6 +1084,12 @@ int EVP_PKEY_CTX_get_rsa_mgf1_md(EVP_PKEY_CTX *ctx, const EVP_MD **md)
+ int EVP_PKEY_CTX_set0_rsa_oaep_label(EVP_PKEY_CTX *ctx, void *label, int llen)
+ {
+     OSSL_PARAM rsa_params[2], *p = rsa_params;
++    const char *empty = "";
++    /*
++     * Needed as we swap label with empty if it is NULL, and label is
++     * freed at the end of this function.
++     */
++    void *plabel = label;
+     int ret;
+ 
+     if (ctx == NULL || !EVP_PKEY_CTX_IS_ASYM_CIPHER_OP(ctx)) {
+@@ -1096,9 +1102,13 @@ int EVP_PKEY_CTX_set0_rsa_oaep_label(EVP_PKEY_CTX *ctx, void *label, int llen)
+     if (!EVP_PKEY_CTX_is_a(ctx, "RSA"))
+         return -1;
+ 
++    /* Accept NULL for backward compatibility */
++    if (label == NULL && llen == 0)
++        plabel = (void *)empty;
++
+     /* Cast away the const. This is read only so should be safe */
+     *p++ = OSSL_PARAM_construct_octet_string(OSSL_ASYM_CIPHER_PARAM_OAEP_LABEL,
+-                                             (void *)label, (size_t)llen);
++                                             (void *)plabel, (size_t)llen);
+     *p++ = OSSL_PARAM_construct_end();
+ 
+     ret = evp_pkey_ctx_set_params_strict(ctx, rsa_params);
+diff --git a/test/evp_extra_test.c b/test/evp_extra_test.c
+index 2899c69b19..cfffa21350 100644
+--- a/test/evp_extra_test.c
++++ b/test/evp_extra_test.c
+@@ -2912,6 +2912,36 @@ static int test_RSA_OAEP_set_get_params(void)
+     return ret;
+ }
+ 
++/* https://github.com/openssl/openssl/issues/21288 */
++static int test_RSA_OAEP_set_null_label(void)
++{
++    int ret = 0;
++    EVP_PKEY *key = NULL;
++    EVP_PKEY_CTX *key_ctx = NULL;
++
++    if (!TEST_ptr(key = load_example_rsa_key())
++        || !TEST_ptr(key_ctx = EVP_PKEY_CTX_new_from_pkey(testctx, key, NULL))
++        || !TEST_true(EVP_PKEY_encrypt_init(key_ctx)))
++        goto err;
++
++    if (!TEST_true(EVP_PKEY_CTX_set_rsa_padding(key_ctx, RSA_PKCS1_OAEP_PADDING)))
++        goto err;
++
++    if (!TEST_true(EVP_PKEY_CTX_set0_rsa_oaep_label(key_ctx, OPENSSL_strdup("foo"), 0)))
++        goto err;
++
++    if (!TEST_true(EVP_PKEY_CTX_set0_rsa_oaep_label(key_ctx, NULL, 0)))
++        goto err;
++
++    ret = 1;
++
++ err:
++    EVP_PKEY_free(key);
++    EVP_PKEY_CTX_free(key_ctx);
++
++    return ret;
++}
++
+ #if !defined(OPENSSL_NO_CHACHA) && !defined(OPENSSL_NO_POLY1305)
+ static int test_decrypt_null_chunks(void)
+ {
+@@ -4899,6 +4929,7 @@ int setup_tests(void)
+ #endif
+     ADD_TEST(test_RSA_get_set_params);
+     ADD_TEST(test_RSA_OAEP_set_get_params);
++    ADD_TEST(test_RSA_OAEP_set_null_label);
+ #if !defined(OPENSSL_NO_CHACHA) && !defined(OPENSSL_NO_POLY1305)
+     ADD_TEST(test_decrypt_null_chunks);
+ #endif
+-- 
+2.34.1
+

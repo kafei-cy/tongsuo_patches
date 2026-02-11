@@ -1,0 +1,56 @@
+From 245cb0291e0db99d9ccf3692fa76f440b2b054c2 Mon Sep 17 00:00:00 2001
+From: Matt Caswell <matt@openssl.org>
+Date: Tue, 1 Aug 2023 14:47:24 +0100
+Subject: [PATCH 252/381] Prepare for release of 3.0.10
+
+Reviewed-by: Tomas Mraz <tomas@openssl.org>
+Release: yes
+---
+ CHANGES.md  | 2 +-
+ NEWS.md     | 2 +-
+ VERSION.dat | 4 ++--
+ 3 files changed, 4 insertions(+), 4 deletions(-)
+
+diff --git a/CHANGES.md b/CHANGES.md
+index 29cccbebe7..d5c0ba8daf 100644
+--- a/CHANGES.md
++++ b/CHANGES.md
+@@ -28,7 +28,7 @@ breaking changes, and mappings for the large list of deprecated functions.
+ 
+ [Migration guide]: https://github.com/openssl/openssl/tree/master/doc/man7/migration_guide.pod
+ 
+-### Changes between 3.0.9 and 3.0.10 [xx XXX xxxx]
++### Changes between 3.0.9 and 3.0.10 [1 Aug 2023]
+ 
+  * Fix excessive time spent checking DH q parameter value.
+ 
+diff --git a/NEWS.md b/NEWS.md
+index 2cf0425130..feed902697 100644
+--- a/NEWS.md
++++ b/NEWS.md
+@@ -18,7 +18,7 @@ OpenSSL Releases
+ OpenSSL 3.0
+ -----------
+ 
+-### Major changes between OpenSSL 3.0.9 and OpenSSL 3.0.10 [under development]
++### Major changes between OpenSSL 3.0.9 and OpenSSL 3.0.10 [1 Aug 2023]
+ 
+   * Fix excessive time spent checking DH q parameter value ([CVE-2023-3817])
+   * Fix DH_check() excessive time with over sized modulus ([CVE-2023-3446])
+diff --git a/VERSION.dat b/VERSION.dat
+index 5a7497991f..34658d316b 100644
+--- a/VERSION.dat
++++ b/VERSION.dat
+@@ -1,7 +1,7 @@
+ MAJOR=3
+ MINOR=0
+ PATCH=10
+-PRE_RELEASE_TAG=dev
++PRE_RELEASE_TAG=
+ BUILD_METADATA=
+-RELEASE_DATE=""
++RELEASE_DATE="1 Aug 2023"
+ SHLIB_VERSION=3
+-- 
+2.34.1
+

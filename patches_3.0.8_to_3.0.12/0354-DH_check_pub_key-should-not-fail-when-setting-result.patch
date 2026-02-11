@@ -1,0 +1,228 @@
+From 6e8700f8fe239e0185cf3c863a7f569b53a17620 Mon Sep 17 00:00:00 2001
+From: Tomas Mraz <tomas@openssl.org>
+Date: Thu, 5 Oct 2023 11:11:16 +0200
+Subject: [PATCH 354/381] DH_check_pub_key() should not fail when setting
+ result code
+
+The semantics of ossl_ffc_validate_public_key() and
+ossl_ffc_validate_public_key_partial() needs to be changed
+to not return error on non-fatal problems.
+
+Fixes #22287
+
+Reviewed-by: Todd Short <todd.short@me.com>
+Reviewed-by: Paul Dale <pauli@openssl.org>
+(Merged from https://github.com/openssl/openssl/pull/22291)
+
+(cherry picked from commit eaee1765a49c6a8ba728e3e2d18bb67bff8aaa55)
+---
+ crypto/dh/dh_check.c                         |  3 +-
+ crypto/dsa/dsa_check.c                       |  6 ++--
+ crypto/ffc/ffc_key_validate.c                | 16 +++------
+ providers/implementations/keymgmt/dh_kmgmt.c |  2 +-
+ test/ffc_internal_test.c                     | 38 ++++++++++----------
+ 5 files changed, 30 insertions(+), 35 deletions(-)
+
+diff --git a/crypto/dh/dh_check.c b/crypto/dh/dh_check.c
+index f4173e2137..7ba2beae7f 100644
+--- a/crypto/dh/dh_check.c
++++ b/crypto/dh/dh_check.c
+@@ -259,7 +259,8 @@ int DH_check_pub_key(const DH *dh, const BIGNUM *pub_key, int *ret)
+  */
+ int ossl_dh_check_pub_key_partial(const DH *dh, const BIGNUM *pub_key, int *ret)
+ {
+-    return ossl_ffc_validate_public_key_partial(&dh->params, pub_key, ret);
++    return ossl_ffc_validate_public_key_partial(&dh->params, pub_key, ret)
++           && *ret == 0;
+ }
+ 
+ int ossl_dh_check_priv_key(const DH *dh, const BIGNUM *priv_key, int *ret)
+diff --git a/crypto/dsa/dsa_check.c b/crypto/dsa/dsa_check.c
+index 7ee914a477..ec3534d35c 100644
+--- a/crypto/dsa/dsa_check.c
++++ b/crypto/dsa/dsa_check.c
+@@ -39,7 +39,8 @@ int ossl_dsa_check_params(const DSA *dsa, int checktype, int *ret)
+  */
+ int ossl_dsa_check_pub_key(const DSA *dsa, const BIGNUM *pub_key, int *ret)
+ {
+-    return ossl_ffc_validate_public_key(&dsa->params, pub_key, ret);
++    return ossl_ffc_validate_public_key(&dsa->params, pub_key, ret)
++           && *ret == 0;
+ }
+ 
+ /*
+@@ -49,7 +50,8 @@ int ossl_dsa_check_pub_key(const DSA *dsa, const BIGNUM *pub_key, int *ret)
+  */
+ int ossl_dsa_check_pub_key_partial(const DSA *dsa, const BIGNUM *pub_key, int *ret)
+ {
+-    return ossl_ffc_validate_public_key_partial(&dsa->params, pub_key, ret);
++    return ossl_ffc_validate_public_key_partial(&dsa->params, pub_key, ret)
++           && *ret == 0;
+ }
+ 
+ int ossl_dsa_check_priv_key(const DSA *dsa, const BIGNUM *priv_key, int *ret)
+diff --git a/crypto/ffc/ffc_key_validate.c b/crypto/ffc/ffc_key_validate.c
+index 342789621d..a4a2a58e9a 100644
+--- a/crypto/ffc/ffc_key_validate.c
++++ b/crypto/ffc/ffc_key_validate.c
+@@ -26,7 +26,7 @@ int ossl_ffc_validate_public_key_partial(const FFC_PARAMS *params,
+     *ret = 0;
+     if (params == NULL || pub_key == NULL || params->p == NULL) {
+         *ret = FFC_ERROR_PASSED_NULL_PARAM;
+-        return 0;
++        return 1;
+     }
+ 
+     ctx = BN_CTX_new_ex(NULL);
+@@ -39,18 +39,14 @@ int ossl_ffc_validate_public_key_partial(const FFC_PARAMS *params,
+     if (tmp == NULL
+         || !BN_set_word(tmp, 1))
+         goto err;
+-    if (BN_cmp(pub_key, tmp) <= 0) {
++    if (BN_cmp(pub_key, tmp) <= 0)
+         *ret |= FFC_ERROR_PUBKEY_TOO_SMALL;
+-        goto err;
+-    }
+     /* Step(1): Verify pub_key <=  p-2 */
+     if (BN_copy(tmp, params->p) == NULL
+         || !BN_sub_word(tmp, 1))
+         goto err;
+-    if (BN_cmp(pub_key, tmp) >= 0) {
++    if (BN_cmp(pub_key, tmp) >= 0)
+         *ret |= FFC_ERROR_PUBKEY_TOO_LARGE;
+-        goto err;
+-    }
+     ok = 1;
+  err:
+     if (ctx != NULL) {
+@@ -73,7 +69,7 @@ int ossl_ffc_validate_public_key(const FFC_PARAMS *params,
+     if (!ossl_ffc_validate_public_key_partial(params, pub_key, ret))
+         return 0;
+ 
+-    if (params->q != NULL) {
++    if (*ret == 0 && params->q != NULL) {
+         ctx = BN_CTX_new_ex(NULL);
+         if (ctx == NULL)
+             goto err;
+@@ -84,10 +80,8 @@ int ossl_ffc_validate_public_key(const FFC_PARAMS *params,
+         if (tmp == NULL
+             || !BN_mod_exp(tmp, pub_key, params->q, params->p, ctx))
+             goto err;
+-        if (!BN_is_one(tmp)) {
++        if (!BN_is_one(tmp))
+             *ret |= FFC_ERROR_PUBKEY_INVALID;
+-            goto err;
+-        }
+     }
+ 
+     ok = 1;
+diff --git a/providers/implementations/keymgmt/dh_kmgmt.c b/providers/implementations/keymgmt/dh_kmgmt.c
+index 4ca9c1a3fa..c14b9765d1 100644
+--- a/providers/implementations/keymgmt/dh_kmgmt.c
++++ b/providers/implementations/keymgmt/dh_kmgmt.c
+@@ -392,7 +392,7 @@ static int dh_validate_public(const DH *dh, int checktype)
+         && ossl_dh_is_named_safe_prime_group(dh))
+         return ossl_dh_check_pub_key_partial(dh, pub_key, &res);
+ 
+-    return DH_check_pub_key(dh, pub_key, &res);
++    return DH_check_pub_key_ex(dh, pub_key);
+ }
+ 
+ static int dh_validate_private(const DH *dh)
+diff --git a/test/ffc_internal_test.c b/test/ffc_internal_test.c
+index 7f8f44c8a9..83dec13c8c 100644
+--- a/test/ffc_internal_test.c
++++ b/test/ffc_internal_test.c
+@@ -455,22 +455,20 @@ static int ffc_public_validate_test(void)
+     if (!TEST_true(BN_set_word(pub, 1)))
+         goto err;
+     BN_set_negative(pub, 1);
+-    /* Fail if public key is negative */
+-    if (!TEST_false(ossl_ffc_validate_public_key(params, pub, &res)))
++    /* Check must succeed but set res if public key is negative */
++    if (!TEST_true(ossl_ffc_validate_public_key(params, pub, &res)))
+         goto err;
+     if (!TEST_int_eq(FFC_ERROR_PUBKEY_TOO_SMALL, res))
+         goto err;
+     if (!TEST_true(BN_set_word(pub, 0)))
+         goto err;
+-    if (!TEST_int_eq(FFC_ERROR_PUBKEY_TOO_SMALL, res))
+-        goto err;
+-    /* Fail if public key is zero */
+-    if (!TEST_false(ossl_ffc_validate_public_key(params, pub, &res)))
++    /* Check must succeed but set res if public key is zero */
++    if (!TEST_true(ossl_ffc_validate_public_key(params, pub, &res)))
+         goto err;
+     if (!TEST_int_eq(FFC_ERROR_PUBKEY_TOO_SMALL, res))
+         goto err;
+-    /* Fail if public key is 1 */
+-    if (!TEST_false(ossl_ffc_validate_public_key(params, BN_value_one(), &res)))
++    /* Check must succeed but set res if public key is 1 */
++    if (!TEST_true(ossl_ffc_validate_public_key(params, BN_value_one(), &res)))
+         goto err;
+     if (!TEST_int_eq(FFC_ERROR_PUBKEY_TOO_SMALL, res))
+         goto err;
+@@ -482,24 +480,24 @@ static int ffc_public_validate_test(void)
+ 
+     if (!TEST_ptr(BN_copy(pub, params->p)))
+         goto err;
+-    /* Fail if public key = p */
+-    if (!TEST_false(ossl_ffc_validate_public_key(params, pub, &res)))
++    /* Check must succeed but set res if public key = p */
++    if (!TEST_true(ossl_ffc_validate_public_key(params, pub, &res)))
+         goto err;
+     if (!TEST_int_eq(FFC_ERROR_PUBKEY_TOO_LARGE, res))
+         goto err;
+ 
+     if (!TEST_true(BN_sub_word(pub, 1)))
+         goto err;
+-    /* Fail if public key = p - 1 */
+-    if (!TEST_false(ossl_ffc_validate_public_key(params, pub, &res)))
++    /* Check must succeed but set res if public key = p - 1 */
++    if (!TEST_true(ossl_ffc_validate_public_key(params, pub, &res)))
+         goto err;
+     if (!TEST_int_eq(FFC_ERROR_PUBKEY_TOO_LARGE, res))
+         goto err;
+ 
+     if (!TEST_true(BN_sub_word(pub, 1)))
+         goto err;
+-    /* Fail if public key is not related to p & q */
+-    if (!TEST_false(ossl_ffc_validate_public_key(params, pub, &res)))
++    /* Check must succeed but set res if public key is not related to p & q */
++    if (!TEST_true(ossl_ffc_validate_public_key(params, pub, &res)))
+         goto err;
+     if (!TEST_int_eq(FFC_ERROR_PUBKEY_INVALID, res))
+         goto err;
+@@ -510,14 +508,14 @@ static int ffc_public_validate_test(void)
+     if (!TEST_true(ossl_ffc_validate_public_key(params, pub, &res)))
+         goto err;
+ 
+-    /* Fail if params is NULL */
+-    if (!TEST_false(ossl_ffc_validate_public_key(NULL, pub, &res)))
++    /* Check must succeed but set res if params is NULL */
++    if (!TEST_true(ossl_ffc_validate_public_key(NULL, pub, &res)))
+         goto err;
+     if (!TEST_int_eq(FFC_ERROR_PASSED_NULL_PARAM, res))
+         goto err;
+     res = -1;
+-    /* Fail if pubkey is NULL */
+-    if (!TEST_false(ossl_ffc_validate_public_key(params, NULL, &res)))
++    /* Check must succeed but set res if pubkey is NULL */
++    if (!TEST_true(ossl_ffc_validate_public_key(params, NULL, &res)))
+         goto err;
+     if (!TEST_int_eq(FFC_ERROR_PASSED_NULL_PARAM, res))
+         goto err;
+@@ -525,8 +523,8 @@ static int ffc_public_validate_test(void)
+ 
+     BN_free(params->p);
+     params->p = NULL;
+-    /* Fail if params->p is NULL */
+-    if (!TEST_false(ossl_ffc_validate_public_key(params, pub, &res)))
++    /* Check must succeed but set res if params->p is NULL */
++    if (!TEST_true(ossl_ffc_validate_public_key(params, pub, &res)))
+         goto err;
+     if (!TEST_int_eq(FFC_ERROR_PASSED_NULL_PARAM, res))
+         goto err;
+-- 
+2.34.1
+

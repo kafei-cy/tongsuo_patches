@@ -1,0 +1,169 @@
+From 98f5f7df0041f5ae7388dd5ec233bb504d708e35 Mon Sep 17 00:00:00 2001
+From: slontis <shane.lontis@oracle.com>
+Date: Tue, 21 Mar 2023 15:52:34 +1000
+Subject: [PATCH 103/381] Make DSA_sign() test for negative p,q,g values.
+
+Related to #20268
+
+DSA_sign() assumes that the signature passed in is related to DSA_size().
+If q is negative then DSA_size() actually fails and returns 0.
+
+A test that tries to allocate the signature buffer using DSA_size() and then
+pass it to DSA_sign() will then either.
+
+(1) Have a signature buffer of NULL. In this case it was leaking data
+returned via i2d_DSA_SIG.
+
+(2) Cause a seg fault because we created a buffer that was not large
+enough to hold the signature. As it already checked zero we also now
+check for negative values also.
+
+Reviewed-by: Tomas Mraz <tomas@openssl.org>
+Reviewed-by: Paul Dale <pauli@openssl.org>
+Reviewed-by: Todd Short <todd.short@me.com>
+(Merged from https://github.com/openssl/openssl/pull/20553)
+
+(cherry picked from commit 9559ad0e8d433a2a212b63cc848fa2ac82a9b048)
+(cherry picked from commit ce90b5ed8b0849a77336b8ea81ba7983d11e8700)
+---
+ crypto/dsa/dsa_ossl.c |  5 ++-
+ crypto/dsa/dsa_sign.c |  2 +-
+ test/dsatest.c        | 79 +++++++++++++++++++++++++++++++++++++++++++
+ 3 files changed, 84 insertions(+), 2 deletions(-)
+
+diff --git a/crypto/dsa/dsa_ossl.c b/crypto/dsa/dsa_ossl.c
+index d0edb5db0f..1aa2ad3f92 100644
+--- a/crypto/dsa/dsa_ossl.c
++++ b/crypto/dsa/dsa_ossl.c
+@@ -224,7 +224,10 @@ static int dsa_sign_setup(DSA *dsa, BN_CTX *ctx_in,
+     /* Reject obviously invalid parameters */
+     if (BN_is_zero(dsa->params.p)
+         || BN_is_zero(dsa->params.q)
+-        || BN_is_zero(dsa->params.g)) {
++        || BN_is_zero(dsa->params.g)
++        || BN_is_negative(dsa->params.p)
++        || BN_is_negative(dsa->params.q)
++        || BN_is_negative(dsa->params.g)) {
+         ERR_raise(ERR_LIB_DSA, DSA_R_INVALID_PARAMETERS);
+         return 0;
+     }
+diff --git a/crypto/dsa/dsa_sign.c b/crypto/dsa/dsa_sign.c
+index 21b0cbd5fb..e5d776d0c0 100644
+--- a/crypto/dsa/dsa_sign.c
++++ b/crypto/dsa/dsa_sign.c
+@@ -165,7 +165,7 @@ int ossl_dsa_sign_int(int type, const unsigned char *dgst, int dlen,
+         *siglen = 0;
+         return 0;
+     }
+-    *siglen = i2d_DSA_SIG(s, &sig);
++    *siglen = i2d_DSA_SIG(s, sig != NULL ? &sig : NULL);
+     DSA_SIG_free(s);
+     return 1;
+ }
+diff --git a/test/dsatest.c b/test/dsatest.c
+index 5c13a0d825..49966088e5 100644
+--- a/test/dsatest.c
++++ b/test/dsatest.c
+@@ -374,6 +374,10 @@ static int test_dsa_sig_infinite_loop(void)
+     if (!TEST_int_le(DSA_size(dsa), sizeof(signature)))
+         goto err;
+ 
++    /* Test passing signature as NULL */
++    if (!TEST_true(DSA_sign(0, msg, sizeof(msg), NULL, &signature_len, dsa)))
++        goto err;
++
+     if (!TEST_true(DSA_sign(0, msg, sizeof(msg), signature, &signature_len, dsa)))
+         goto err;
+ 
+@@ -408,6 +412,80 @@ err:
+     return ret;
+ }
+ 
++static int test_dsa_sig_neg_param(void)
++{
++    int ret = 0, setpqg = 0;
++    DSA *dsa = NULL;
++    BIGNUM *p = NULL, *q = NULL, *g = NULL, *priv = NULL, *pub = NULL;
++    const unsigned char msg[] = { 0x00 };
++    unsigned int signature_len;
++    unsigned char signature[64];
++
++    static unsigned char out_priv[] = {
++        0x17, 0x00, 0xb2, 0x8d, 0xcb, 0x24, 0xc9, 0x98,
++        0xd0, 0x7f, 0x1f, 0x83, 0x1a, 0xa1, 0xc4, 0xa4,
++        0xf8, 0x0f, 0x7f, 0x12
++    };
++    static unsigned char out_pub[] = {
++        0x04, 0x72, 0xee, 0x8d, 0xaa, 0x4d, 0x89, 0x60,
++        0x0e, 0xb2, 0xd4, 0x38, 0x84, 0xa2, 0x2a, 0x60,
++        0x5f, 0x67, 0xd7, 0x9e, 0x24, 0xdd, 0xe8, 0x50,
++        0xf2, 0x23, 0x71, 0x55, 0x53, 0x94, 0x0d, 0x6b,
++        0x2e, 0xcd, 0x30, 0xda, 0x6f, 0x1e, 0x2c, 0xcf,
++        0x59, 0xbe, 0x05, 0x6c, 0x07, 0x0e, 0xc6, 0x38,
++        0x05, 0xcb, 0x0c, 0x44, 0x0a, 0x08, 0x13, 0xb6,
++        0x0f, 0x14, 0xde, 0x4a, 0xf6, 0xed, 0x4e, 0xc3
++    };
++    if (!TEST_ptr(p = BN_bin2bn(out_p, sizeof(out_p), NULL))
++        || !TEST_ptr(q = BN_bin2bn(out_q, sizeof(out_q), NULL))
++        || !TEST_ptr(g = BN_bin2bn(out_g, sizeof(out_g), NULL))
++        || !TEST_ptr(pub = BN_bin2bn(out_pub, sizeof(out_pub), NULL))
++        || !TEST_ptr(priv = BN_bin2bn(out_priv, sizeof(out_priv), NULL))
++        || !TEST_ptr(dsa = DSA_new()))
++        goto err;
++
++    if (!TEST_true(DSA_set0_pqg(dsa, p, q, g)))
++        goto err;
++    setpqg = 1;
++
++    if (!TEST_true(DSA_set0_key(dsa, pub, priv)))
++        goto err;
++    pub = priv = NULL;
++
++    BN_set_negative(p, 1);
++    if (!TEST_false(DSA_sign(0, msg, sizeof(msg), signature, &signature_len, dsa)))
++        goto err;
++
++    BN_set_negative(p, 0);
++    BN_set_negative(q, 1);
++    if (!TEST_false(DSA_sign(0, msg, sizeof(msg), signature, &signature_len, dsa)))
++        goto err;
++
++    BN_set_negative(q, 0);
++    BN_set_negative(g, 1);
++    if (!TEST_false(DSA_sign(0, msg, sizeof(msg), signature, &signature_len, dsa)))
++        goto err;
++
++    BN_set_negative(p, 1);
++    BN_set_negative(q, 1);
++    BN_set_negative(g, 1);
++    if (!TEST_false(DSA_sign(0, msg, sizeof(msg), signature, &signature_len, dsa)))
++        goto err;
++
++    ret = 1;
++err:
++    BN_free(pub);
++    BN_free(priv);
++
++    if (setpqg == 0) {
++        BN_free(g);
++        BN_free(q);
++        BN_free(p);
++    }
++    DSA_free(dsa);
++    return ret;
++}
++
+ #endif /* OPENSSL_NO_DSA */
+ 
+ int setup_tests(void)
+@@ -416,6 +494,7 @@ int setup_tests(void)
+     ADD_TEST(dsa_test);
+     ADD_TEST(dsa_keygen_test);
+     ADD_TEST(test_dsa_sig_infinite_loop);
++    ADD_TEST(test_dsa_sig_neg_param);
+     ADD_ALL_TESTS(test_dsa_default_paramgen_validate, 2);
+ #endif
+     return 1;
+-- 
+2.34.1
+

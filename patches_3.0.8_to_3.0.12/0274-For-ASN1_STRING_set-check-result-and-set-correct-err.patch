@@ -1,0 +1,72 @@
+From 0c1cdb7cefa8edbcc29b9d799ac28c6fbc7e0a30 Mon Sep 17 00:00:00 2001
+From: atishkov <a.tishkov@aladdin.ru>
+Date: Fri, 4 Aug 2023 22:15:01 +0300
+Subject: [PATCH 274/381] For ASN1_STRING_set() check result and set correct
+ error code
+
+Reviewed-by: Bernd Edlinger <bernd.edlinger@hotmail.de>
+Reviewed-by: Tom Cosgrove <tom.cosgrove@arm.com>
+Reviewed-by: Tomas Mraz <tomas@openssl.org>
+(Merged from https://github.com/openssl/openssl/pull/21658)
+---
+ crypto/asn1/asn1_gen.c | 9 ++++++---
+ crypto/x509/v3_ist.c   | 8 ++++----
+ 2 files changed, 10 insertions(+), 7 deletions(-)
+
+diff --git a/crypto/asn1/asn1_gen.c b/crypto/asn1/asn1_gen.c
+index 64620a4f28..5a15c6a5d9 100644
+--- a/crypto/asn1/asn1_gen.c
++++ b/crypto/asn1/asn1_gen.c
+@@ -698,9 +698,12 @@ static ASN1_TYPE *asn1_str2type(const char *str, int format, int utype)
+             atmp->value.asn1_string->data = rdata;
+             atmp->value.asn1_string->length = rdlen;
+             atmp->value.asn1_string->type = utype;
+-        } else if (format == ASN1_GEN_FORMAT_ASCII)
+-            ASN1_STRING_set(atmp->value.asn1_string, str, -1);
+-        else if ((format == ASN1_GEN_FORMAT_BITLIST)
++        } else if (format == ASN1_GEN_FORMAT_ASCII) {
++            if (!ASN1_STRING_set(atmp->value.asn1_string, str, -1)) {
++                ERR_raise(ERR_LIB_ASN1, ERR_R_MALLOC_FAILURE);
++                goto bad_str;
++            }
++        } else if ((format == ASN1_GEN_FORMAT_BITLIST)
+                  && (utype == V_ASN1_BIT_STRING)) {
+             if (!CONF_parse_list
+                 (str, ',', 1, bitstr_cb, atmp->value.bit_string)) {
+diff --git a/crypto/x509/v3_ist.c b/crypto/x509/v3_ist.c
+index e6fef0153c..4a3cfa12a4 100644
+--- a/crypto/x509/v3_ist.c
++++ b/crypto/x509/v3_ist.c
+@@ -51,25 +51,25 @@ static ISSUER_SIGN_TOOL *v2i_issuer_sign_tool(X509V3_EXT_METHOD *method, X509V3_
+         if (strcmp(cnf->name, "signTool") == 0) {
+             ist->signTool = ASN1_UTF8STRING_new();
+             if (ist->signTool == NULL || !ASN1_STRING_set(ist->signTool, cnf->value, strlen(cnf->value))) {
+-                ERR_raise(ERR_LIB_X509V3, ERR_R_ASN1_LIB);
++                ERR_raise(ERR_LIB_X509V3, ERR_R_MALLOC_FAILURE);
+                 goto err;
+             }
+         } else if (strcmp(cnf->name, "cATool") == 0) {
+             ist->cATool = ASN1_UTF8STRING_new();
+             if (ist->cATool == NULL || !ASN1_STRING_set(ist->cATool, cnf->value, strlen(cnf->value))) {
+-                ERR_raise(ERR_LIB_X509V3, ERR_R_ASN1_LIB);
++                ERR_raise(ERR_LIB_X509V3, ERR_R_MALLOC_FAILURE);
+                 goto err;
+             }
+         } else if (strcmp(cnf->name, "signToolCert") == 0) {
+             ist->signToolCert = ASN1_UTF8STRING_new();
+             if (ist->signToolCert == NULL || !ASN1_STRING_set(ist->signToolCert, cnf->value, strlen(cnf->value))) {
+-                ERR_raise(ERR_LIB_X509V3, ERR_R_ASN1_LIB);
++                ERR_raise(ERR_LIB_X509V3, ERR_R_MALLOC_FAILURE);
+                 goto err;
+             }
+         } else if (strcmp(cnf->name, "cAToolCert") == 0) {
+             ist->cAToolCert = ASN1_UTF8STRING_new();
+             if (ist->cAToolCert == NULL || !ASN1_STRING_set(ist->cAToolCert, cnf->value, strlen(cnf->value))) {
+-                ERR_raise(ERR_LIB_X509V3, ERR_R_ASN1_LIB);
++                ERR_raise(ERR_LIB_X509V3, ERR_R_MALLOC_FAILURE);
+                 goto err;
+             }
+         } else {
+-- 
+2.34.1
+

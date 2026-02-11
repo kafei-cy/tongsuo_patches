@@ -1,0 +1,49 @@
+From 137e3a9ac07706a8ec65f2afd31236d9180ad4f0 Mon Sep 17 00:00:00 2001
+From: Richard Levitte <levitte@openssl.org>
+Date: Wed, 6 Sep 2023 07:13:26 +0200
+Subject: [PATCH 301/381] OSSL_STORE: Fix error flag clearing and setting
+ (provider path only)
+
+When the provider's load function returned with an error, the libcrypto
+error flag was only set if EOF hadn't been reached.  This is troublesome,
+as an error can very well occur during the last load before EOF is reached!
+
+Also, the error flag was never reset, even though documentation specifies
+that it should indicate an error in the last load (i.e. not the one before
+that).
+
+Fixes #21968
+
+Reviewed-by: Dmitry Belyavskiy <beldmit@gmail.com>
+Reviewed-by: Paul Dale <pauli@openssl.org>
+(Merged from https://github.com/openssl/openssl/pull/21976)
+
+(cherry picked from commit 17dd9a2c6262c00800301fddd9441a9c590a630e)
+---
+ crypto/store/store_lib.c | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/crypto/store/store_lib.c b/crypto/store/store_lib.c
+index 5ff9278629..60a6aded05 100644
+--- a/crypto/store/store_lib.c
++++ b/crypto/store/store_lib.c
+@@ -424,14 +424,14 @@ OSSL_STORE_INFO *OSSL_STORE_load(OSSL_STORE_CTX *ctx)
+ 
+             load_data.v = NULL;
+             load_data.ctx = ctx;
++            ctx->error_flag = 0;
+ 
+             if (!ctx->fetched_loader->p_load(ctx->loader_ctx,
+                                              ossl_store_handle_load_result,
+                                              &load_data,
+                                              ossl_pw_passphrase_callback_dec,
+                                              &ctx->pwdata)) {
+-                if (!OSSL_STORE_eof(ctx))
+-                    ctx->error_flag = 1;
++                ctx->error_flag = 1;
+                 return NULL;
+             }
+             v = load_data.v;
+-- 
+2.34.1
+

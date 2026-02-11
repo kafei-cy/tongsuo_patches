@@ -1,0 +1,82 @@
+From b5edc8d02ce0c11f39529b0fc95ae64c1c9f6c70 Mon Sep 17 00:00:00 2001
+From: Tomas Mraz <tomas@openssl.org>
+Date: Fri, 21 Jul 2023 16:26:12 +0200
+Subject: [PATCH 268/381] Avoid exporting bogus (empty) data if empty selection
+ is used
+
+This is already correct in the rsa_kmgmt.c but other
+implementations are wrong.
+
+Reviewed-by: Matt Caswell <matt@openssl.org>
+Reviewed-by: Paul Dale <pauli@openssl.org>
+Reviewed-by: Todd Short <todd.short@me.com>
+(Merged from https://github.com/openssl/openssl/pull/21519)
+
+(cherry picked from commit 1ae4678cebaa13604c0f31bdf2c64cd28bdaf287)
+(cherry picked from commit 8865d7c4e8f9afac969fc927f2b24ee6d03868bd)
+---
+ providers/implementations/keymgmt/dh_kmgmt.c         | 3 +++
+ providers/implementations/keymgmt/dsa_kmgmt.c        | 3 +++
+ providers/implementations/keymgmt/ecx_kmgmt.c        | 3 +++
+ providers/implementations/keymgmt/mac_legacy_kmgmt.c | 3 +++
+ 4 files changed, 12 insertions(+)
+
+diff --git a/providers/implementations/keymgmt/dh_kmgmt.c b/providers/implementations/keymgmt/dh_kmgmt.c
+index 9a7dde7c66..4ca9c1a3fa 100644
+--- a/providers/implementations/keymgmt/dh_kmgmt.c
++++ b/providers/implementations/keymgmt/dh_kmgmt.c
+@@ -222,6 +222,9 @@ static int dh_export(void *keydata, int selection, OSSL_CALLBACK *param_cb,
+     if (!ossl_prov_is_running() || dh == NULL)
+         return 0;
+ 
++    if ((selection & DH_POSSIBLE_SELECTIONS) == 0)
++        return 0;
++
+     tmpl = OSSL_PARAM_BLD_new();
+     if (tmpl == NULL)
+         return 0;
+diff --git a/providers/implementations/keymgmt/dsa_kmgmt.c b/providers/implementations/keymgmt/dsa_kmgmt.c
+index cd8b4410b0..2f5742cfcc 100644
+--- a/providers/implementations/keymgmt/dsa_kmgmt.c
++++ b/providers/implementations/keymgmt/dsa_kmgmt.c
+@@ -223,6 +223,9 @@ static int dsa_export(void *keydata, int selection, OSSL_CALLBACK *param_cb,
+     if (!ossl_prov_is_running() || dsa == NULL)
+         return 0;
+ 
++    if ((selection & DSA_POSSIBLE_SELECTIONS) == 0)
++        return 0;
++
+     tmpl = OSSL_PARAM_BLD_new();
+     if (tmpl == NULL)
+         return 0;
+diff --git a/providers/implementations/keymgmt/ecx_kmgmt.c b/providers/implementations/keymgmt/ecx_kmgmt.c
+index 2a7f867aa5..831681412a 100644
+--- a/providers/implementations/keymgmt/ecx_kmgmt.c
++++ b/providers/implementations/keymgmt/ecx_kmgmt.c
+@@ -238,6 +238,9 @@ static int ecx_export(void *keydata, int selection, OSSL_CALLBACK *param_cb,
+     if (!ossl_prov_is_running() || key == NULL)
+         return 0;
+ 
++    if ((selection & OSSL_KEYMGMT_SELECT_KEYPAIR) == 0)
++        return 0;
++
+     tmpl = OSSL_PARAM_BLD_new();
+     if (tmpl == NULL)
+         return 0;
+diff --git a/providers/implementations/keymgmt/mac_legacy_kmgmt.c b/providers/implementations/keymgmt/mac_legacy_kmgmt.c
+index c934ff1640..3434b966f4 100644
+--- a/providers/implementations/keymgmt/mac_legacy_kmgmt.c
++++ b/providers/implementations/keymgmt/mac_legacy_kmgmt.c
+@@ -281,6 +281,9 @@ static int mac_export(void *keydata, int selection, OSSL_CALLBACK *param_cb,
+     if (!ossl_prov_is_running() || key == NULL)
+         return 0;
+ 
++    if ((selection & OSSL_KEYMGMT_SELECT_PRIVATE_KEY) == 0)
++        return 0;
++
+     tmpl = OSSL_PARAM_BLD_new();
+     if (tmpl == NULL)
+         return 0;
+-- 
+2.34.1
+

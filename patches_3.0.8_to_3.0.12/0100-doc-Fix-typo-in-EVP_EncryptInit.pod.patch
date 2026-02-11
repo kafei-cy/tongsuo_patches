@@ -1,0 +1,34 @@
+From 4c507d9d5abbf230e789336e5c37f684208b67da Mon Sep 17 00:00:00 2001
+From: "Samuel Lee (ENS/CRYPTO)" <saml@microsoft.com>
+Date: Wed, 29 Mar 2023 13:02:38 -0700
+Subject: [PATCH 100/381] doc: Fix typo in EVP_EncryptInit.pod
+
+CLA: trivial
+
+Reviewed-by: Paul Dale <pauli@openssl.org>
+Reviewed-by: Shane Lontis <shane.lontis@oracle.com>
+Reviewed-by: Todd Short <todd.short@me.com>
+(Merged from https://github.com/openssl/openssl/pull/20645)
+
+(cherry picked from commit 027226eb229c41d7066366a8b9ef8241da7500bd)
+(cherry picked from commit 85a51c9fb7a942464750d453f694768e68a28471)
+---
+ doc/man3/EVP_EncryptInit.pod | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/doc/man3/EVP_EncryptInit.pod b/doc/man3/EVP_EncryptInit.pod
+index 7d7db3c9f7..e469f28a7b 100644
+--- a/doc/man3/EVP_EncryptInit.pod
++++ b/doc/man3/EVP_EncryptInit.pod
+@@ -1065,7 +1065,7 @@ with an L<OSSL_PARAM(3)> item with the key
+ 
+ When used with a fetched B<EVP_CIPHER>, EVP_CIPHER_CTX_set_params() get called
+ with an L<OSSL_PARAM(3)> item with the key
+-"tlsaadpad" (B<OSSL_CIPHER_PARAM_AEAD_TLS1_AAD>)
++"tlsaad" (B<OSSL_CIPHER_PARAM_AEAD_TLS1_AAD>)
+ followed by EVP_CIPHER_CTX_get_params() with a key of
+ "tlsaadpad" (B<OSSL_CIPHER_PARAM_AEAD_TLS1_AAD_PAD>).
+ 
+-- 
+2.34.1
+

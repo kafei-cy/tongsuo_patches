@@ -1,0 +1,35 @@
+From 7fca5df7ab49ccdc6b8e0a2bcecb644cf907ae5c Mon Sep 17 00:00:00 2001
+From: "J.W. Jagersma" <jwjagersma@gmail.com>
+Date: Tue, 22 Nov 2022 19:20:53 +0100
+Subject: [PATCH 041/381] Disable atomic refcounts with no-threads
+
+This is needed for building with '-march=i386 no-threads', on platforms
+where libatomic is not available (djgpp, specifically).  The
+implementation now falls back to 'CRYPTO_atomic_add()', which performs
+plain lock-free addition in a 'no-threads' build.
+
+Reviewed-by: Matt Caswell <matt@openssl.org>
+Reviewed-by: Paul Dale <pauli@openssl.org>
+Reviewed-by: Tomas Mraz <tomas@openssl.org>
+(Merged from https://github.com/openssl/openssl/pull/19751)
+(cherry picked from commit b484c6268ce38ccbc1bf5ee95bbd36f76fba994f)
+---
+ include/internal/refcount.h | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/include/internal/refcount.h b/include/internal/refcount.h
+index 7412d62f56..8674ab3664 100644
+--- a/include/internal/refcount.h
++++ b/include/internal/refcount.h
+@@ -13,7 +13,7 @@
+ # include <openssl/e_os2.h>
+ # include <openssl/trace.h>
+ 
+-# ifndef OPENSSL_DEV_NO_ATOMICS
++# if defined(OPENSSL_THREADS) && !defined(OPENSSL_DEV_NO_ATOMICS)
+ #  if defined(__STDC_VERSION__) && __STDC_VERSION__ >= 201112L \
+       && !defined(__STDC_NO_ATOMICS__)
+ #   include <stdatomic.h>
+-- 
+2.34.1
+

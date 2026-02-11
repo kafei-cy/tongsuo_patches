@@ -1,0 +1,47 @@
+From c2dbf9ef1f9cc26c5fb1540393a89a56b2469d91 Mon Sep 17 00:00:00 2001
+From: Tomas Mraz <tomas@openssl.org>
+Date: Wed, 4 Oct 2023 09:30:43 +0200
+Subject: [PATCH 346/381] BN_gcd(): Avoid shifts of negative values
+
+Fixes #22216
+
+Thanks to Leland Mills for investigation and testing.
+
+Reviewed-by: Tom Cosgrove <tom.cosgrove@arm.com>
+Reviewed-by: Matt Caswell <matt@openssl.org>
+Reviewed-by: Paul Dale <pauli@openssl.org>
+(Merged from https://github.com/openssl/openssl/pull/22272)
+
+(cherry picked from commit 0f7a3b0caa33a87c900536dc1c02fa553d2193cc)
+---
+ crypto/bn/bn_gcd.c | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/crypto/bn/bn_gcd.c b/crypto/bn/bn_gcd.c
+index 59d024f674..6a31ff87ef 100644
+--- a/crypto/bn/bn_gcd.c
++++ b/crypto/bn/bn_gcd.c
+@@ -611,9 +611,9 @@ int BN_gcd(BIGNUM *r, const BIGNUM *in_a, const BIGNUM *in_b, BN_CTX *ctx)
+ 
+     for (i = 0; i < m; i++) {
+         /* conditionally flip signs if delta is positive and g is odd */
+-        cond = (-delta >> (8 * sizeof(delta) - 1)) & g->d[0] & 1
++        cond = ((unsigned int)-delta >> (8 * sizeof(delta) - 1)) & g->d[0] & 1
+             /* make sure g->top > 0 (i.e. if top == 0 then g == 0 always) */
+-            & (~((g->top - 1) >> (sizeof(g->top) * 8 - 1)));
++            & (~((unsigned int)(g->top - 1) >> (sizeof(g->top) * 8 - 1)));
+         delta = (-cond & -delta) | ((cond - 1) & delta);
+         r->neg ^= cond;
+         /* swap */
+@@ -625,7 +625,7 @@ int BN_gcd(BIGNUM *r, const BIGNUM *in_a, const BIGNUM *in_b, BN_CTX *ctx)
+             goto err;
+         BN_consttime_swap(g->d[0] & 1 /* g is odd */
+                 /* make sure g->top > 0 (i.e. if top == 0 then g == 0 always) */
+-                & (~((g->top - 1) >> (sizeof(g->top) * 8 - 1))),
++                & (~((unsigned int)(g->top - 1) >> (sizeof(g->top) * 8 - 1))),
+                 g, temp, top);
+         if (!BN_rshift1(g, g))
+             goto err;
+-- 
+2.34.1
+

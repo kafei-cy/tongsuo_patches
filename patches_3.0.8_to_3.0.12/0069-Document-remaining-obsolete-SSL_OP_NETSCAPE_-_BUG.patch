@@ -1,0 +1,40 @@
+From ce31a7c60460d026292a009cb5055082ce2a485c Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?Tobias=20Nie=C3=9Fen?= <tniessen@tnie.de>
+Date: Mon, 6 Mar 2023 22:51:17 +0000
+Subject: [PATCH 069/381] Document remaining obsolete SSL_OP_NETSCAPE_*_BUG
+
+SSL_OP_NETSCAPE_CA_DN_BUG became obsolete in 3c33c6f6b1086435 and
+support for SSL_OP_NETSCAPE_DEMO_CIPHER_CHANGE_BUG was removed by
+7a4dadc3a6a487db. The definitions are still listed under "OBSOLETE
+OPTIONS retained for compatibility" in ssl.h.in, so this commit adds
+them to the list of obsolete options in doc/man3.
+
+Refs: https://github.com/nodejs/node/pull/46954
+
+Reviewed-by: Matt Caswell <matt@openssl.org>
+Reviewed-by: Paul Dale <pauli@openssl.org>
+(Merged from https://github.com/openssl/openssl/pull/20443)
+
+(cherry picked from commit fe52208c560fb4d16fc40cfe395032544b82271e)
+---
+ doc/man3/SSL_CTX_set_options.pod | 4 ++++
+ 1 file changed, 4 insertions(+)
+
+diff --git a/doc/man3/SSL_CTX_set_options.pod b/doc/man3/SSL_CTX_set_options.pod
+index 08522522cd..7c2e46e0b6 100644
+--- a/doc/man3/SSL_CTX_set_options.pod
++++ b/doc/man3/SSL_CTX_set_options.pod
+@@ -352,6 +352,10 @@ retained for compatibility purposes:
+ 
+ =item SSL_OP_EPHEMERAL_RSA
+ 
++=item SSL_OP_NETSCAPE_CA_DN_BUG
++
++=item SSL_OP_NETSCAPE_DEMO_CIPHER_CHANGE_BUG
++
+ =back
+ 
+ =head1 SECURE RENEGOTIATION
+-- 
+2.34.1
+

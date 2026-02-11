@@ -1,0 +1,42 @@
+From 930fb0e4208ddddc1b5c67990b67625b372cce63 Mon Sep 17 00:00:00 2001
+From: ndossche <niels.dossche@ugent.be>
+Date: Mon, 13 Feb 2023 15:27:25 +0100
+Subject: [PATCH 017/381] Fix incorrect error branch in
+ ossl_bn_rsa_fips186_4_derive_prime()
+
+BN_priv_rand_range_ex() and BN_add() both return a 0 on failure and a 1
+on success. In case of failure, the algorithm should fail. However, the
+branch that it goes through on failure is "goto end", not "goto err".
+Therefore, the algorithm will return 1 which indicates success instead
+of 0 for failure, leading to potential problems for the callers.
+Fix it by changing the goto to "goto err" instead of "goto end".
+
+CLA: trivial
+
+Reviewed-by: Tomas Mraz <tomas@openssl.org>
+Reviewed-by: Shane Lontis <shane.lontis@oracle.com>
+Reviewed-by: Todd Short <todd.short@me.com>
+(Merged from https://github.com/openssl/openssl/pull/20279)
+
+(cherry picked from commit 835b90a19cdb2901cdba8a26955ccaacf0d73062)
+(cherry picked from commit d1e1a8feeb749a9d80721c357cabe6faa0d61611)
+---
+ crypto/bn/bn_rsa_fips186_4.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/crypto/bn/bn_rsa_fips186_4.c b/crypto/bn/bn_rsa_fips186_4.c
+index abce1aa2d8..598964dc4e 100644
+--- a/crypto/bn/bn_rsa_fips186_4.c
++++ b/crypto/bn/bn_rsa_fips186_4.c
+@@ -318,7 +318,7 @@ int ossl_bn_rsa_fips186_4_derive_prime(BIGNUM *Y, BIGNUM *X, const BIGNUM *Xin,
+              *    sqrt(2) * 2^(nlen/2-1) <= Random X <= (2^(nlen/2)) - 1.
+              */
+             if (!BN_priv_rand_range_ex(X, range, 0, ctx) || !BN_add(X, X, base))
+-                goto end;
++                goto err;
+         }
+         /* (Step 4) Y = X + ((R - X) mod 2r1r2) */
+         if (!BN_mod_sub(Y, R, X, r1r2x2, ctx) || !BN_add(Y, Y, X))
+-- 
+2.34.1
+

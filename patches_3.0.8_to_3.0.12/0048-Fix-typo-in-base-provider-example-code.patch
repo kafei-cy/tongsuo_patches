@@ -1,0 +1,32 @@
+From 66b2df32e13ab83125eb1f3ad645fa0400403ff9 Mon Sep 17 00:00:00 2001
+From: HansHoogerwerf <hans3132@live.nl>
+Date: Wed, 1 Mar 2023 10:02:37 +0100
+Subject: [PATCH 048/381] Fix typo in base provider example code
+
+CLA: trivial
+
+Reviewed-by: Richard Levitte <levitte@openssl.org>
+Reviewed-by: Paul Dale <pauli@openssl.org>
+(Merged from https://github.com/openssl/openssl/pull/20411)
+
+(cherry picked from commit 08a11ba20461ce14b0a6b9c9e374fbea91fbd8cf)
+---
+ doc/man7/provider-base.pod | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/doc/man7/provider-base.pod b/doc/man7/provider-base.pod
+index c587e0e529..33c245d6ec 100644
+--- a/doc/man7/provider-base.pod
++++ b/doc/man7/provider-base.pod
+@@ -779,7 +779,7 @@ This relies on a few things existing in F<openssl/core_dispatch.h>:
+ 
+  #define OSSL_FUNC_BAR_FREECTX     2
+  typedef void (OSSL_FUNC_bar_freectx_fn)(void *ctx);
+- static ossl_inline OSSL_FUNC_bar_newctx(const OSSL_DISPATCH *opf)
++ static ossl_inline OSSL_FUNC_bar_freectx(const OSSL_DISPATCH *opf)
+  { return (OSSL_FUNC_bar_freectx_fn *)opf->function; }
+ 
+  #define OSSL_FUNC_BAR_INIT        3
+-- 
+2.34.1
+

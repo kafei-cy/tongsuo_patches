@@ -1,0 +1,47 @@
+From f09b894101d2f8ed2dbff02eda9153c4b455c27b Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?Kornel=20Dul=C4=99ba?= <mindal@semihalf.com>
+Date: Wed, 8 Mar 2023 11:28:41 +0100
+Subject: [PATCH 063/381] aes/asm/bsaes-armv7.pl: Replace adrl with add
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+"adrl" is a pseudo-instruction used to calculate an address relative
+to PC. It's not recognized by clang resulting in a compilation error.
+I've stumbled upon it when trying to integrate the bsaes-armv7 assmebly
+logic into FreeBSD kernel, which uses clang as it's default compiler.
+Note that this affect the build only if BSAES_ASM_EXTENDED_KEY is
+defined, which is not the default option in OpenSSL.
+
+The solution here is to replace it with an add instruction.
+This mimics what has already been done in !BSAES_ASM_EXTENDED_KEY logic.
+Because of that I've marked this as trivial CLA.
+
+CLA: trivial
+Signed-off-by: Kornel Dulęba <mindal@semihalf.com>
+
+Reviewed-by: Tom Cosgrove <tom.cosgrove@arm.com>
+Reviewed-by: Paul Dale <pauli@openssl.org>
+(Merged from https://github.com/openssl/openssl/pull/20458)
+
+(cherry picked from commit 27093ba73372935fe4ef91d0a45ce6ea90a1ac8e)
+---
+ crypto/aes/asm/bsaes-armv7.pl | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/crypto/aes/asm/bsaes-armv7.pl b/crypto/aes/asm/bsaes-armv7.pl
+index 9c5dd5839a..372853461f 100644
+--- a/crypto/aes/asm/bsaes-armv7.pl
++++ b/crypto/aes/asm/bsaes-armv7.pl
+@@ -1447,7 +1447,7 @@ ossl_bsaes_ctr32_encrypt_blocks:
+ .align	2
+ 0:	add	r12, $key, #248
+ 	vld1.8	{@XMM[0]}, [$ctr]		@ load counter
+-	adrl	$ctr, .LREVM0SR			@ borrow $ctr
++	add	$ctr, $const, #.LREVM0SR-.LM0	@ borrow $ctr
+ 	vldmia	r12, {@XMM[4]}			@ load round0 key
+ 	sub	sp, #0x10			@ place for adjusted round0 key
+ #endif
+-- 
+2.34.1
+

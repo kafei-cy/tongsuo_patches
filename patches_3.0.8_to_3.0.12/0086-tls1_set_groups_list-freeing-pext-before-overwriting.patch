@@ -1,0 +1,47 @@
+From fcf3a9f7c6a10acb2d92f03aec5e45df7dd712d5 Mon Sep 17 00:00:00 2001
+From: Peter Kaestle <peter.kaestle@nokia.com>
+Date: Thu, 16 Feb 2023 15:02:46 +0100
+Subject: [PATCH 086/381] tls1_set_groups_list: freeing *pext before
+ overwriting
+
+calling SSL_CTX_set1_groups_list() twice on one SSL_CTX* caused a memory
+leak visible in valgrind:
+  4 bytes in 1 blocks are definitely lost in loss record 1 of 1
+     at 0x4841888: malloc (vg_replace_malloc.c:381)
+     by 0x4B1EE96: CRYPTO_memdup (in libcrypto.so.3)
+     by 0x48993A0: tls1_set_groups_list (in libssl.so.3)
+     by 0x487AA7E: ssl3_ctx_ctrl (in libssl.so.3)
+     by 0x1091EA: main (mem_leak.c:10)
+
+  LEAK SUMMARY:
+     definitely lost: 4 bytes in 1 blocks
+
+Freeing *pext to fix it.
+
+CLA: trivial
+
+Signed-off-by: Peter Kaestle <peter.kaestle@nokia.com>
+
+Reviewed-by: Tomas Mraz <tomas@openssl.org>
+Reviewed-by: Matt Caswell <matt@openssl.org>
+Reviewed-by: Richard Levitte <levitte@openssl.org>
+(Merged from https://github.com/openssl/openssl/pull/20317)
+---
+ ssl/t1_lib.c | 1 +
+ 1 file changed, 1 insertion(+)
+
+diff --git a/ssl/t1_lib.c b/ssl/t1_lib.c
+index 51c2283db9..0928a30c2d 100644
+--- a/ssl/t1_lib.c
++++ b/ssl/t1_lib.c
+@@ -765,6 +765,7 @@ int tls1_set_groups_list(SSL_CTX *ctx, uint16_t **pext, size_t *pextlen,
+     tmparr = OPENSSL_memdup(gcb.gid_arr, gcb.gidcnt * sizeof(*tmparr));
+     if (tmparr == NULL)
+         goto end;
++    OPENSSL_free(*pext);
+     *pext = tmparr;
+     *pextlen = gcb.gidcnt;
+     ret = 1;
+-- 
+2.34.1
+

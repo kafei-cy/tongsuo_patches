@@ -1,0 +1,45 @@
+From 76385c3766289e3399e852706dca7dc19509f364 Mon Sep 17 00:00:00 2001
+From: Bernd Edlinger <bernd.edlinger@hotmail.de>
+Date: Mon, 11 Sep 2023 12:34:02 +0200
+Subject: [PATCH 309/381] Fix a memleak in prepare_rsa_params
+
+This affects only RSA-PSS keys with params using
+negative salt legth, or in case of out of memory.
+This fixes a memory leak reported in #22049.
+
+Reviewed-by: Hugo Landau <hlandau@openssl.org>
+Reviewed-by: Paul Dale <pauli@openssl.org>
+Reviewed-by: Tomas Mraz <tomas@openssl.org>
+(Merged from https://github.com/openssl/openssl/pull/22061)
+
+(cherry picked from commit 46def829afa4d8bed8f53d484bdf842d65f0e176)
+---
+ providers/implementations/encode_decode/encode_key2any.c | 5 ++++-
+ 1 file changed, 4 insertions(+), 1 deletion(-)
+
+diff --git a/providers/implementations/encode_decode/encode_key2any.c b/providers/implementations/encode_decode/encode_key2any.c
+index c7b01cb2b3..e4870e1031 100644
+--- a/providers/implementations/encode_decode/encode_key2any.c
++++ b/providers/implementations/encode_decode/encode_key2any.c
+@@ -858,14 +858,17 @@ static int prepare_rsa_params(const void *rsa, int nid, int save,
+                 case 1:
+                     if ((str = OPENSSL_malloc(str_sz)) == NULL
+                         || !WPACKET_init_der(&pkt, str, str_sz)) {
++                        WPACKET_cleanup(&pkt);
+                         goto err;
+                     }
+                     break;
+                 }
+                 if (!ossl_DER_w_RSASSA_PSS_params(&pkt, -1, pss)
+                     || !WPACKET_finish(&pkt)
+-                    || !WPACKET_get_total_written(&pkt, &str_sz))
++                    || !WPACKET_get_total_written(&pkt, &str_sz)) {
++                    WPACKET_cleanup(&pkt);
+                     goto err;
++                }
+                 WPACKET_cleanup(&pkt);
+ 
+                 /*
+-- 
+2.34.1
+

@@ -1,0 +1,36 @@
+From df04b07e079edcc873e3d353541e1aae92fa7786 Mon Sep 17 00:00:00 2001
+From: ndossche <niels.dossche@ugent.be>
+Date: Tue, 7 Mar 2023 13:27:15 +0100
+Subject: [PATCH 068/381] Add missing assignment to EVP_get_digestbynid()
+
+The assignment of the result of EVP_get_digestbynid() did not happen
+which made the fallback not actually perform the fallback.
+
+CLA: trivial
+
+Reviewed-by: Tomas Mraz <tomas@openssl.org>
+Reviewed-by: Matt Caswell <matt@openssl.org>
+Reviewed-by: Paul Dale <pauli@openssl.org>
+(Merged from https://github.com/openssl/openssl/pull/20447)
+
+(cherry picked from commit c09c202e9bc66f0300ee598ca94f2b3fa5a5899d)
+---
+ crypto/evp/evp_pbe.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/crypto/evp/evp_pbe.c b/crypto/evp/evp_pbe.c
+index 5f6720d2c3..b86672241a 100644
+--- a/crypto/evp/evp_pbe.c
++++ b/crypto/evp/evp_pbe.c
+@@ -136,7 +136,7 @@ int EVP_PBE_CipherInit_ex(ASN1_OBJECT *pbe_obj, const char *pass, int passlen,
+         md = md_fetch = EVP_MD_fetch(libctx, OBJ_nid2sn(md_nid), propq);
+         /* Fallback to legacy method */
+         if (md == NULL)
+-            EVP_get_digestbynid(md_nid);
++            md = EVP_get_digestbynid(md_nid);
+ 
+         if (md == NULL) {
+             (void)ERR_clear_last_mark();
+-- 
+2.34.1
+

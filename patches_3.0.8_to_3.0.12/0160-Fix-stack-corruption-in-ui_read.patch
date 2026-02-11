@@ -1,0 +1,137 @@
+From 5d6f13d90d5c4212737002bcd54871cf236a1220 Mon Sep 17 00:00:00 2001
+From: Bernd Edlinger <bernd.edlinger@hotmail.de>
+Date: Sat, 13 May 2023 09:04:18 +0200
+Subject: [PATCH 160/381] Fix stack corruption in ui_read
+
+This is an alternative to #20893
+
+Additionally this fixes also a possible issue in UI_UTIL_read_pw:
+
+When UI_new returns NULL, the result code would still be zero
+as if UI_UTIL_read_pw succeeded, but the password buffer is left
+uninitialized, with subsequent possible stack corruption or worse.
+
+Reviewed-by: Richard Levitte <levitte@openssl.org>
+Reviewed-by: Tomas Mraz <tomas@openssl.org>
+(Merged from https://github.com/openssl/openssl/pull/20957)
+
+(cherry picked from commit a64c48cff88e032cf9513578493c4536df725a22)
+---
+ crypto/ui/ui_lib.c     |  4 ++++
+ crypto/ui/ui_util.c    |  4 +---
+ test/evp_extra_test2.c | 48 ++++++++++++++++++++++++++++++++++++++++++
+ 3 files changed, 53 insertions(+), 3 deletions(-)
+
+diff --git a/crypto/ui/ui_lib.c b/crypto/ui/ui_lib.c
+index 1ff8c6fa35..dbd2722bda 100644
+--- a/crypto/ui/ui_lib.c
++++ b/crypto/ui/ui_lib.c
+@@ -528,6 +528,10 @@ int UI_process(UI *ui)
+                 ok = 0;
+                 break;
+             }
++        } else {
++            ui->flags &= ~UI_FLAG_REDOABLE;
++            ok = -2;
++            goto err;
+         }
+     }
+ 
+diff --git a/crypto/ui/ui_util.c b/crypto/ui/ui_util.c
+index 80297969ab..e26c1b5d25 100644
+--- a/crypto/ui/ui_util.c
++++ b/crypto/ui/ui_util.c
+@@ -32,7 +32,7 @@ int UI_UTIL_read_pw_string(char *buf, int length, const char *prompt,
+ int UI_UTIL_read_pw(char *buf, char *buff, int size, const char *prompt,
+                     int verify)
+ {
+-    int ok = 0;
++    int ok = -2;
+     UI *ui;
+ 
+     if (size < 1)
+@@ -47,8 +47,6 @@ int UI_UTIL_read_pw(char *buf, char *buff, int size, const char *prompt,
+             ok = UI_process(ui);
+         UI_free(ui);
+     }
+-    if (ok > 0)
+-        ok = 0;
+     return ok;
+ }
+ 
+diff --git a/test/evp_extra_test2.c b/test/evp_extra_test2.c
+index 153e21224e..ebf385e49a 100644
+--- a/test/evp_extra_test2.c
++++ b/test/evp_extra_test2.c
+@@ -23,6 +23,7 @@
+ #include <openssl/rsa.h>
+ #include <openssl/dh.h>
+ #include <openssl/core_names.h>
++#include <openssl/ui.h>
+ 
+ #include "testutil.h"
+ #include "internal/nelem.h"
+@@ -669,6 +670,52 @@ static int test_PEM_read_bio_negative(int testid)
+     return ok;
+ }
+ 
++static int test_PEM_read_bio_negative_wrong_password(int testid)
++{
++    int ok = 0;
++    OSSL_PROVIDER *provider = OSSL_PROVIDER_load(NULL, "default");
++    EVP_PKEY *read_pkey = NULL;
++    EVP_PKEY *write_pkey = EVP_RSA_gen(1024);
++    BIO *key_bio = BIO_new(BIO_s_mem());
++    const UI_METHOD *undo_ui_method = NULL;
++    const UI_METHOD *ui_method = NULL;
++    if (testid > 0)
++        ui_method = UI_null();
++
++    if (!TEST_ptr(provider))
++        goto err;
++    if (!TEST_ptr(key_bio))
++        goto err;
++    if (!TEST_ptr(write_pkey))
++        goto err;
++    undo_ui_method = UI_get_default_method();
++    UI_set_default_method(ui_method);
++
++    if (/* Output Encrypted private key in PEM form */
++        !TEST_true(PEM_write_bio_PrivateKey(key_bio, write_pkey, EVP_aes_256_cbc(),
++                                           NULL, 0, NULL, "pass")))
++        goto err;
++
++    ERR_clear_error();
++    read_pkey = PEM_read_bio_PrivateKey(key_bio, NULL, NULL, NULL);
++    if (!TEST_ptr_null(read_pkey))
++        goto err;
++
++    if (!TEST_int_eq(ERR_GET_REASON(ERR_get_error()), PEM_R_PROBLEMS_GETTING_PASSWORD))
++        goto err;
++    ok = 1;
++
++ err:
++    test_openssl_errors();
++    EVP_PKEY_free(read_pkey);
++    EVP_PKEY_free(write_pkey);
++    BIO_free(key_bio);
++    OSSL_PROVIDER_unload(provider);
++    UI_set_default_method(undo_ui_method);
++
++    return ok;
++}
++
+ static int do_fromdata_key_is_equal(const OSSL_PARAM params[],
+                                     const EVP_PKEY *expected, const char *type)
+ {
+@@ -1212,6 +1259,7 @@ int setup_tests(void)
+     ADD_TEST(test_pkcs8key_nid_bio);
+ #endif
+     ADD_ALL_TESTS(test_PEM_read_bio_negative, OSSL_NELEM(keydata));
++    ADD_ALL_TESTS(test_PEM_read_bio_negative_wrong_password, 2);
+     ADD_TEST(test_rsa_pss_sign);
+     ADD_TEST(test_evp_md_ctx_copy);
+     ADD_ALL_TESTS(test_provider_unload_effective, 2);
+-- 
+2.34.1
+

@@ -1,0 +1,72 @@
+From 61892ab241b04bf4432d8432f216233877149ab8 Mon Sep 17 00:00:00 2001
+From: Matt Caswell <matt@openssl.org>
+Date: Fri, 23 Jun 2023 12:05:07 +0100
+Subject: [PATCH 207/381] Add a test for pkeyutl encrypt/decrypt using SM2
+
+Reviewed-by: Hugo Landau <hlandau@openssl.org>
+Reviewed-by: Tomas Mraz <tomas@openssl.org>
+Reviewed-by: Paul Dale <pauli@openssl.org>
+(Merged from https://github.com/openssl/openssl/pull/21272)
+
+(cherry picked from commit 810f7dc1c7cc5441097b398f753e33652848a4cc)
+---
+ test/certs/sm2-pub.key         |  4 ++++
+ test/recipes/20-test_pkeyutl.t | 17 +++++++++++++++--
+ 2 files changed, 19 insertions(+), 2 deletions(-)
+ create mode 100644 test/certs/sm2-pub.key
+
+diff --git a/test/certs/sm2-pub.key b/test/certs/sm2-pub.key
+new file mode 100644
+index 0000000000..ecb6b5c2d6
+--- /dev/null
++++ b/test/certs/sm2-pub.key
+@@ -0,0 +1,4 @@
++-----BEGIN PUBLIC KEY-----
++MFkwEwYHKoZIzj0CAQYIKoEcz1UBgi0DQgAEMKnjZFqe34rtSmZ7g5ALnKTPKYhM
++xEy9cpq3Kzgb7/JoTTZHm9tGrG1oBUCNszq0jPff7Fxp/azNv7rDPzJXGg==
++-----END PUBLIC KEY-----
+diff --git a/test/recipes/20-test_pkeyutl.t b/test/recipes/20-test_pkeyutl.t
+index 5492baa551..11f813b038 100644
+--- a/test/recipes/20-test_pkeyutl.t
++++ b/test/recipes/20-test_pkeyutl.t
+@@ -13,15 +13,16 @@ use File::Spec;
+ use File::Basename;
+ use OpenSSL::Test qw/:DEFAULT srctop_file ok_nofips/;
+ use OpenSSL::Test::Utils;
++use File::Compare qw/compare_text/;
+ 
+ setup("test_pkeyutl");
+ 
+-plan tests => 12;
++plan tests => 14;
+ 
+ # For the tests below we use the cert itself as the TBS file
+ 
+ SKIP: {
+-    skip "Skipping tests that require EC, SM2 or SM3", 2
++    skip "Skipping tests that require EC, SM2 or SM3", 4
+         if disabled("ec") || disabled("sm2") || disabled("sm3");
+ 
+     # SM2
+@@ -38,6 +39,18 @@ SKIP: {
+                       '-sigfile', 'sm2.sig', '-rawin',
+                       '-digest', 'sm3', '-pkeyopt', 'distid:someid']))),
+                       "Verify an SM2 signature against a piece of data");
++    ok_nofips(run(app(([ 'openssl', 'pkeyutl', '-encrypt',
++                      '-in', srctop_file('test', 'data2.bin'),
++                      '-inkey', srctop_file('test', 'certs', 'sm2-pub.key'),
++                      '-pubin', '-out', 'sm2.enc']))),
++                      "Encrypt a piece of data using SM2");
++    ok_nofips(run(app(([ 'openssl', 'pkeyutl', '-decrypt',
++                      '-in', 'sm2.enc',
++                      '-inkey', srctop_file('test', 'certs', 'sm2.key'),
++                      '-out', 'sm2.dat'])))
++                      && compare_text('sm2.dat',
++                                      srctop_file('test', 'data2.bin')) == 0,
++                      "Decrypt a piece of data using SM2");
+ }
+ 
+ SKIP: {
+-- 
+2.34.1
+

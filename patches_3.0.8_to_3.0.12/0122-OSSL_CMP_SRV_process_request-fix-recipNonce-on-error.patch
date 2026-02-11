@@ -1,0 +1,65 @@
+From 7cd91d221f630f18eb2cc5c01c4204e31c0a15aa Mon Sep 17 00:00:00 2001
+From: "Dr. David von Oheimb" <David.von.Oheimb@siemens.com>
+Date: Wed, 1 Feb 2023 15:43:35 +0100
+Subject: [PATCH 122/381] OSSL_CMP_SRV_process_request(): fix recipNonce on
+ error in subsequent request of a transaction
+
+Reviewed-by: Tomas Mraz <tomas@openssl.org>
+Reviewed-by: Paul Dale <pauli@openssl.org>
+Reviewed-by: David von Oheimb <david.von.oheimb@siemens.com>
+(Merged from https://github.com/openssl/openssl/pull/20257)
+---
+ crypto/cmp/cmp_server.c | 20 +++++++++++++-------
+ 1 file changed, 13 insertions(+), 7 deletions(-)
+
+diff --git a/crypto/cmp/cmp_server.c b/crypto/cmp/cmp_server.c
+index 97eb3e52e9..34272f1ab1 100644
+--- a/crypto/cmp/cmp_server.c
++++ b/crypto/cmp/cmp_server.c
+@@ -461,7 +461,7 @@ OSSL_CMP_MSG *OSSL_CMP_SRV_process_request(OSSL_CMP_SRV_CTX *srv_ctx,
+     ASN1_OCTET_STRING *backup_secret;
+     OSSL_CMP_PKIHEADER *hdr;
+     int req_type, rsp_type;
+-    int res;
++    int req_verified = 0;
+     OSSL_CMP_MSG *rsp = NULL;
+ 
+     if (srv_ctx == NULL || srv_ctx->ctx == NULL
+@@ -521,12 +521,12 @@ OSSL_CMP_MSG *OSSL_CMP_SRV_process_request(OSSL_CMP_SRV_CTX *srv_ctx,
+         }
+     }
+ 
+-    res = ossl_cmp_msg_check_update(ctx, req, unprotected_exception,
+-                                    srv_ctx->acceptUnprotected);
++    req_verified = ossl_cmp_msg_check_update(ctx, req, unprotected_exception,
++                                             srv_ctx->acceptUnprotected);
+     if (ctx->secretValue != NULL && ctx->pkey != NULL
+             && ossl_cmp_hdr_get_protection_nid(hdr) != NID_id_PasswordBasedMAC)
+         ctx->secretValue = NULL; /* use MSG_SIG_ALG when protecting rsp */
+-    if (!res)
++    if (!req_verified)
+         goto err;
+ 
+     switch (req_type) {
+@@ -583,9 +583,15 @@ OSSL_CMP_MSG *OSSL_CMP_SRV_process_request(OSSL_CMP_SRV_CTX *srv_ctx,
+         int fail_info = 1 << OSSL_CMP_PKIFAILUREINFO_badRequest;
+         OSSL_CMP_PKISI *si = NULL;
+ 
+-        if (ctx->transactionID == NULL) {
+-            /* ignore any (extra) error in next two function calls: */
+-            (void)OSSL_CMP_CTX_set1_transactionID(ctx, hdr->transactionID);
++        if (!req_verified) {
++            /*
++             * Above ossl_cmp_msg_check_update() was not successfully executed,
++             * which normally would set ctx->transactionID and ctx->recipNonce.
++             * So anyway try to provide the right transactionID and recipNonce,
++             * while ignoring any (extra) error in next two function calls.
++             */
++            if (ctx->transactionID == NULL)
++                (void)OSSL_CMP_CTX_set1_transactionID(ctx, hdr->transactionID);
+             (void)ossl_cmp_ctx_set1_recipNonce(ctx, hdr->senderNonce);
+         }
+ 
+-- 
+2.34.1
+

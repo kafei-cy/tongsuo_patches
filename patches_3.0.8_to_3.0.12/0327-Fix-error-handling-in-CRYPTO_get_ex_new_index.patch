@@ -1,0 +1,35 @@
+From 44cea98d9006b08941e24c18d6eedbd01c3775c7 Mon Sep 17 00:00:00 2001
+From: Bernd Edlinger <bernd.edlinger@hotmail.de>
+Date: Tue, 19 Sep 2023 20:15:18 +0200
+Subject: [PATCH 327/381] Fix error handling in CRYPTO_get_ex_new_index
+
+If an out of memory error happens when the index zero
+is reserved in a newly created ip->meth stack object,
+that reservation is not done in a second attempt, which makes
+various X_set_ex_data overwrite the value of X_set_app_data.
+
+Reviewed-by: Paul Dale <pauli@openssl.org>
+Reviewed-by: Matt Caswell <matt@openssl.org>
+(Merged from https://github.com/openssl/openssl/pull/22149)
+
+(cherry picked from commit d4f22a915ac50570015a23ad794032c4fb9496cb)
+---
+ crypto/ex_data.c | 2 ++
+ 1 file changed, 2 insertions(+)
+
+diff --git a/crypto/ex_data.c b/crypto/ex_data.c
+index 40223f06e4..455b63cd57 100644
+--- a/crypto/ex_data.c
++++ b/crypto/ex_data.c
+@@ -163,6 +163,8 @@ int ossl_crypto_get_ex_new_index_ex(OSSL_LIB_CTX *ctx, int class_index,
+          * "app_data" routines use ex_data index zero.  See RT 3710. */
+         if (ip->meth == NULL
+             || !sk_EX_CALLBACK_push(ip->meth, NULL)) {
++            sk_EX_CALLBACK_free(ip->meth);
++            ip->meth = NULL;
+             ERR_raise(ERR_LIB_CRYPTO, ERR_R_MALLOC_FAILURE);
+             goto err;
+         }
+-- 
+2.34.1
+

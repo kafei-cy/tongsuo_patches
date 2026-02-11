@@ -1,0 +1,38 @@
+From 9a634d90fb05e49021315f67ad87f7275449c000 Mon Sep 17 00:00:00 2001
+From: Pauli <pauli@openssl.org>
+Date: Thu, 27 Apr 2023 11:25:11 +1000
+Subject: [PATCH 140/381] rand: trust user supplied entropy when configured
+ without a random source
+
+Fixes #20841
+
+Reviewed-by: Tomas Mraz <tomas@openssl.org>
+Reviewed-by: Matthias St. Pierre <Matthias.St.Pierre@ncp-e.com>
+(Merged from https://github.com/openssl/openssl/pull/20843)
+
+(cherry picked from commit 56547da9d3fa24f54b439497d322b12beb004c80)
+---
+ crypto/rand/rand_lib.c | 6 ++++++
+ 1 file changed, 6 insertions(+)
+
+diff --git a/crypto/rand/rand_lib.c b/crypto/rand/rand_lib.c
+index f341d915db..548434a8ec 100644
+--- a/crypto/rand/rand_lib.c
++++ b/crypto/rand/rand_lib.c
+@@ -272,7 +272,13 @@ void RAND_add(const void *buf, int num, double randomness)
+ # endif
+     drbg = RAND_get0_primary(NULL);
+     if (drbg != NULL && num > 0)
++# ifdef OPENSSL_RAND_SEED_NONE
++        /* Without an entropy source, we have to rely on the user */
++        EVP_RAND_reseed(drbg, 0, buf, num, NULL, 0);
++# else
++        /* With an entropy source, we downgrade this to additional input */
+         EVP_RAND_reseed(drbg, 0, NULL, 0, buf, num);
++# endif
+ }
+ 
+ # if !defined(OPENSSL_NO_DEPRECATED_1_1_0)
+-- 
+2.34.1
+

@@ -1,0 +1,39 @@
+From f5fb3acc1f4dd97bdc475e27938108b4cc4bd7b0 Mon Sep 17 00:00:00 2001
+From: Klavishnik <evg.shtanov@gmail.com>
+Date: Thu, 10 Aug 2023 13:56:24 +0300
+Subject: [PATCH 351/381] Added check for the return value of the RAND_bytes()
+ function
+
+Call app_bail_out if RAND_bytes() fails.
+
+Also changed the output parameter of RAND_bytes() to inp as
+writing to encrypted output buffer does not make sense.
+
+Reviewed-by: Matt Caswell <matt@openssl.org>
+Reviewed-by: Tom Cosgrove <tom.cosgrove@arm.com>
+Reviewed-by: Paul Dale <pauli@openssl.org>
+Reviewed-by: Tomas Mraz <tomas@openssl.org>
+(Merged from https://github.com/openssl/openssl/pull/21706)
+
+(cherry picked from commit 8d120aef951d7bb7deac0b8b559f8003f5ea6384)
+---
+ apps/speed.c | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/apps/speed.c b/apps/speed.c
+index f30435704d..1113d775b8 100644
+--- a/apps/speed.c
++++ b/apps/speed.c
+@@ -3700,7 +3700,8 @@ static void multiblock_speed(const EVP_CIPHER *evp_cipher, int lengths_single,
+             } else {
+                 int pad;
+ 
+-                RAND_bytes(out, 16);
++                if (RAND_bytes(inp, 16) <= 0)
++                    app_bail_out("error setting random bytes\n");
+                 len += 16;
+                 aad[11] = (unsigned char)(len >> 8);
+                 aad[12] = (unsigned char)(len);
+-- 
+2.34.1
+

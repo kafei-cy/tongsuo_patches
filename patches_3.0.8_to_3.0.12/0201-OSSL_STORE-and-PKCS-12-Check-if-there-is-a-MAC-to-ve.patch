@@ -1,0 +1,44 @@
+From b7a29bc837e0181e29514b949cb3a0fadff566c0 Mon Sep 17 00:00:00 2001
+From: Richard Levitte <levitte@openssl.org>
+Date: Tue, 13 Jun 2023 20:06:04 +0200
+Subject: [PATCH 201/381] OSSL_STORE and PKCS#12: Check if there is a MAC to
+ verify before prompting
+
+When a DER object with unknown contents comes all the way to
+ossl_store_handle_load_result(), and it attempts to decode them as different
+objects, the PKCS#12 decoding attempt would (almost) always prompt for a
+passphrase, even if there isn't a MAC to verify it against in the PKCS#12
+object.
+
+This change checks if there is a MAC to verify against before attempting to
+prompt for a passphrase, leading to less surprising behavior.
+
+Reviewed-by: Tomas Mraz <tomas@openssl.org>
+Reviewed-by: Dmitry Belyavskiy <beldmit@gmail.com>
+Reviewed-by: Paul Dale <pauli@openssl.org>
+(Merged from https://github.com/openssl/openssl/pull/21197)
+
+(cherry picked from commit 7a520619c997146639f42ce8595162ac34c2ad41)
+---
+ crypto/store/store_result.c | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)
+
+diff --git a/crypto/store/store_result.c b/crypto/store/store_result.c
+index 96d3119907..32b459835b 100644
+--- a/crypto/store/store_result.c
++++ b/crypto/store/store_result.c
+@@ -553,8 +553,10 @@ static int try_pkcs12(struct extracted_param_data_st *data, OSSL_STORE_INFO **v,
+ 
+             ok = 0;              /* Assume decryption or parse error */
+ 
+-            if (PKCS12_verify_mac(p12, "", 0)
++            if (!PKCS12_mac_present(p12)
+                 || PKCS12_verify_mac(p12, NULL, 0)) {
++                pass = NULL;
++            } else if (PKCS12_verify_mac(p12, "", 0)) {
+                 pass = "";
+             } else {
+                 static char prompt_info[] = "PKCS12 import pass phrase";
+-- 
+2.34.1
+

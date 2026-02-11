@@ -1,0 +1,47 @@
+From cdfc6d4fa837191533ae0f6d2b420a75ee55df7e Mon Sep 17 00:00:00 2001
+From: Neil Horman <nhorman@openssl.org>
+Date: Tue, 5 Sep 2023 12:08:19 -0400
+Subject: [PATCH 368/381] remove sanity check from ossl_rsa_todata
+
+Theres no reason we should gate ossl_rsa_todata on there being a minimum
+set of parameters. EVP_PKEY_todata makes no guarantees about the
+validity of a key, it only returns the parameters that are set in the
+requested key, whatever they may be.  Remove the check.
+
+Fixes #21935
+
+Reviewed-by: Richard Levitte <levitte@openssl.org>
+Reviewed-by: Tomas Mraz <tomas@openssl.org>
+(Merged from https://github.com/openssl/openssl/pull/22334)
+
+(cherry picked from commit 4ad3a44ba45a4026170336161228d435f6784564)
+---
+ crypto/rsa/rsa_backend.c | 12 ------------
+ 1 file changed, 12 deletions(-)
+
+diff --git a/crypto/rsa/rsa_backend.c b/crypto/rsa/rsa_backend.c
+index 58187fa2ef..607bfbff68 100644
+--- a/crypto/rsa/rsa_backend.c
++++ b/crypto/rsa/rsa_backend.c
+@@ -141,18 +141,6 @@ int ossl_rsa_todata(RSA *rsa, OSSL_PARAM_BLD *bld, OSSL_PARAM params[],
+ 
+     /* Check private key data integrity */
+     if (include_private && rsa_d != NULL) {
+-        int numprimes = sk_BIGNUM_const_num(factors);
+-        int numexps = sk_BIGNUM_const_num(exps);
+-        int numcoeffs = sk_BIGNUM_const_num(coeffs);
+-
+-        /*
+-         * It's permissible to have zero primes, i.e. no CRT params.
+-         * Otherwise, there must be at least two, as many exponents,
+-         * and one coefficient less.
+-         */
+-        if (numprimes != 0
+-            && (numprimes < 2 || numexps < 2 || numcoeffs < 1))
+-            goto err;
+ 
+         if (!ossl_param_build_set_bn(bld, params, OSSL_PKEY_PARAM_RSA_D,
+                                      rsa_d)
+-- 
+2.34.1
+

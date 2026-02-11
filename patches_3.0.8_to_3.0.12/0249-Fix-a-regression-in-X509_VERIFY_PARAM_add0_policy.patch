@@ -1,0 +1,64 @@
+From bbc1aa97d5faed736e85d0298d752170b26ef7d4 Mon Sep 17 00:00:00 2001
+From: Matt Caswell <matt@openssl.org>
+Date: Thu, 27 Jul 2023 12:09:47 +0100
+Subject: [PATCH 249/381] Fix a regression in X509_VERIFY_PARAM_add0_policy()
+
+Also fixes a similar regression in X509_VERIFY_PARAM_add0_table().
+
+Commit 38ebfc3 introduced a regression in 3.0.6 that changed the return
+value of the two functions above from 1 on success to the number of entries
+in the stack. If there are more than one entry then this is a change in
+behaviour which should not have been introduced into a stable release.
+
+This reverts the behaviour back to what it was prior to the change. The code
+is slightly different to the original code in that we also handle a possible
+-1 return value from the stack push function. This should never happen in
+reality because we never pass a NULL stack as a parameter - but for the sake
+of robustness we handle it anyway.
+
+Note that the changed behaviour exists in all versions of 3.1 (it never had
+the original version). But 3.1 should be fully backwards compatible with 3.0
+so we should change it there too.
+
+Fixes #21570
+
+Reviewed-by: Paul Dale <pauli@openssl.org>
+Reviewed-by: Tom Cosgrove <tom.cosgrove@arm.com>
+(Merged from https://github.com/openssl/openssl/pull/21576)
+
+(cherry picked from commit e3d897d3fa3b48bb835fab0665a435469beea7ae)
+---
+ crypto/x509/x509_vpm.c | 10 ++++++++--
+ 1 file changed, 8 insertions(+), 2 deletions(-)
+
+diff --git a/crypto/x509/x509_vpm.c b/crypto/x509/x509_vpm.c
+index b4f4c45998..94d3d4627a 100644
+--- a/crypto/x509/x509_vpm.c
++++ b/crypto/x509/x509_vpm.c
+@@ -337,7 +337,10 @@ int X509_VERIFY_PARAM_add0_policy(X509_VERIFY_PARAM *param,
+         if (param->policies == NULL)
+             return 0;
+     }
+-    return sk_ASN1_OBJECT_push(param->policies, policy);
++
++    if (sk_ASN1_OBJECT_push(param->policies, policy) <= 0)
++        return 0;
++    return 1;
+ }
+ 
+ int X509_VERIFY_PARAM_set1_policies(X509_VERIFY_PARAM *param,
+@@ -592,7 +595,10 @@ int X509_VERIFY_PARAM_add0_table(X509_VERIFY_PARAM *param)
+             X509_VERIFY_PARAM_free(ptmp);
+         }
+     }
+-    return sk_X509_VERIFY_PARAM_push(param_table, param);
++
++    if (sk_X509_VERIFY_PARAM_push(param_table, param) <= 0)
++        return 0;
++    return 1;
+ }
+ 
+ int X509_VERIFY_PARAM_get_count(void)
+-- 
+2.34.1
+

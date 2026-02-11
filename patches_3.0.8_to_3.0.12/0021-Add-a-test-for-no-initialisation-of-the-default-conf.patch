@@ -1,0 +1,160 @@
+From 35592c58f715a8bebc719101b95591ae3c7720b5 Mon Sep 17 00:00:00 2001
+From: Matt Caswell <matt@openssl.org>
+Date: Mon, 20 Feb 2023 17:22:57 +0000
+Subject: [PATCH 021/381] Add a test for no initialisation of the default
+ config file
+
+Reviewed-by: Dmitry Belyavskiy <beldmit@gmail.com>
+Reviewed-by: Paul Dale <pauli@openssl.org>
+(Merged from https://github.com/openssl/openssl/pull/20341)
+
+(cherry picked from commit 0aa7d7f42bc757a0993739b6cfdc8819a70d22ef)
+(cherry picked from commit ed8d2c9948f25988feb854e805b3403f592d7359)
+---
+ test/build.info                   |  7 +++-
+ test/nodefltctxtest.c             | 60 +++++++++++++++++++++++++++++++
+ test/null.cnf                     | 13 +++++++
+ test/recipes/04-test_nodefltctx.t | 19 ++++++++++
+ 4 files changed, 98 insertions(+), 1 deletion(-)
+ create mode 100644 test/nodefltctxtest.c
+ create mode 100644 test/null.cnf
+ create mode 100644 test/recipes/04-test_nodefltctx.t
+
+diff --git a/test/build.info b/test/build.info
+index 4e385770e8..a5c1c65ddd 100644
+--- a/test/build.info
++++ b/test/build.info
+@@ -62,7 +62,8 @@ IF[{- !$disabled{tests} -}]
+           context_internal_test aesgcmtest params_test evp_pkey_dparams_test \
+           keymgmt_internal_test hexstr_test provider_status_test defltfips_test \
+           bio_readbuffer_test user_property_test pkcs7_test upcallstest \
+-          provfetchtest prov_config_test rand_test fips_version_test
++          provfetchtest prov_config_test rand_test fips_version_test \
++          nodefltctxtest
+ 
+   IF[{- !$disabled{'deprecated-3.0'} -}]
+     PROGRAMS{noinst}=enginetest
+@@ -214,6 +215,10 @@ IF[{- !$disabled{tests} -}]
+   INCLUDE[provider_status_test]=../include ../apps/include
+   DEPEND[provider_status_test]=../libcrypto.a libtestutil.a
+ 
++  SOURCE[nodefltctxtest]=nodefltctxtest.c
++  INCLUDE[nodefltctxtest]=../include ../apps/include
++  DEPEND[nodefltctxtest]=../libcrypto.a libtestutil.a
++
+   IF[{- !$disabled{'deprecated-3.0'} -}]
+     PROGRAMS{noinst}=igetest bftest casttest
+ 
+diff --git a/test/nodefltctxtest.c b/test/nodefltctxtest.c
+new file mode 100644
+index 0000000000..3af3f91736
+--- /dev/null
++++ b/test/nodefltctxtest.c
+@@ -0,0 +1,60 @@
++/*
++ * Copyright 2023 The OpenSSL Project Authors. All Rights Reserved.
++ *
++ * Licensed under the Apache License 2.0 (the "License").  You may not use
++ * this file except in compliance with the License.  You can obtain a copy
++ * in the file LICENSE in the source distribution or at
++ * https://www.openssl.org/source/license.html
++ */
++
++#include <openssl/evp.h>
++#include "testutil.h"
++
++/*
++ * Test that the default libctx does not get initialised when using a custom
++ * libctx. We assume that this test application has been executed such that the
++ * null provider is loaded via the config file.
++ */
++static int test_no_deflt_ctx_init(void)
++{
++    int testresult = 0;
++    EVP_MD *md = NULL;
++    OSSL_LIB_CTX *ctx = OSSL_LIB_CTX_new();
++
++    if (!TEST_ptr(ctx))
++        return 0;
++
++    md = EVP_MD_fetch(ctx, "SHA2-256", NULL);
++    if (!TEST_ptr(md))
++        goto err;
++
++    /*
++     * Since we're using a non-default libctx above, the default libctx should
++     * not have been initialised via config file, and so it is not too late to
++     * use OPENSSL_INIT_NO_LOAD_CONFIG.
++     */
++    OPENSSL_init_crypto(OPENSSL_INIT_NO_LOAD_CONFIG, NULL);
++
++    /*
++     * If the config file was incorrectly loaded then the null provider will
++     * have been initialised and the default provider loading will have been
++     * blocked. If the config file was NOT loaded (as we expect) then the
++     * default provider should be available.
++     */
++    if (!TEST_true(OSSL_PROVIDER_available(NULL, "default")))
++        goto err;
++    if (!TEST_false(OSSL_PROVIDER_available(NULL, "null")))
++        goto err;
++
++    testresult = 1;
++ err:
++    EVP_MD_free(md);
++    OSSL_LIB_CTX_free(ctx);
++    return testresult;
++}
++
++int setup_tests(void)
++{
++    ADD_TEST(test_no_deflt_ctx_init);
++    return 1;
++}
+diff --git a/test/null.cnf b/test/null.cnf
+new file mode 100644
+index 0000000000..964f7f3ef4
+--- /dev/null
++++ b/test/null.cnf
+@@ -0,0 +1,13 @@
++openssl_conf = openssl_init
++
++# Comment out the next line to ignore configuration errors
++config_diagnostics = 1
++
++[openssl_init]
++providers = provider_sect
++
++[provider_sect]
++null = null_sect
++
++[null_sect]
++activate = 1
+diff --git a/test/recipes/04-test_nodefltctx.t b/test/recipes/04-test_nodefltctx.t
+new file mode 100644
+index 0000000000..54f306b284
+--- /dev/null
++++ b/test/recipes/04-test_nodefltctx.t
+@@ -0,0 +1,19 @@
++#! /usr/bin/env perl
++# Copyright 2023The OpenSSL Project Authors. All Rights Reserved.
++#
++# Licensed under the Apache License 2.0 (the "License").  You may not use
++# this file except in compliance with the License.  You can obtain a copy
++# in the file LICENSE in the source distribution or at
++# https://www.openssl.org/source/license.html
++
++use strict;
++use OpenSSL::Test::Simple;
++use OpenSSL::Test qw/:DEFAULT srctop_file/;
++use Cwd qw(abs_path);
++
++setup("test_nodefltctx");
++
++# Load the null provider by default into the default libctx
++$ENV{OPENSSL_CONF} = abs_path(srctop_file("test", "null.cnf"));
++
++simple_test("test_nodefltctx", "nodefltctxtest");
+-- 
+2.34.1
+

@@ -1,0 +1,38 @@
+From 27eb4faa95d5a2ea1ae1fca211039d33d398e66b Mon Sep 17 00:00:00 2001
+From: Mathieu Tortuyaux <mathieu.tortuyaux@gmail.com>
+Date: Mon, 18 Sep 2023 16:02:21 +0200
+Subject: [PATCH 323/381] enc: "bad decrypt" only in decryption
+
+CLA: trivial
+
+Signed-off-by: Mathieu Tortuyaux <mathieu.tortuyaux@gmail.com>
+
+Reviewed-by: Tomas Mraz <tomas@openssl.org>
+Reviewed-by: Matt Caswell <matt@openssl.org>
+Reviewed-by: Paul Dale <pauli@openssl.org>
+(Merged from https://github.com/openssl/openssl/pull/22134)
+
+(cherry picked from commit 0e138b7b591f160a50aff22f662254d1b39c9cac)
+---
+ apps/enc.c | 5 ++++-
+ 1 file changed, 4 insertions(+), 1 deletion(-)
+
+diff --git a/apps/enc.c b/apps/enc.c
+index b3bf4cc259..c275046cf5 100644
+--- a/apps/enc.c
++++ b/apps/enc.c
+@@ -624,7 +624,10 @@ int enc_main(int argc, char **argv)
+         }
+     }
+     if (!BIO_flush(wbio)) {
+-        BIO_printf(bio_err, "bad decrypt\n");
++        if (enc)
++            BIO_printf(bio_err, "bad encrypt\n");
++        else
++            BIO_printf(bio_err, "bad decrypt\n");
+         goto end;
+     }
+ 
+-- 
+2.34.1
+

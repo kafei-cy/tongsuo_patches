@@ -1,0 +1,32 @@
+From b893b59817f03afb7a8c3d4eff00d8439dfdeb28 Mon Sep 17 00:00:00 2001
+From: "Randall S. Becker" <randall.becker@nexbridge.ca>
+Date: Sat, 9 Sep 2023 21:18:04 +0100
+Subject: [PATCH 304/381] Fix typographical error in 80-test_cms.t (missing ;)
+
+Fixes: #22045
+
+Signed-off-by: Randall S. Becker <randall.becker@nexbridge.ca>
+
+Reviewed-by: Tom Cosgrove <tom.cosgrove@arm.com>
+Reviewed-by: Dmitry Belyavskiy <beldmit@gmail.com>
+(Merged from https://github.com/openssl/openssl/pull/22046)
+---
+ test/recipes/80-test_cms.t | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/test/recipes/80-test_cms.t b/test/recipes/80-test_cms.t
+index 9759483979..8dbec71212 100644
+--- a/test/recipes/80-test_cms.t
++++ b/test/recipes/80-test_cms.t
+@@ -50,7 +50,7 @@ my ($no_des, $no_dh, $no_dsa, $no_ec, $no_ec2m, $no_rc2, $no_zlib)
+ 
+ $no_rc2 = 1 if disabled("legacy");
+ 
+-plan tests => 17
++plan tests => 17;
+ 
+ ok(run(test(["pkcs7_test"])), "test pkcs7");
+ 
+-- 
+2.34.1
+

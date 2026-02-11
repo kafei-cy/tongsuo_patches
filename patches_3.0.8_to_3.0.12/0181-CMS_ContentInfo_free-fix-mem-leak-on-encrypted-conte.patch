@@ -1,0 +1,56 @@
+From e66e9520982beac1a6cdfaaf0ff055356e8e6017 Mon Sep 17 00:00:00 2001
+From: "Dr. David von Oheimb" <David.von.Oheimb@siemens.com>
+Date: Thu, 25 May 2023 17:46:48 +0200
+Subject: [PATCH 181/381] CMS_ContentInfo_free(): fix mem leak on encrypted
+ content key
+
+Fixes #21026
+
+Reviewed-by: Tomas Mraz <tomas@openssl.org>
+Reviewed-by: Paul Dale <pauli@openssl.org>
+Reviewed-by: David von Oheimb <david.von.oheimb@siemens.com>
+(Merged from https://github.com/openssl/openssl/pull/21058)
+
+(cherry picked from commit 7a1857483938b6b6eec5b8760c68c71a71296cd2)
+---
+ crypto/cms/cms_env.c | 6 ++++--
+ crypto/cms/cms_lib.c | 4 ++++
+ 2 files changed, 8 insertions(+), 2 deletions(-)
+
+diff --git a/crypto/cms/cms_env.c b/crypto/cms/cms_env.c
+index 3105d37726..bd1f3e7345 100644
+--- a/crypto/cms/cms_env.c
++++ b/crypto/cms/cms_env.c
+@@ -142,10 +142,12 @@ CMS_EncryptedContentInfo *ossl_cms_get0_env_enc_content(const CMS_ContentInfo *c
+ {
+     switch (cms_get_enveloped_type(cms)) {
+     case CMS_ENVELOPED_STANDARD:
+-        return cms->d.envelopedData->encryptedContentInfo;
++        return cms->d.envelopedData == NULL ? NULL
++            : cms->d.envelopedData->encryptedContentInfo;
+ 
+     case CMS_ENVELOPED_AUTH:
+-        return cms->d.authEnvelopedData->authEncryptedContentInfo;
++        return cms->d.authEnvelopedData == NULL ? NULL
++            : cms->d.authEnvelopedData->authEncryptedContentInfo;
+ 
+     default:
+         return NULL;
+diff --git a/crypto/cms/cms_lib.c b/crypto/cms/cms_lib.c
+index 0738da3da2..1d2c5bc422 100644
+--- a/crypto/cms/cms_lib.c
++++ b/crypto/cms/cms_lib.c
+@@ -76,6 +76,10 @@ CMS_ContentInfo *CMS_ContentInfo_new(void)
+ void CMS_ContentInfo_free(CMS_ContentInfo *cms)
+ {
+     if (cms != NULL) {
++        CMS_EncryptedContentInfo *ec = ossl_cms_get0_env_enc_content(cms);
++
++        if (ec != NULL)
++            OPENSSL_clear_free(ec->key, ec->keylen);
+         OPENSSL_free(cms->ctx.propq);
+         ASN1_item_free((ASN1_VALUE *)cms, ASN1_ITEM_rptr(CMS_ContentInfo));
+     }
+-- 
+2.34.1
+

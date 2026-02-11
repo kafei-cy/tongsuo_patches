@@ -1,0 +1,57 @@
+From 196cbeb319df914c1f73c072adad3d559a89e808 Mon Sep 17 00:00:00 2001
+From: olszomal <Malgorzata.Olszowka@stunnel.org>
+Date: Tue, 21 Feb 2023 14:20:24 +0100
+Subject: [PATCH 024/381] Skip subdirectories in
+ SSL_add_dir_cert_subjects_to_stack()
+
+Reviewed-by: Richard Levitte <levitte@openssl.org>
+Reviewed-by: Paul Dale <pauli@openssl.org>
+(Merged from https://github.com/openssl/openssl/pull/20312)
+
+(cherry picked from commit 1dc35d44f355a7371a1ff8a457586938cc7b168a)
+---
+ ssl/ssl_cert.c | 14 ++++++++++++++
+ 1 file changed, 14 insertions(+)
+
+diff --git a/ssl/ssl_cert.c b/ssl/ssl_cert.c
+index e4168e74c2..6fcbffc56e 100644
+--- a/ssl/ssl_cert.c
++++ b/ssl/ssl_cert.c
+@@ -24,6 +24,16 @@
+ #include "ssl_local.h"
+ #include "ssl_cert_table.h"
+ #include "internal/thread_once.h"
++#ifndef OPENSSL_NO_POSIX_IO
++# include <sys/stat.h>
++# ifdef _WIN32
++#  define stat _stat
++# endif
++#endif
++
++#ifndef S_ISDIR
++# define S_ISDIR(a) (((a) & S_IFMT) == S_IFDIR)
++#endif
+ 
+ static int ssl_security_default_callback(const SSL *s, const SSL_CTX *ctx,
+                                          int op, int bits, int nid, void *other,
+@@ -751,6 +761,7 @@ int SSL_add_dir_cert_subjects_to_stack(STACK_OF(X509_NAME) *stack,
+     while ((filename = OPENSSL_DIR_read(&d, dir))) {
+         char buf[1024];
+         int r;
++        struct stat st;
+ 
+         if (strlen(dir) + strlen(filename) + 2 > sizeof(buf)) {
+             ERR_raise(ERR_LIB_SSL, SSL_R_PATH_TOO_LONG);
+@@ -761,6 +772,9 @@ int SSL_add_dir_cert_subjects_to_stack(STACK_OF(X509_NAME) *stack,
+ #else
+         r = BIO_snprintf(buf, sizeof(buf), "%s/%s", dir, filename);
+ #endif
++        /* Skip subdirectories */
++        if (!stat(buf, &st) && S_ISDIR(st.st_mode))
++            continue;
+         if (r <= 0 || r >= (int)sizeof(buf))
+             goto err;
+         if (!SSL_add_file_cert_subjects_to_stack(stack, buf))
+-- 
+2.34.1
+

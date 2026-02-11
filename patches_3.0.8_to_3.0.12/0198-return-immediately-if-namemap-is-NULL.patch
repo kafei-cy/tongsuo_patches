@@ -1,0 +1,31 @@
+From e62155a57ac47c9f3573b2fb745cb5f1c67efbb8 Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?Vladim=C3=ADr=20Kotal?= <vladimir.kotal@oracle.com>
+Date: Fri, 16 Jun 2023 16:25:58 +0200
+Subject: [PATCH 198/381] return immediately if namemap is NULL
+
+Reviewed-by: Dmitry Belyavskiy <beldmit@gmail.com>
+Reviewed-by: Matt Caswell <matt@openssl.org>
+(Merged from https://github.com/openssl/openssl/pull/21223)
+
+(cherry picked from commit 307cd045dccbd9ea589ff47682e39504d79644d4)
+---
+ crypto/core_namemap.c | 3 +++
+ 1 file changed, 3 insertions(+)
+
+diff --git a/crypto/core_namemap.c b/crypto/core_namemap.c
+index 7e11ab1c88..ec3672b527 100644
+--- a/crypto/core_namemap.c
++++ b/crypto/core_namemap.c
+@@ -142,6 +142,9 @@ int ossl_namemap_doall_names(const OSSL_NAMEMAP *namemap, int number,
+     cbdata.number = number;
+     cbdata.found = 0;
+ 
++    if (namemap == NULL)
++        return 0;
++
+     /*
+      * We collect all the names first under a read lock. Subsequently we call
+      * the user function, so that we're not holding the read lock when in user
+-- 
+2.34.1
+

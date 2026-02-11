@@ -1,0 +1,90 @@
+From 295ecb1600c52cbed3aad859b0bfd16966abe0e6 Mon Sep 17 00:00:00 2001
+From: "Dr. David von Oheimb" <David.von.Oheimb@siemens.com>
+Date: Tue, 26 Jul 2022 08:37:41 +0200
+Subject: [PATCH 057/381] check-format.pl: improve whitespace reporting on
+ <op>=
+
+Reviewed-by: Tomas Mraz <tomas@openssl.org>
+Reviewed-by: Richard Levitte <levitte@openssl.org>
+Reviewed-by: David von Oheimb <david.von.oheimb@siemens.com>
+(Merged from https://github.com/openssl/openssl/pull/18812)
+---
+ util/check-format-test-negatives.c |  6 +++++-
+ util/check-format-test-positives.c |  2 ++
+ util/check-format.pl               | 10 ++++++++--
+ 3 files changed, 15 insertions(+), 3 deletions(-)
+
+diff --git a/util/check-format-test-negatives.c b/util/check-format-test-negatives.c
+index 48e61accb1..8b3b75db3e 100644
+--- a/util/check-format-test-negatives.c
++++ b/util/check-format-test-negatives.c
+@@ -32,6 +32,9 @@
+  */
+ /** allow extra '*' in comment opening */
+ /*! allow extra '!' in comment opening */
++/*
++ ** allow "**" as first non-space chars of a line within multi-line comment
++ */
+ 
+ int f(void) /*
+              * trailing multi-line comment
+@@ -260,10 +263,11 @@ X509 *x509 = NULL;
+ int y = a + 1 < b;
+ int ret, was_NULL = *certs == NULL;
+ 
+-/* should not trigger: no space before binary ... operator */
++/* should not trigger: missing space before ... */
+ float z = 1e-6 * (-1) * b[+6] * 1e+1 * (a)->f * (long)+1
+     - (tmstart.tv_sec + tmstart.tv_nsec * 1e-9);
+ struct st = {-1, 0};
++int x = (y <<= 1) + (z <= 5.0);
+ 
+ const OPTIONS passwd_options[] = {
+     {"aixmd5", OPT_AIXMD5, '-', "AIX MD5-based password algorithm"},
+diff --git a/util/check-format-test-positives.c b/util/check-format-test-positives.c
+index ed7ddd46b0..e5dacdfe71 100644
+--- a/util/check-format-test-positives.c
++++ b/util/check-format-test-positives.c
+@@ -108,8 +108,10 @@ int f (int a,       /*@ space after fn before '(', reported unless sloppy-spc */
+           /*@0 intra-line comment indent off by -1 (not: by 3 due to '&&') */
+            && ! 0   /*@2 space after '!', reported unless sloppy-spc */
+          || b ==    /*@ hanging expr indent off by 2, or -2 for leading '||' */
++       (x<<= 1) +   /*@ missing space before '<<=' reported unless sloppy-spc */
+        (xx+= 2) +   /*@ missing space before '+=', reported unless sloppy-spc */
+        (a^ 1) +     /*@ missing space before '^', reported unless sloppy-spc */
++       (y *=z) +    /*@ missing space after '*=' reported unless sloppy-spc */
+        a %2 /       /*@ missing space after '%', reported unless sloppy-spc */
+        1 +/* */     /*@ no space before comment, reported unless sloppy-spc */
+        /* */+       /*@ no space after comment, reported unless sloppy-spc */
+diff --git a/util/check-format.pl b/util/check-format.pl
+index 3ae552305b..022b71e31d 100755
+--- a/util/check-format.pl
++++ b/util/check-format.pl
+@@ -771,8 +771,15 @@ while (<>) { # loop over all lines of all input files
+         }
+         # ignore paths in #include
+         $intra_line =~ s/^(include\s*)(".*?"|<.*?>)/$1/e if $head =~ m/#/;
++        report("missing space before '$2'")
++            if $intra_line =~ m/(\S)((<<|>>)=)/ # '<<=' or >>=' without preceding space
++            || ($intra_line =~ m/(\S)([\+\-\*\/\/%\&\|\^\!<>=]=)/
++                && "$1$2" ne "<<=" && "$1$2" ne ">>=") # other <op>= or (in)equality without preceding space
++            || ($intra_line =~ m/(\S)=/
++                && !($1 =~ m/[\+\-\*\/\/%\&\|\^\!<>=]/)
++                && $intra_line =~ m/(\S)(=)/); # otherwise, '=' without preceding space
+         # treat op= and comparison operators as simple '=', simplifying matching below
+-        $intra_line =~ s/([\+\-\*\/\/%\&\|\^\!<>=]|<<|>>)=/=/g;
++        $intra_line =~ s/(<<|>>|[\+\-\*\/\/%\&\|\^\!<>=])=/=/g;
+         # treat (type) variables within macro, indicated by trailing '\', as 'int' simplifying matching below
+         $intra_line =~ s/[A-Z_]+/int/g if $trailing_backslash;
+         # treat double &&, ||, <<, and >> as single ones, simplifying matching below
+@@ -803,7 +810,6 @@ while (<>) { # loop over all lines of all input files
+         report("space before '$1'")     if $intra_line =~ m/\s([,)\]])/;       # space before ,)]
+         report("space after '$1'")      if $intra_line =~ m/([(\[~!])\s/;      # space after ([~!
+         report("space after '$1'")      if $intra_line =~ m/(defined)\s/;      # space after 'defined'
+-        report("missing space before '=' or '<op>='") if $intra_line =~ m/\S(=)/;   # '=' etc. without preceding space
+         report("missing space before '$1'")  if $intra_line =~ m/\S([|\/%<>^\?])/;  # |/%<>^? without preceding space
+         # TODO ternary ':' without preceding SPC, while allowing no SPC before ':' after 'case'
+         report("missing space before binary '$2'")  if $intra_line =~ m/([^\s{()\[e])([+\-])/; # '+'/'-' without preceding space or {()[e
+-- 
+2.34.1
+

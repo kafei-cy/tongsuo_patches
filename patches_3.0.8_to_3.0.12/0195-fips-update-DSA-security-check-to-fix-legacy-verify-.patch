@@ -1,0 +1,259 @@
+From fd1520e0b9435fd0b37604c80bf51b7936410e91 Mon Sep 17 00:00:00 2001
+From: Pauli <pauli@openssl.org>
+Date: Tue, 13 Jun 2023 09:37:57 +1000
+Subject: [PATCH 195/381] fips: update DSA security check to fix legacy verify
+ strengths
+
+Refer SP 800-131Ar2 table 2:
+    https://csrc.nist.gov/publications/detail/sp/800-131a/rev-2/final
+
+Fixes #21185
+
+Reviewed-by: Shane Lontis <shane.lontis@oracle.com>
+Reviewed-by: Tomas Mraz <tomas@openssl.org>
+(Merged from https://github.com/openssl/openssl/pull/21186)
+
+(cherry picked from commit 71cf587ea21c1422640847e358019a51806d2811)
+---
+ providers/common/securitycheck.c              |  22 ++--
+ test/recipes/20-test_cli_fips.t               | 114 +++++++++---------
+ test/recipes/30-test_evp_data/evppkey_dsa.txt |  33 ++++-
+ 3 files changed, 106 insertions(+), 63 deletions(-)
+
+diff --git a/providers/common/securitycheck.c b/providers/common/securitycheck.c
+index 699ada7c52..2dc43334de 100644
+--- a/providers/common/securitycheck.c
++++ b/providers/common/securitycheck.c
+@@ -167,17 +167,25 @@ int ossl_dsa_check_key(OSSL_LIB_CTX *ctx, const DSA *dsa, int sign)
+ 
+         /*
+          * For Digital signature verification DSA keys with < 112 bits of
+-         * security strength (i.e L < 2048 bits), are still allowed for legacy
+-         * use. The bounds given in SP800 131Ar2 - Table 2 are
+-         * (512 <= L < 2048 and 160 <= N < 224)
++         * security strength, are still allowed for legacy
++         * use. The bounds given in SP 800-131Ar2 - Table 2 are
++         * (512 <= L < 2048 or 160 <= N < 224).
++         *
++         * We are a little stricter and insist that both minimums are met.
++         * For example a L = 256, N = 160 key *would* be allowed by SP 800-131Ar2
++         * but we don't.
+          */
+-        if (!sign && L < 2048)
+-            return (L >= 512 && N >= 160 && N < 224);
++        if (!sign) {
++            if (L < 512 || N < 160)
++                return 0;
++            if (L < 2048 || N < 224)
++                return 1;
++        }
+ 
+          /* Valid sizes for both sign and verify */
+-        if (L == 2048 && (N == 224 || N == 256))
++        if (L == 2048 && (N == 224 || N == 256))    /* 112 bits */
+             return 1;
+-        return (L == 3072 && N == 256);
++        return (L == 3072 && N == 256);             /* 128 bits */
+     }
+ # endif /* OPENSSL_NO_FIPS_SECURITYCHECKS */
+     return 1;
+diff --git a/test/recipes/20-test_cli_fips.t b/test/recipes/20-test_cli_fips.t
+index 6d3c5ba1bb..a452088105 100644
+--- a/test/recipes/20-test_cli_fips.t
++++ b/test/recipes/20-test_cli_fips.t
+@@ -109,65 +109,70 @@ sub tsignverify {
+ 
+     $ENV{OPENSSL_CONF} = $defaultconf;
+ 
+-    $sigfile = $nonfips_sigfile;
+-    $testtext = $prefix.': '.
+-        'Sign something with a non-FIPS key'.
+-        ' with the default provider';
+-    ok(run(app(['openssl', 'dgst', '-sha256',
+-                '-sign', $nonfips_key,
+-                '-out', $sigfile,
+-                $tbs_data])),
+-       $testtext);
++    SKIP : {
++        skip "FIPS failure testing", 6
++            if ($nonfips_key eq '');
++
++        $sigfile = $nonfips_sigfile;
++        $testtext = $prefix.': '.
++            'Sign something with a non-FIPS key'.
++            ' with the default provider';
++        ok(run(app(['openssl', 'dgst', '-sha256',
++                    '-sign', $nonfips_key,
++                    '-out', $sigfile,
++                    $tbs_data])),
++           $testtext);
+ 
+-    $testtext = $prefix.': '.
+-        'Verify something with a non-FIPS key'.
+-        ' with the default provider';
+-    ok(run(app(['openssl', 'dgst', '-sha256',
+-                '-verify', $nonfips_pub_key,
+-                '-signature', $sigfile,
+-                $tbs_data])),
+-       $testtext);
++        $testtext = $prefix.': '.
++            'Verify something with a non-FIPS key'.
++            ' with the default provider';
++        ok(run(app(['openssl', 'dgst', '-sha256',
++                    '-verify', $nonfips_pub_key,
++                    '-signature', $sigfile,
++                    $tbs_data])),
++           $testtext);
+ 
+-    $ENV{OPENSSL_CONF} = $fipsconf;
++        $ENV{OPENSSL_CONF} = $fipsconf;
+ 
+-    $testtext = $prefix.': '.
+-        'Sign something with a non-FIPS key'.
+-        ' (should fail)';
+-    ok(!run(app(['openssl', 'dgst', '-sha256',
+-                 '-sign', $nonfips_key,
+-                 '-out', $prefix.'.nonfips.fail.sig',
+-                 $tbs_data])),
+-       $testtext);
++        $testtext = $prefix.': '.
++            'Sign something with a non-FIPS key'.
++            ' (should fail)';
++        ok(!run(app(['openssl', 'dgst', '-sha256',
++                     '-sign', $nonfips_key,
++                     '-out', $prefix.'.nonfips.fail.sig',
++                     $tbs_data])),
++           $testtext);
+ 
+-    $testtext = $prefix.': '.
+-        'Verify something with a non-FIPS key'.
+-        ' (should fail)';
+-    ok(!run(app(['openssl', 'dgst', '-sha256',
+-                 '-verify', $nonfips_pub_key,
+-                 '-signature', $sigfile,
+-                 $tbs_data])),
+-       $testtext);
++        $testtext = $prefix.': '.
++            'Verify something with a non-FIPS key'.
++            ' (should fail)';
++        ok(!run(app(['openssl', 'dgst', '-sha256',
++                     '-verify', $nonfips_pub_key,
++                     '-signature', $sigfile,
++                     $tbs_data])),
++           $testtext);
+ 
+-    $testtext = $prefix.': '.
+-        'Verify something with a non-FIPS key'.
+-		' in FIPS mode but with a non-FIPS property query';
+-    ok(run(app(['openssl', 'dgst',
+-				'-provider', 'default',
+-				'-propquery', '?fips!=yes',
+-				'-sha256',
+-                '-verify', $nonfips_pub_key,
+-                '-signature', $sigfile,
+-                $tbs_data])),
+-       $testtext);
++        $testtext = $prefix.': '.
++            'Verify something with a non-FIPS key'.
++		    ' in FIPS mode but with a non-FIPS property query';
++        ok(run(app(['openssl', 'dgst',
++				    '-provider', 'default',
++				    '-propquery', '?fips!=yes',
++				    '-sha256',
++                    '-verify', $nonfips_pub_key,
++                    '-signature', $sigfile,
++                    $tbs_data])),
++           $testtext);
+ 
+-    $testtext = $prefix.': '.
+-        'Verify a valid signature against the wrong data with a non-FIPS key'.
+-        ' (should fail)';
+-    ok(!run(app(['openssl', 'dgst', '-sha256',
+-                 '-verify', $nonfips_pub_key,
+-                 '-signature', $sigfile,
+-                 $bogus_data])),
+-       $testtext);
++        $testtext = $prefix.': '.
++            'Verify a valid signature against the wrong data with a non-FIPS key'.
++            ' (should fail)';
++        ok(!run(app(['openssl', 'dgst', '-sha256',
++                     '-verify', $nonfips_pub_key,
++                     '-signature', $sigfile,
++                     $bogus_data])),
++           $testtext);
++   }
+ }
+ 
+ SKIP : {
+@@ -395,7 +400,6 @@ SKIP : {
+                     '-out', $testtext_prefix.'.fail.priv.pem'])),
+             $testtext);
+ 
+-        tsignverify($testtext_prefix, $fips_key, $fips_pub_key, $nonfips_key,
+-                    $nonfips_pub_key);
++        tsignverify($testtext_prefix, $fips_key, $fips_pub_key, '', '');
+     };
+ }
+diff --git a/test/recipes/30-test_evp_data/evppkey_dsa.txt b/test/recipes/30-test_evp_data/evppkey_dsa.txt
+index 8e3743b9fd..8c19153ca1 100644
+--- a/test/recipes/30-test_evp_data/evppkey_dsa.txt
++++ b/test/recipes/30-test_evp_data/evppkey_dsa.txt
+@@ -142,6 +142,23 @@ Kr2KShQB0FlSgvcCDTX7g8eJ/UuIWo6wX4hSdHDhBB4CHAdVVg1m5ikOICUBo37Y
+ /TqkTaCFsMDwcDc20Jg=
+ -----END PRIVATE KEY-----
+ 
++PrivateKey = DSA-2048-160
++-----BEGIN PRIVATE KEY-----
++MIICTAIBADCCAi0GByqGSM44BAEwggIgAoIBAQCOypCJyAO7uNZSPSNGalSkyjQC
++xdFVIGfMJKjEXzJnH4g3ts0UqUyO8126REDJEXDeMi22841xsSvzz0ZJeT5YvMLW
++t1BtSTiYg2QOar1qEGJunHgjsWKJbVzIqWNw60ZP7pNKmlR7PKa3WDaPhdeVP8zJ
++PEMeUHOSprO5Jk/Hjr8jxV0znIIixb9L9PgJAwxiM7rkRHS2Oz1FCYDmNmuFhQDh
++Cb3wY9t1AcAHZ05uZ4PtNjdRPwFLPeVdckPj0ntApvOrH18xPWBmwcVeHAH1SV2k
++7LPK7wILHVzcKm74ubX/s1wKysyyXyKM+oCgG9jvfh09VQJcHTHaVS643ohZAhUA
++uQMLDZqMQbh9TYlm9xYCEBaeVs0CggEAcum3PgEQIRfukytMQ7gKMyfxHqhMmJ6t
++RolRhgMrSfl99dmMoqJV+sdSjYvZSkwl71N1Y4Al8GcJB1SzTSb8qGRzM+43pa4k
++SyQZ62WA8w5gaIQJ85JUrWiT8C6SgwAbruS5BVHRbQD6FxZwro9+s8uPnLesMTQX
++p4maNSQaqYX7tqGl6Z7Wo0PsEwuDRvBlI6sl97gl4q3FQPByCq/64UW/eF6Illo1
++dpfbiWCszsp8oczXCEuP+2Y67WUIj3LjFA7WM/R8K4SfdMQ/VXY/cyRhlUqQl8Qe
++ndBVKe0IeSdqvMcLNoUip7DGcOXW2ogZl+wgeP4xL3pdo8uS025kjwQWAhRfutAE
++r/MlbdGMvcA7l0XmzzY85w==
++-----END PRIVATE KEY-----
++
+ PrivateKey = DSA-2048-224
+ -----BEGIN PRIVATE KEY-----
+ MIICXAIBADCCAjUGByqGSM44BAEwggIoAoIBAQDVjuiHR3XA9yAjToNQOmdg2rN9
+@@ -249,9 +266,16 @@ bDfJavyQoCWW6EF260m2+rWtl6ILGhhWIbDN5KfXBhrOPvxvHQQiAiBZM1KxUjGw
+ h2C/91Z0b0Xg4QYNOtVUbfqQTJQAqEpaRg==
+ -----END PRIVATE KEY-----
+ 
+-
+ Title = FIPS Tests (using different key sizes and digests)
+ 
++# Test sign with a 2048 bit key with N == 160 is not allowed in fips mode
++Availablein = fips
++DigestSign = SHA256
++Key = DSA-2048-160
++Input = "Hello"
++Output = 00
++Result = DIGESTSIGNINIT_ERROR
++
+ # Test sign with a 2048 bit key with N == 224 is allowed in fips mode
+ DigestSign = SHA256
+ Key = DSA-2048-224
+@@ -289,6 +313,13 @@ Key = DSA-1024
+ Input = "Hello "
+ Output = 302c0214602d21ed37e46051bb3d06cc002adddeb4cdb3bd02144f39f75587b286588862d06366b2f29bddaf8cf6
+ 
++# Test verify with a 2048/160 bit key is allowed in fips mode
++FIPSversion = >3.1.1
++DigestVerify = SHA256
++Key = DSA-2048-160
++Input = "Hello"
++Output = 302e021500a51ca7f70ae206f221dc9b805bb04bfc07d6e448021500b16e45f9dac8aff04e115f96c00f4237d0fced41
++
+ Title = Fips Negative Tests (using different key sizes and digests)
+ 
+ # Test sign with a 1024 bit key is not allowed in fips mode
+-- 
+2.34.1
+

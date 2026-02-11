@@ -1,0 +1,55 @@
+From 100198fe715d47dcbcf5681596d361beb6740b51 Mon Sep 17 00:00:00 2001
+From: Tomas Mraz <tomas@openssl.org>
+Date: Mon, 4 Sep 2023 11:10:42 +0200
+Subject: [PATCH 367/381] ossl_param_build_set_multi_key_bn(): Do not set NULL
+ BIGNUMs
+
+This makes them zeroes otherwise
+where NULLs actually mean the values aren't present.
+
+Fixes #21935
+
+Reviewed-by: Richard Levitte <levitte@openssl.org>
+Reviewed-by: Tom Cosgrove <tom.cosgrove@arm.com>
+(Merged from https://github.com/openssl/openssl/pull/22334)
+
+(cherry picked from commit 15a39e7025e0ed4e31664c499894006e41582068)
+---
+ crypto/param_build_set.c | 11 ++++++-----
+ 1 file changed, 6 insertions(+), 5 deletions(-)
+
+diff --git a/crypto/param_build_set.c b/crypto/param_build_set.c
+index 8b570ded96..cce19e6990 100644
+--- a/crypto/param_build_set.c
++++ b/crypto/param_build_set.c
+@@ -99,21 +99,22 @@ int ossl_param_build_set_multi_key_bn(OSSL_PARAM_BLD *bld, OSSL_PARAM *params,
+ {
+     int i, sz = sk_BIGNUM_const_num(stk);
+     OSSL_PARAM *p;
+-
++    const BIGNUM *bn;
+ 
+     if (bld != NULL) {
+         for (i = 0; i < sz && names[i] != NULL; ++i) {
+-            if (!OSSL_PARAM_BLD_push_BN(bld, names[i],
+-                                        sk_BIGNUM_const_value(stk, i)))
++            bn = sk_BIGNUM_const_value(stk, i);
++            if (bn != NULL && !OSSL_PARAM_BLD_push_BN(bld, names[i], bn))
+                 return 0;
+         }
+         return 1;
+     }
+ 
+     for (i = 0; i < sz && names[i] != NULL; ++i) {
++        bn = sk_BIGNUM_const_value(stk, i);
+         p = OSSL_PARAM_locate(params, names[i]);
+-        if (p != NULL) {
+-            if (!OSSL_PARAM_set_BN(p, sk_BIGNUM_const_value(stk, i)))
++        if (p != NULL && bn != NULL) {
++            if (!OSSL_PARAM_set_BN(p, bn))
+                 return 0;
+         }
+     }
+-- 
+2.34.1
+

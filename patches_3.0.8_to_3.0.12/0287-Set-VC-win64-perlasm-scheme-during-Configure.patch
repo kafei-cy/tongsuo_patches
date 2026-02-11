@@ -1,0 +1,56 @@
+From 4f4da07c5cb80179cbc4baaebf515cb058e95e7f Mon Sep 17 00:00:00 2001
+From: Kai Pastor <dg0yt@darc.de>
+Date: Sat, 5 Aug 2023 08:34:35 +0200
+Subject: [PATCH 287/381] Set VC win64 perlasm scheme during Configure
+
+Reviewed-by: Hugo Landau <hlandau@openssl.org>
+Reviewed-by: Tomas Mraz <tomas@openssl.org>
+(Merged from https://github.com/openssl/openssl/pull/21661)
+
+(cherry picked from commit a2608e4bc430d6216bbf36f50a29278e8759103a)
+---
+ Configurations/10-main.conf | 11 +++++++----
+ 1 file changed, 7 insertions(+), 4 deletions(-)
+
+diff --git a/Configurations/10-main.conf b/Configurations/10-main.conf
+index 8010087b46..280a75b213 100644
+--- a/Configurations/10-main.conf
++++ b/Configurations/10-main.conf
+@@ -9,19 +9,22 @@ sub vc_win64a_info {
+             $vc_win64a_info = { AS        => "nasm",
+                                 ASFLAGS   => "-g",
+                                 asflags   => "-Ox -f win64 -DNEAR",
+-                                asoutflag => "-o " };
++                                asoutflag => "-o ",
++                                perlasm_scheme => "nasm" };
+         } elsif ($disabled{asm}) {
+             # assembler is still used to compile uplink shim
+             $vc_win64a_info = { AS        => "ml64",
+                                 ASFLAGS   => "/nologo /Zi",
+                                 asflags   => "/c /Cp /Cx",
+-                                asoutflag => "/Fo" };
++                                asoutflag => "/Fo",
++                                perlasm_scheme => "masm" };
+         } else {
+             $die->("NASM not found - make sure it's installed and available on %PATH%\n");
+             $vc_win64a_info = { AS        => "{unknown}",
+                                 ASFLAGS   => "",
+                                 asflags   => "",
+-                                asoutflag => "" };
++                                asoutflag => "",
++                                perlasm_scheme => "auto" };
+         }
+     }
+     return $vc_win64a_info;
+@@ -1416,7 +1419,7 @@ my %targets = (
+         sys_id           => "WIN64A",
+         uplink_arch      => 'x86_64',
+         asm_arch         => 'x86_64',
+-        perlasm_scheme   => "auto",
++        perlasm_scheme   => sub { vc_win64a_info()->{perlasm_scheme} },
+         multilib         => "-x64",
+     },
+     "VC-WIN32" => {
+-- 
+2.34.1
+

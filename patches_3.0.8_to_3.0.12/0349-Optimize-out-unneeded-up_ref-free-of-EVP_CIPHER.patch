@@ -1,0 +1,37 @@
+From 1c01dbcbebc08d629d02326d941b8491ae99597d Mon Sep 17 00:00:00 2001
+From: Tomas Mraz <tomas@openssl.org>
+Date: Tue, 26 Sep 2023 17:39:50 +0200
+Subject: [PATCH 349/381] Optimize out unneeded up_ref/free of EVP_CIPHER
+
+Fixes #22189
+
+Reviewed-by: Matt Caswell <matt@openssl.org>
+Reviewed-by: Paul Dale <pauli@openssl.org>
+(Merged from https://github.com/openssl/openssl/pull/22198)
+
+(cherry picked from commit 8ed76c62b5d3214e807e684c06efd69c6471c800)
+---
+ crypto/evp/evp_enc.c | 7 ++++++-
+ 1 file changed, 6 insertions(+), 1 deletion(-)
+
+diff --git a/crypto/evp/evp_enc.c b/crypto/evp/evp_enc.c
+index b178d10864..d2ed3fd378 100644
+--- a/crypto/evp/evp_enc.c
++++ b/crypto/evp/evp_enc.c
+@@ -192,7 +192,12 @@ static int evp_cipher_init_internal(EVP_CIPHER_CTX *ctx,
+ #endif
+     }
+ 
+-    if (cipher->prov != NULL) {
++    if (!ossl_assert(cipher->prov != NULL)) {
++        ERR_raise(ERR_LIB_EVP, EVP_R_INITIALIZATION_ERROR);
++        return 0;
++    }
++
++    if (cipher != ctx->fetched_cipher) {
+         if (!EVP_CIPHER_up_ref((EVP_CIPHER *)cipher)) {
+             ERR_raise(ERR_LIB_EVP, EVP_R_INITIALIZATION_ERROR);
+             return 0;
+-- 
+2.34.1
+

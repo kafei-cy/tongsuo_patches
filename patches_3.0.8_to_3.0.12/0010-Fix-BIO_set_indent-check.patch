@@ -1,0 +1,36 @@
+From 820f7c64a2631514090792d2cc99db2f72dffa67 Mon Sep 17 00:00:00 2001
+From: Niels Dossche <niels.dossche@ugent.be>
+Date: Wed, 1 Feb 2023 15:06:12 +0100
+Subject: [PATCH 010/381] Fix BIO_set_indent() check
+
+This function returns an errorcode <= 0, but only < 0 is checked. Other
+callers that check the return value perform this check correctly. Fix it
+by changing the check to <= 0.
+
+CLA: trivial
+
+Reviewed-by: Paul Dale <pauli@openssl.org>
+Reviewed-by: Tomas Mraz <tomas@openssl.org>
+(Merged from https://github.com/openssl/openssl/pull/20186)
+
+(cherry picked from commit 826374921a6b92293fd87655416eda8ef07301c8)
+---
+ crypto/asn1/asn1_parse.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/crypto/asn1/asn1_parse.c b/crypto/asn1/asn1_parse.c
+index 04d7ef66cf..b565a16647 100644
+--- a/crypto/asn1/asn1_parse.c
++++ b/crypto/asn1/asn1_parse.c
+@@ -50,7 +50,7 @@ static int asn1_print_info(BIO *bp, long offset, int depth, int hl, long len,
+             pop_f_prefix = 1;
+         }
+         saved_indent = BIO_get_indent(bp);
+-        if (BIO_set_prefix(bp, str) <= 0 || BIO_set_indent(bp, indent) < 0)
++        if (BIO_set_prefix(bp, str) <= 0 || BIO_set_indent(bp, indent) <= 0)
+             goto err;
+     }
+ 
+-- 
+2.34.1
+

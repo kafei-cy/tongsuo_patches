@@ -1,0 +1,46 @@
+From 3dc175c2d2ef6b9358fca9015010f45b4fb03d3b Mon Sep 17 00:00:00 2001
+From: Richard Levitte <levitte@openssl.org>
+Date: Wed, 17 May 2023 10:33:27 +0200
+Subject: [PATCH 163/381] Add information on the 'ias' port for OpenVMS
+
+Reviewed-by: Tomas Mraz <tomas@openssl.org>
+Reviewed-by: Hugo Landau <hlandau@openssl.org>
+Reviewed-by: Paul Dale <pauli@openssl.org>
+(Merged from https://github.com/openssl/openssl/pull/20983)
+
+(cherry picked from commit d500f04400d0acc83fe5270da860764a7d19deee)
+---
+ NOTES-VMS.md | 17 +++++++++++++++++
+ 1 file changed, 17 insertions(+)
+
+diff --git a/NOTES-VMS.md b/NOTES-VMS.md
+index e27f3d682a..566a04d2a9 100644
+--- a/NOTES-VMS.md
++++ b/NOTES-VMS.md
+@@ -83,6 +83,23 @@ When done, we recommend that you turn that flag back off:
+ 
+     $ set image /flag=nocall_debug [.test]evp_test.exe
+ 
++About assembler acceleration
++----------------------------
++
++OpenSSL has assembler acceleration for a number of BIGNUM and crypto
++routines.  The VMS config targets tries to look for a selection of
++assemblers and will use what they find.  If none of the assemblers are
++found, OpenSSL will be built as if `no-asm` was configured.
++
++### For Itanium / IA64 / I64
++
++-   There is only one assembler, a port of Intel's `ias`, found in the
++    HP Open Source Tools CD, available through [DECUSlib](http://www.decuslib.com).
++    It's assumed to be set up as per the instructions, where `disk` and
++    `dir` are expected to be adapted to local conditions:
++
++        $ ias :== $disk:[dir]iasi64.exe
++
+ Checking the distribution
+ -------------------------
+ 
+-- 
+2.34.1
+

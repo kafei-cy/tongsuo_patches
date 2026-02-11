@@ -1,0 +1,31 @@
+From de05db231a778c7d7aaa21a5a381f32ddfcc830b Mon Sep 17 00:00:00 2001
+From: ljuzwiuk <lukasz.a.juzwiuk@intel.com>
+Date: Tue, 11 Jul 2023 20:43:32 +0000
+Subject: [PATCH 228/381] Remove duplicated values
+
+Reviewed-by: Tomas Mraz <tomas@openssl.org>
+Reviewed-by: Todd Short <todd.short@me.com>
+Reviewed-by: Paul Dale <pauli@openssl.org>
+(Merged from https://github.com/openssl/openssl/pull/21401)
+
+(cherry picked from commit f1b7243cda208d8bd74f75c95990f8205e977ae4)
+---
+ test/build.info | 2 --
+ 1 file changed, 2 deletions(-)
+
+diff --git a/test/build.info b/test/build.info
+index a5c1c65ddd..75846e05ac 100644
+--- a/test/build.info
++++ b/test/build.info
+@@ -41,8 +41,6 @@ IF[{- !$disabled{tests} -}]
+           evp_pkey_provided_test evp_test evp_extra_test evp_extra_test2 \
+           evp_fetch_prov_test evp_libctx_test ossl_store_test \
+           v3nametest v3ext punycode_test \
+-          evp_pkey_provided_test evp_test evp_extra_test evp_extra_test2 \
+-          evp_fetch_prov_test v3nametest v3ext \
+           crltest danetest bad_dtls_test lhash_test sparse_array_test \
+           conf_include_test params_api_test params_conversion_test \
+           constant_time_test verify_extra_test clienthellotest \
+-- 
+2.34.1
+

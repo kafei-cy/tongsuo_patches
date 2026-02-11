@@ -1,0 +1,34 @@
+From 287f544ee4f5ba18e1f7f78b7ea8ff2c1f35cf88 Mon Sep 17 00:00:00 2001
+From: Tianjia Zhang <tianjia.zhang@linux.alibaba.com>
+Date: Tue, 1 Aug 2023 14:21:02 +0800
+Subject: [PATCH 259/381] Fix typo in function name
+
+Signed-off-by: Tianjia Zhang <tianjia.zhang@linux.alibaba.com>
+
+Reviewed-by: Tomas Mraz <tomas@openssl.org>
+Reviewed-by: Paul Dale <pauli@openssl.org>
+Reviewed-by: Tom Cosgrove <tom.cosgrove@arm.com>
+Reviewed-by: Hugo Landau <hlandau@openssl.org>
+(Merged from https://github.com/openssl/openssl/pull/21608)
+
+(cherry picked from commit 38c70a161cc6f96682bd77c8a935c5767355438c)
+---
+ doc/man3/CMS_sign.pod | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/doc/man3/CMS_sign.pod b/doc/man3/CMS_sign.pod
+index 0d812756ae..a701c4d0fa 100644
+--- a/doc/man3/CMS_sign.pod
++++ b/doc/man3/CMS_sign.pod
+@@ -105,7 +105,7 @@ The function CMS_sign() is a basic CMS signing function whose output will be
+ suitable for many purposes. For finer control of the output format the
+ B<certs>, B<signcert> and B<pkey> parameters can all be B<NULL> and the
+ B<CMS_PARTIAL> flag set. Then one or more signers can be added using the
+-function CMS_sign_add1_signer(), non default digests can be used and custom
++function CMS_add1_signer(), non default digests can be used and custom
+ attributes added. CMS_final() must then be called to finalize the
+ structure if streaming is not enabled.
+ 
+-- 
+2.34.1
+

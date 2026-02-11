@@ -1,0 +1,62 @@
+From c54a867bb87fb6acb12b17d0432bd262bd6aca0a Mon Sep 17 00:00:00 2001
+From: Bernd Edlinger <bernd.edlinger@hotmail.de>
+Date: Thu, 26 Jan 2023 15:45:03 +0100
+Subject: [PATCH 143/381] Fix the padlock engine
+
+... after it was broken for almost 5 years,
+since the first 1.1.1 release.
+Note: The last working version was 1.1.0l release.
+
+Fixes #20073
+
+Reviewed-by: Richard Levitte <levitte@openssl.org>
+Reviewed-by: Tomas Mraz <tomas@openssl.org>
+Reviewed-by: Tom Cosgrove <tom.cosgrove@arm.com>
+Reviewed-by: Hugo Landau <hlandau@openssl.org>
+(Merged from https://github.com/openssl/openssl/pull/20146)
+
+(cherry picked from commit 849ed515c7838943eab42de5c29d6a1f91079a11)
+---
+ engines/e_padlock.c | 15 +++++++++++++--
+ 1 file changed, 13 insertions(+), 2 deletions(-)
+
+diff --git a/engines/e_padlock.c b/engines/e_padlock.c
+index 9ad1c48c71..989e53df31 100644
+--- a/engines/e_padlock.c
++++ b/engines/e_padlock.c
+@@ -146,6 +146,19 @@ static int padlock_init(ENGINE *e)
+     return (padlock_use_rng || padlock_use_ace);
+ }
+ 
++#  ifndef AES_ASM
++static int padlock_aes_set_encrypt_key(const unsigned char *userKey,
++                                       const int bits,
++                                       AES_KEY *key);
++static int padlock_aes_set_decrypt_key(const unsigned char *userKey,
++                                       const int bits,
++                                       AES_KEY *key);
++#   define AES_ASM
++#   define AES_set_encrypt_key padlock_aes_set_encrypt_key
++#   define AES_set_decrypt_key padlock_aes_set_decrypt_key
++#   include "../crypto/aes/aes_core.c"
++#  endif
++
+ /*
+  * This stuff is needed if this ENGINE is being compiled into a
+  * self-contained shared-library.
+@@ -646,12 +659,10 @@ padlock_aes_init_key(EVP_CIPHER_CTX *ctx, const unsigned char *key,
+             AES_set_decrypt_key(key, key_len, &cdata->ks);
+         else
+             AES_set_encrypt_key(key, key_len, &cdata->ks);
+-#  ifndef AES_ASM
+         /*
+          * OpenSSL C functions use byte-swapped extended key.
+          */
+         padlock_key_bswap(&cdata->ks);
+-#  endif
+         cdata->cword.b.keygen = 1;
+         break;
+ 
+-- 
+2.34.1
+

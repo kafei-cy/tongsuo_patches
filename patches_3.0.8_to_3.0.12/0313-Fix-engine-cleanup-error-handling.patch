@@ -1,0 +1,129 @@
+From ecd41bb3c315bd6d0c7e591bea7fdc65387d5905 Mon Sep 17 00:00:00 2001
+From: Bernd Edlinger <bernd.edlinger@hotmail.de>
+Date: Tue, 5 Sep 2023 16:59:45 +0200
+Subject: [PATCH 313/381] Fix engine cleanup error handling
+
+Error handling in engine_cleanup_add_first/last was
+broken and caused memory leaks.
+
+Reviewed-by: Tomas Mraz <tomas@openssl.org>
+Reviewed-by: Paul Dale <pauli@openssl.org>
+(Merged from https://github.com/openssl/openssl/pull/21971)
+
+(cherry picked from commit 00f2efccf5b9671a7af2b12571068258e9c255a5)
+---
+ crypto/engine/eng_lib.c   | 24 +++++++++++++++---------
+ crypto/engine/eng_list.c  | 10 +++++++---
+ crypto/engine/eng_local.h |  4 ++--
+ crypto/engine/eng_table.c |  8 +++++---
+ 4 files changed, 29 insertions(+), 17 deletions(-)
+
+diff --git a/crypto/engine/eng_lib.c b/crypto/engine/eng_lib.c
+index dfd53a4331..cfdb5a50f4 100644
+--- a/crypto/engine/eng_lib.c
++++ b/crypto/engine/eng_lib.c
+@@ -133,28 +133,34 @@ static ENGINE_CLEANUP_ITEM *int_cleanup_item(ENGINE_CLEANUP_CB *cb)
+     return item;
+ }
+ 
+-void engine_cleanup_add_first(ENGINE_CLEANUP_CB *cb)
++int engine_cleanup_add_first(ENGINE_CLEANUP_CB *cb)
+ {
+     ENGINE_CLEANUP_ITEM *item;
+ 
+     if (!int_cleanup_check(1))
+-        return;
++        return 0;
+     item = int_cleanup_item(cb);
+-    if (item != NULL)
+-        if (sk_ENGINE_CLEANUP_ITEM_insert(cleanup_stack, item, 0) <= 0)
+-            OPENSSL_free(item);
++    if (item != NULL) {
++        if (sk_ENGINE_CLEANUP_ITEM_insert(cleanup_stack, item, 0))
++            return 1;
++        OPENSSL_free(item);
++    }
++    return 0;
+ }
+ 
+-void engine_cleanup_add_last(ENGINE_CLEANUP_CB *cb)
++int engine_cleanup_add_last(ENGINE_CLEANUP_CB *cb)
+ {
+     ENGINE_CLEANUP_ITEM *item;
++
+     if (!int_cleanup_check(1))
+-        return;
++        return 0;
+     item = int_cleanup_item(cb);
+     if (item != NULL) {
+-        if (sk_ENGINE_CLEANUP_ITEM_push(cleanup_stack, item) <= 0)
+-            OPENSSL_free(item);
++        if (sk_ENGINE_CLEANUP_ITEM_push(cleanup_stack, item) > 0)
++            return 1;
++        OPENSSL_free(item);
+     }
++    return 0;
+ }
+ 
+ /* The API function that performs all cleanup */
+diff --git a/crypto/engine/eng_list.c b/crypto/engine/eng_list.c
+index 04c73c7628..d3bd0c0dc2 100644
+--- a/crypto/engine/eng_list.c
++++ b/crypto/engine/eng_list.c
+@@ -78,12 +78,16 @@ static int engine_list_add(ENGINE *e)
+             ERR_raise(ERR_LIB_ENGINE, ENGINE_R_INTERNAL_LIST_ERROR);
+             return 0;
+         }
+-        engine_list_head = e;
+-        e->prev = NULL;
+         /*
+          * The first time the list allocates, we should register the cleanup.
+          */
+-        engine_cleanup_add_last(engine_list_cleanup);
++        if (!engine_cleanup_add_last(engine_list_cleanup)) {
++            CRYPTO_DOWN_REF(&e->struct_ref, &ref);
++            ERR_raise(ERR_LIB_ENGINE, ENGINE_R_INTERNAL_LIST_ERROR);
++            return 0;
++        }
++        engine_list_head = e;
++        e->prev = NULL;
+     } else {
+         /* We are adding to the tail of an existing list. */
+         if ((engine_list_tail == NULL) || (engine_list_tail->next != NULL)) {
+diff --git a/crypto/engine/eng_local.h b/crypto/engine/eng_local.h
+index 03a86299cf..b3227b3bcd 100644
+--- a/crypto/engine/eng_local.h
++++ b/crypto/engine/eng_local.h
+@@ -46,8 +46,8 @@ typedef struct st_engine_cleanup_item {
+     ENGINE_CLEANUP_CB *cb;
+ } ENGINE_CLEANUP_ITEM;
+ DEFINE_STACK_OF(ENGINE_CLEANUP_ITEM)
+-void engine_cleanup_add_first(ENGINE_CLEANUP_CB *cb);
+-void engine_cleanup_add_last(ENGINE_CLEANUP_CB *cb);
++int engine_cleanup_add_first(ENGINE_CLEANUP_CB *cb);
++int engine_cleanup_add_last(ENGINE_CLEANUP_CB *cb);
+ 
+ /* We need stacks of ENGINEs for use in eng_table.c */
+ DEFINE_STACK_OF(ENGINE)
+diff --git a/crypto/engine/eng_table.c b/crypto/engine/eng_table.c
+index d6a7452c76..6628c612b9 100644
+--- a/crypto/engine/eng_table.c
++++ b/crypto/engine/eng_table.c
+@@ -93,9 +93,11 @@ int engine_table_register(ENGINE_TABLE **table, ENGINE_CLEANUP_CB *cleanup,
+         added = 1;
+     if (!int_table_check(table, 1))
+         goto end;
+-    if (added)
+-        /* The cleanup callback needs to be added */
+-        engine_cleanup_add_first(cleanup);
++    /* The cleanup callback needs to be added */
++    if (added && !engine_cleanup_add_first(cleanup)) {
++        lh_ENGINE_PILE_free(&(*table)->piles);
++        *table = NULL;
++    }
+     while (num_nids--) {
+         tmplate.nid = *nids;
+         fnd = lh_ENGINE_PILE_retrieve(&(*table)->piles, &tmplate);
+-- 
+2.34.1
+

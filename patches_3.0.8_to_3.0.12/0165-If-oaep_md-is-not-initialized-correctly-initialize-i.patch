@@ -1,0 +1,42 @@
+From 3882d47825aab31c55f72c2d0cee67dee4f09c96 Mon Sep 17 00:00:00 2001
+From: Dmitry Belyavskiy <beldmit@gmail.com>
+Date: Thu, 18 May 2023 15:38:56 +0200
+Subject: [PATCH 165/381] If oaep_md is not initialized, correctly initialize
+ it
+
+Fixes #20993
+
+Reviewed-by: Matt Caswell <matt@openssl.org>
+Reviewed-by: Paul Dale <pauli@openssl.org>
+Reviewed-by: Shane Lontis <shane.lontis@oracle.com>
+Reviewed-by: Tomas Mraz <tomas@openssl.org>
+(Merged from https://github.com/openssl/openssl/pull/20994)
+
+(cherry picked from commit c5aa719502f1ef456b27347e5f7b15c07817da4e)
+---
+ providers/implementations/asymciphers/rsa_enc.c | 8 +++++---
+ 1 file changed, 5 insertions(+), 3 deletions(-)
+
+diff --git a/providers/implementations/asymciphers/rsa_enc.c b/providers/implementations/asymciphers/rsa_enc.c
+index 568452ec56..d1ceae546e 100644
+--- a/providers/implementations/asymciphers/rsa_enc.c
++++ b/providers/implementations/asymciphers/rsa_enc.c
+@@ -161,10 +161,12 @@ static int rsa_encrypt(void *vprsactx, unsigned char *out, size_t *outlen,
+             return 0;
+         }
+         if (prsactx->oaep_md == NULL) {
+-            OPENSSL_free(tbuf);
+             prsactx->oaep_md = EVP_MD_fetch(prsactx->libctx, "SHA-1", NULL);
+-            ERR_raise(ERR_LIB_PROV, ERR_R_INTERNAL_ERROR);
+-            return 0;
++            if (prsactx->oaep_md == NULL) {
++                OPENSSL_free(tbuf);
++                ERR_raise(ERR_LIB_PROV, ERR_R_INTERNAL_ERROR);
++                return 0;
++            }
+         }
+         ret =
+             ossl_rsa_padding_add_PKCS1_OAEP_mgf1_ex(prsactx->libctx, tbuf,
+-- 
+2.34.1
+

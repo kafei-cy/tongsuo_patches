@@ -1,0 +1,61 @@
+From 1eeada08525183c79963b11af0288de3e52c1ea4 Mon Sep 17 00:00:00 2001
+From: Bernd Edlinger <bernd.edlinger@hotmail.de>
+Date: Mon, 18 Sep 2023 08:16:01 +0200
+Subject: [PATCH 352/381] Improve Malloc Failure Test
+
+Allow 2 digits after the comma in percentage in OPENSSL_MALLOC_FAILURES.
+Add OPENSSL_MALLOC_SEED to allow for some randomization.
+
+Reviewed-by: Paul Dale <pauli@openssl.org>
+Reviewed-by: Tomas Mraz <tomas@openssl.org>
+(Merged from https://github.com/openssl/openssl/pull/22127)
+
+(cherry picked from commit 3df5736cf303d2c69654ba1c295a9772b738608e)
+---
+ crypto/mem.c | 9 +++++++--
+ 1 file changed, 7 insertions(+), 2 deletions(-)
+
+diff --git a/crypto/mem.c b/crypto/mem.c
+index bc9dc11167..ef0b744049 100644
+--- a/crypto/mem.c
++++ b/crypto/mem.c
+@@ -100,6 +100,9 @@ void CRYPTO_get_alloc_counts(int *mcount, int *rcount, int *fcount)
+  *    or    100;100@25;0
+  * This means 100 mallocs succeed, then next 100 fail 25% of the time, and
+  * all remaining (count is zero) succeed.
++ * The failure percentge can have 2 digits after the comma.  For example:
++ *          0@0.01
++ * This means 0.01% of all allocations will fail.
+  */
+ static void parseit(void)
+ {
+@@ -112,7 +115,7 @@ static void parseit(void)
+     /* Get the count (atol will stop at the @ if there), and percentage */
+     md_count = atol(md_failstring);
+     atsign = strchr(md_failstring, '@');
+-    md_fail_percent = atsign == NULL ? 0 : atoi(atsign + 1);
++    md_fail_percent = atsign == NULL ? 0 : (int)(atof(atsign + 1) * 100 + 0.5);
+ 
+     if (semi != NULL)
+         md_failstring = semi;
+@@ -131,7 +134,7 @@ static void parseit(void)
+  */
+ static int shouldfail(void)
+ {
+-    int roll = (int)(random() % 100);
++    int roll = (int)(random() % 10000);
+     int shoulditfail = roll < md_fail_percent;
+ # ifndef _WIN32
+ /* suppressed on Windows as POSIX-like file descriptors are non-inheritable */
+@@ -165,6 +168,8 @@ void ossl_malloc_setup_failures(void)
+         parseit();
+     if ((cp = getenv("OPENSSL_MALLOC_FD")) != NULL)
+         md_tracefd = atoi(cp);
++    if ((cp = getenv("OPENSSL_MALLOC_SEED")) != NULL)
++        srandom(atoi(cp));
+ }
+ #endif
+ 
+-- 
+2.34.1
+

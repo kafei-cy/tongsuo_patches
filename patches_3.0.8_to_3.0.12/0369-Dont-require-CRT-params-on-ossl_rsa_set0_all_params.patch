@@ -1,0 +1,56 @@
+From cfd5b0509ddaf2103a07ae9cc90d0750e4b5d852 Mon Sep 17 00:00:00 2001
+From: Neil Horman <nhorman@openssl.org>
+Date: Tue, 10 Oct 2023 11:06:44 -0400
+Subject: [PATCH 369/381] Dont require CRT params on ossl_rsa_set0_all_params
+
+Its not required that crt params be available in an RSA key, so don't
+perform an error check on them
+
+Fixes #29135
+
+Reviewed-by: Richard Levitte <levitte@openssl.org>
+Reviewed-by: Tomas Mraz <tomas@openssl.org>
+(Merged from https://github.com/openssl/openssl/pull/22334)
+
+(cherry picked from commit 2647726bd3ca63dc5f07ae3f10e16dff35d95626)
+---
+ crypto/rsa/rsa_lib.c | 18 +++++++++++-------
+ 1 file changed, 11 insertions(+), 7 deletions(-)
+
+diff --git a/crypto/rsa/rsa_lib.c b/crypto/rsa/rsa_lib.c
+index 709ecb5daa..acc8db4cb0 100644
+--- a/crypto/rsa/rsa_lib.c
++++ b/crypto/rsa/rsa_lib.c
+@@ -753,18 +753,22 @@ int ossl_rsa_set0_all_params(RSA *r, const STACK_OF(BIGNUM) *primes,
+         return 0;
+ 
+     pnum = sk_BIGNUM_num(primes);
+-    if (pnum < 2
+-        || pnum != sk_BIGNUM_num(exps)
+-        || pnum != sk_BIGNUM_num(coeffs) + 1)
++    if (pnum < 2)
+         return 0;
+ 
+     if (!RSA_set0_factors(r, sk_BIGNUM_value(primes, 0),
+-                          sk_BIGNUM_value(primes, 1))
+-        || !RSA_set0_crt_params(r, sk_BIGNUM_value(exps, 0),
+-                                sk_BIGNUM_value(exps, 1),
+-                                sk_BIGNUM_value(coeffs, 0)))
++                          sk_BIGNUM_value(primes, 1)))
+         return 0;
+ 
++    if (pnum == sk_BIGNUM_num(exps)
++        && pnum == sk_BIGNUM_num(coeffs) + 1) {
++
++        if (!RSA_set0_crt_params(r, sk_BIGNUM_value(exps, 0),
++                                 sk_BIGNUM_value(exps, 1),
++                                 sk_BIGNUM_value(coeffs, 0)))
++        return 0;
++    }
++
+ #ifndef FIPS_MODULE
+     old_infos = r->prime_infos;
+ #endif
+-- 
+2.34.1
+

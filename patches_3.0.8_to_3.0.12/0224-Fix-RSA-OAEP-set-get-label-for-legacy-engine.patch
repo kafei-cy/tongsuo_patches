@@ -1,0 +1,77 @@
+From 4ab5a874cc62e71a21ecb82bada412bdc2c50126 Mon Sep 17 00:00:00 2001
+From: ljuzwiuk <lukasz.a.juzwiuk@intel.com>
+Date: Thu, 13 Jul 2023 09:11:28 +0000
+Subject: [PATCH 224/381] Fix RSA OAEP set/get label for legacy engine
+
+Reviewed-by: Tomas Mraz <tomas@openssl.org>
+Reviewed-by: Todd Short <todd.short@me.com>
+Reviewed-by: Paul Dale <pauli@openssl.org>
+(Merged from https://github.com/openssl/openssl/pull/21401)
+
+(cherry picked from commit 64b1d2fb06c9a5233dcabfe130036ff95c3fdaae)
+---
+ crypto/evp/ctrl_params_translate.c | 11 +++++++----
+ crypto/rsa/rsa_pmeth.c             |  4 ++++
+ 2 files changed, 11 insertions(+), 4 deletions(-)
+
+diff --git a/crypto/evp/ctrl_params_translate.c b/crypto/evp/ctrl_params_translate.c
+index ccafdfddd5..b28875037c 100644
+--- a/crypto/evp/ctrl_params_translate.c
++++ b/crypto/evp/ctrl_params_translate.c
+@@ -636,8 +636,8 @@ static int default_fixup_args(enum state state,
+                                                       ctx->p2, ctx->sz);
+                 case OSSL_PARAM_OCTET_STRING:
+                     return OSSL_PARAM_get_octet_string(ctx->params,
+-                                                       ctx->p2, ctx->sz,
+-                                                       &ctx->sz);
++                                                       &ctx->p2, ctx->sz,
++                                                       (size_t *)&ctx->p1);
+                 case OSSL_PARAM_OCTET_PTR:
+                     return OSSL_PARAM_get_octet_ptr(ctx->params,
+                                                     ctx->p2, &ctx->sz);
+@@ -685,7 +685,7 @@ static int default_fixup_args(enum state state,
+                     return OSSL_PARAM_set_octet_string(ctx->params, ctx->p2,
+                                                        size);
+                 case OSSL_PARAM_OCTET_PTR:
+-                    return OSSL_PARAM_set_octet_ptr(ctx->params, ctx->p2,
++                    return OSSL_PARAM_set_octet_ptr(ctx->params, *(void **)ctx->p2,
+                                                     size);
+                 default:
+                     ERR_raise_data(ERR_LIB_EVP, ERR_R_UNSUPPORTED,
+@@ -695,6 +695,9 @@ static int default_fixup_args(enum state state,
+                                    translation->param_data_type);
+                     return 0;
+                 }
++            } else if (state == PRE_PARAMS_TO_CTRL && ctx->action_type == GET) {
++                if (translation->param_data_type == OSSL_PARAM_OCTET_PTR)
++                    ctx->p2 = &ctx->bufp;
+             }
+         }
+         /* Any other combination is simply pass-through */
+@@ -2254,7 +2257,7 @@ static const struct translation_st evp_pkey_ctx_translations[] = {
+       OSSL_ASYM_CIPHER_PARAM_OAEP_LABEL, OSSL_PARAM_OCTET_STRING, NULL },
+     { GET, EVP_PKEY_RSA, 0, EVP_PKEY_OP_TYPE_CRYPT,
+       EVP_PKEY_CTRL_GET_RSA_OAEP_LABEL, NULL, NULL,
+-      OSSL_ASYM_CIPHER_PARAM_OAEP_LABEL, OSSL_PARAM_OCTET_STRING, NULL },
++      OSSL_ASYM_CIPHER_PARAM_OAEP_LABEL, OSSL_PARAM_OCTET_PTR, NULL },
+ 
+     { SET, EVP_PKEY_RSA_PSS, 0, EVP_PKEY_OP_TYPE_GEN,
+       EVP_PKEY_CTRL_MD, "rsa_pss_keygen_md", NULL,
+diff --git a/crypto/rsa/rsa_pmeth.c b/crypto/rsa/rsa_pmeth.c
+index 44c819a5c3..e3fe13e1d6 100644
+--- a/crypto/rsa/rsa_pmeth.c
++++ b/crypto/rsa/rsa_pmeth.c
+@@ -584,6 +584,10 @@ static int pkey_rsa_ctrl(EVP_PKEY_CTX *ctx, int type, int p1, void *p2)
+             ERR_raise(ERR_LIB_RSA, RSA_R_INVALID_PADDING_MODE);
+             return -2;
+         }
++        if (p2 == NULL) {
++            ERR_raise(ERR_LIB_EVP, ERR_R_PASSED_NULL_PARAMETER);
++            return 0;
++        }
+         *(unsigned char **)p2 = rctx->oaep_label;
+         return rctx->oaep_labellen;
+ 
+-- 
+2.34.1
+

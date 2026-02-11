@@ -1,0 +1,32 @@
+From 05d42befb962db332cc73d3d4e835396b8e1edde Mon Sep 17 00:00:00 2001
+From: Richard Levitte <levitte@openssl.org>
+Date: Fri, 21 Apr 2023 06:00:47 +0200
+Subject: [PATCH 139/381] param->ctrl translation: Fix
+ evp_pkey_ctx_setget_params_to_ctrl()
+
+Ensure that ctx.ctrl_cmd defaults to translation->cmd_num
+
+Reviewed-by: Tomas Mraz <tomas@openssl.org>
+Reviewed-by: Todd Short <todd.short@me.com>
+(Merged from https://github.com/openssl/openssl/pull/20780)
+
+(cherry picked from commit 1009940c14716ac03d5f161bdb4ae626ec6fe729)
+---
+ crypto/evp/ctrl_params_translate.c | 1 +
+ 1 file changed, 1 insertion(+)
+
+diff --git a/crypto/evp/ctrl_params_translate.c b/crypto/evp/ctrl_params_translate.c
+index fd1f824109..0e0146d9ea 100644
+--- a/crypto/evp/ctrl_params_translate.c
++++ b/crypto/evp/ctrl_params_translate.c
+@@ -2734,6 +2734,7 @@ static int evp_pkey_ctx_setget_params_to_ctrl(EVP_PKEY_CTX *pctx,
+             if (translation->fixup_args != NULL)
+                 fixup = translation->fixup_args;
+             ctx.action_type = translation->action_type;
++            ctx.ctrl_cmd = translation->ctrl_num;
+         }
+         ctx.pctx = pctx;
+         ctx.params = params;
+-- 
+2.34.1
+

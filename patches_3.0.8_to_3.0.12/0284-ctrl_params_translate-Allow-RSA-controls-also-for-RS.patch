@@ -1,0 +1,54 @@
+From 53dca2ff8a09e3279d12d34fe445dd937423cb32 Mon Sep 17 00:00:00 2001
+From: Ingo Franzki <ifranzki@linux.ibm.com>
+Date: Wed, 23 Aug 2023 09:20:52 +0200
+Subject: [PATCH 284/381] ctrl_params_translate: Allow RSA controls also for
+ RSA-PSS
+
+Controls 'rsa_keygen_pubexp' and 'rsa_keygen_primes' should also be allowed
+for RSA-PSS keys.
+
+Signed-off-by: Ingo Franzki <ifranzki@linux.ibm.com>
+
+Reviewed-by: Matt Caswell <matt@openssl.org>
+Reviewed-by: Tomas Mraz <tomas@openssl.org>
+(Merged from https://github.com/openssl/openssl/pull/21818)
+
+(cherry picked from commit e2c2cca4b2fd1ad946d93507e9ca4f9ea910a114)
+---
+ crypto/evp/ctrl_params_translate.c | 4 ++--
+ test/recipes/15-test_rsapss.t      | 2 ++
+ 2 files changed, 4 insertions(+), 2 deletions(-)
+
+diff --git a/crypto/evp/ctrl_params_translate.c b/crypto/evp/ctrl_params_translate.c
+index b28875037c..65cd8bcf19 100644
+--- a/crypto/evp/ctrl_params_translate.c
++++ b/crypto/evp/ctrl_params_translate.c
+@@ -2271,10 +2271,10 @@ static const struct translation_st evp_pkey_ctx_translations[] = {
+     { SET, EVP_PKEY_RSA, EVP_PKEY_RSA_PSS, EVP_PKEY_OP_KEYGEN,
+       EVP_PKEY_CTRL_RSA_KEYGEN_BITS, "rsa_keygen_bits", NULL,
+       OSSL_PKEY_PARAM_RSA_BITS, OSSL_PARAM_UNSIGNED_INTEGER, NULL },
+-    { SET, EVP_PKEY_RSA, 0, EVP_PKEY_OP_KEYGEN,
++    { SET, EVP_PKEY_RSA, EVP_PKEY_RSA_PSS, EVP_PKEY_OP_KEYGEN,
+       EVP_PKEY_CTRL_RSA_KEYGEN_PUBEXP, "rsa_keygen_pubexp", NULL,
+       OSSL_PKEY_PARAM_RSA_E, OSSL_PARAM_UNSIGNED_INTEGER, NULL },
+-    { SET, EVP_PKEY_RSA, 0, EVP_PKEY_OP_KEYGEN,
++    { SET, EVP_PKEY_RSA, EVP_PKEY_RSA_PSS, EVP_PKEY_OP_KEYGEN,
+       EVP_PKEY_CTRL_RSA_KEYGEN_PRIMES, "rsa_keygen_primes", NULL,
+       OSSL_PKEY_PARAM_RSA_PRIMES, OSSL_PARAM_UNSIGNED_INTEGER, NULL },
+ 
+diff --git a/test/recipes/15-test_rsapss.t b/test/recipes/15-test_rsapss.t
+index c566ade933..ea1d9aceae 100644
+--- a/test/recipes/15-test_rsapss.t
++++ b/test/recipes/15-test_rsapss.t
+@@ -79,6 +79,8 @@ ok(run(app(['openssl', 'dgst', '-prverify', srctop_file('test', 'testrsa.pem'),
+    my $rsapss = "rsapss.key";
+    ok(run(app(['openssl', 'genpkey', '-algorithm', 'RSA-PSS',
+                '-pkeyopt', 'rsa_keygen_bits:1024',
++               '-pkeyopt', 'rsa_keygen_pubexp:65537',
++               '-pkeyopt', 'rsa_keygen_primes:2',
+                '--out', $rsapss])));
+    ok(run(app(['openssl', 'rsa', '-check',
+                '-in', $rsapss])));
+-- 
+2.34.1
+

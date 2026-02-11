@@ -1,0 +1,44 @@
+From 41136a998e833a2992b2026dc8b2e83ca7ceb0bd Mon Sep 17 00:00:00 2001
+From: Pauli <pauli@openssl.org>
+Date: Thu, 7 Sep 2023 12:35:10 +1000
+Subject: [PATCH 300/381] Add test case for #21986
+
+Reviewed-by: Tomas Mraz <tomas@openssl.org>
+Reviewed-by: Shane Lontis <shane.lontis@oracle.com>
+(Merged from https://github.com/openssl/openssl/pull/21988)
+
+(cherry picked from commit c870a465864259f0bdec0953ad085da31941bc27)
+---
+ test/recipes/80-test_cms.t | 12 +++++++++++-
+ 1 file changed, 11 insertions(+), 1 deletion(-)
+
+diff --git a/test/recipes/80-test_cms.t b/test/recipes/80-test_cms.t
+index cabbe3ecdf..9759483979 100644
+--- a/test/recipes/80-test_cms.t
++++ b/test/recipes/80-test_cms.t
+@@ -50,7 +50,7 @@ my ($no_des, $no_dh, $no_dsa, $no_ec, $no_ec2m, $no_rc2, $no_zlib)
+ 
+ $no_rc2 = 1 if disabled("legacy");
+ 
+-plan tests => 16;
++plan tests => 17
+ 
+ ok(run(test(["pkcs7_test"])), "test pkcs7");
+ 
+@@ -994,3 +994,13 @@ with({ exit_checker => sub { return shift == 6; } },
+                    ])),
+             "Check failure during BIO setup with -stream is handled correctly");
+     });
++
++# Test case for return value mis-check reported in #21986
++with({ exit_checker => sub { return shift == 3; } },
++    sub {
++        ok(run(app(['openssl', 'cms', '-sign',
++                    '-in', srctop_file("test", "smcont.txt"),
++                    '-signer', srctop_file("test/smime-certs", "smdsa1.pem"),
++                    '-md', 'SHAKE256'])),
++           "issue#21986");
++    });
+-- 
+2.34.1
+

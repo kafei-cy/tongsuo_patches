@@ -1,0 +1,33 @@
+From 281d11b2e40ee5af35edd3bbd335d0b45f02de67 Mon Sep 17 00:00:00 2001
+From: atishkov <a.tishkov@aladdin.ru>
+Date: Fri, 21 Jul 2023 11:36:37 +0300
+Subject: [PATCH 243/381] get_cert_by_subject_ex(): Check result of
+ X509_STORE_lock()
+
+Reviewed-by: Paul Dale <pauli@openssl.org>
+Reviewed-by: Tom Cosgrove <tom.cosgrove@arm.com>
+Reviewed-by: Tomas Mraz <tomas@openssl.org>
+(Merged from https://github.com/openssl/openssl/pull/21515)
+
+(cherry picked from commit bc5d9cc8711e86d5c25b81c58dfae531536e61fc)
+---
+ crypto/x509/by_dir.c | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/crypto/x509/by_dir.c b/crypto/x509/by_dir.c
+index cb40c7737f..ad871966aa 100644
+--- a/crypto/x509/by_dir.c
++++ b/crypto/x509/by_dir.c
+@@ -348,7 +348,8 @@ static int get_cert_by_subject_ex(X509_LOOKUP *xl, X509_LOOKUP_TYPE type,
+         /*
+          * we have added it to the cache so now pull it out again
+          */
+-        X509_STORE_lock(xl->store_ctx);
++        if (!X509_STORE_lock(xl->store_ctx))
++            goto finish;
+         j = sk_X509_OBJECT_find(xl->store_ctx->objs, &stmp);
+         tmp = sk_X509_OBJECT_value(xl->store_ctx->objs, j);
+         X509_STORE_unlock(xl->store_ctx);
+-- 
+2.34.1
+

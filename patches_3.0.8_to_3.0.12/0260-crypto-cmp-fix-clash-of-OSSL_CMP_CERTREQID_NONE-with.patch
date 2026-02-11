@@ -1,0 +1,121 @@
+From c6b2058a6e2b9bd2f0ee9ec77ed555ad239d26f6 Mon Sep 17 00:00:00 2001
+From: "Dr. David von Oheimb" <David.von.Oheimb@siemens.com>
+Date: Thu, 27 Jul 2023 20:03:16 +0200
+Subject: [PATCH 260/381] crypto/cmp: fix clash of OSSL_CMP_CERTREQID_NONE with
+ error result of ossl_cmp_asn1_get_int()
+
+Reviewed-by: Paul Dale <pauli@openssl.org>
+Reviewed-by: Tomas Mraz <tomas@openssl.org>
+Reviewed-by: David von Oheimb <david.von.oheimb@siemens.com>
+(Merged from https://github.com/openssl/openssl/pull/21579)
+
+(cherry picked from commit 2c8d9f19e351a84d4329fbe2f68a4a8a49cad3ef)
+---
+ crypto/cmp/cmp_asn.c    |  8 ++++----
+ crypto/cmp/cmp_client.c |  2 +-
+ crypto/cmp/cmp_status.c |  5 ++++-
+ test/cmp_asn_test.c     | 20 ++++++++++++++++----
+ 4 files changed, 25 insertions(+), 10 deletions(-)
+
+diff --git a/crypto/cmp/cmp_asn.c b/crypto/cmp/cmp_asn.c
+index 0ca107554c..5c47a1a067 100644
+--- a/crypto/cmp/cmp_asn.c
++++ b/crypto/cmp/cmp_asn.c
+@@ -188,22 +188,22 @@ int OSSL_CMP_ITAV_push0_stack_item(STACK_OF(OSSL_CMP_ITAV) **itav_sk_p,
+     return 0;
+ }
+ 
+-/* get ASN.1 encoded integer, return -1 on error */
++/* get ASN.1 encoded integer, return -2 on error; -1 is valid for certReqId */
+ int ossl_cmp_asn1_get_int(const ASN1_INTEGER *a)
+ {
+     int64_t res;
+ 
+     if (!ASN1_INTEGER_get_int64(&res, a)) {
+         ERR_raise(ERR_LIB_CMP, ASN1_R_INVALID_NUMBER);
+-        return -1;
++        return -2;
+     }
+     if (res < INT_MIN) {
+         ERR_raise(ERR_LIB_CMP, ASN1_R_TOO_SMALL);
+-        return -1;
++        return -2;
+     }
+     if (res > INT_MAX) {
+         ERR_raise(ERR_LIB_CMP, ASN1_R_TOO_LARGE);
+-        return -1;
++        return -2;
+     }
+     return (int)res;
+ }
+diff --git a/crypto/cmp/cmp_client.c b/crypto/cmp/cmp_client.c
+index dc41f4c3b7..df334cc001 100644
+--- a/crypto/cmp/cmp_client.c
++++ b/crypto/cmp/cmp_client.c
+@@ -584,7 +584,7 @@ static int cert_response(OSSL_CMP_CTX *ctx, int sleep, int rid,
+         return 0;
+     if (rid == OSSL_CMP_CERTREQID_NONE) { /* used for OSSL_CMP_PKIBODY_P10CR */
+         rid = ossl_cmp_asn1_get_int(crep->certReqId);
+-        if (rid != OSSL_CMP_CERTREQID_NONE) {
++        if (rid < OSSL_CMP_CERTREQID_NONE) {
+             ERR_raise(ERR_LIB_CMP, CMP_R_BAD_REQUEST_ID);
+             return 0;
+         }
+diff --git a/crypto/cmp/cmp_status.c b/crypto/cmp/cmp_status.c
+index bfe6cd9906..2da02c5524 100644
+--- a/crypto/cmp/cmp_status.c
++++ b/crypto/cmp/cmp_status.c
+@@ -30,9 +30,12 @@
+ 
+ int ossl_cmp_pkisi_get_status(const OSSL_CMP_PKISI *si)
+ {
++    int res ;
++
+     if (!ossl_assert(si != NULL && si->status != NULL))
+         return -1;
+-    return ossl_cmp_asn1_get_int(si->status);
++    res = ossl_cmp_asn1_get_int(si->status);
++    return res == -2 ? -1 : res;
+ }
+ 
+ const char *ossl_cmp_PKIStatus_to_string(int status)
+diff --git a/test/cmp_asn_test.c b/test/cmp_asn_test.c
+index 1e65b38375..42a6b93b6b 100644
+--- a/test/cmp_asn_test.c
++++ b/test/cmp_asn_test.c
+@@ -42,16 +42,28 @@ static void tear_down(CMP_ASN_TEST_FIXTURE *fixture)
+ 
+ static int execute_cmp_asn1_get_int_test(CMP_ASN_TEST_FIXTURE *fixture)
+ {
+-    int res;
++    int res = 0;
+     ASN1_INTEGER *asn1integer = ASN1_INTEGER_new();
++    const int good_int = 77;
++    const int64_t max_int = INT_MAX;
+ 
+     if (!TEST_ptr(asn1integer))
+-        return 0;
+-    if (!TEST_true(ASN1_INTEGER_set(asn1integer, 77))) {
++        return res;
++
++    if (!TEST_true(ASN1_INTEGER_set(asn1integer, good_int))) {
+         ASN1_INTEGER_free(asn1integer);
+         return 0;
+     }
+-    res = TEST_int_eq(77, ossl_cmp_asn1_get_int(asn1integer));
++    res = TEST_int_eq(good_int, ossl_cmp_asn1_get_int(asn1integer));
++    if (res == 0)
++        goto err;
++
++    res = 0;
++    if (!TEST_true(ASN1_INTEGER_set_int64(asn1integer, max_int + 1)))
++        goto err;
++    res = TEST_int_eq(-2, ossl_cmp_asn1_get_int(asn1integer));
++
++ err:
+     ASN1_INTEGER_free(asn1integer);
+     return res;
+ }
+-- 
+2.34.1
+

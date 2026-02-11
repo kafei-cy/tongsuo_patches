@@ -1,0 +1,44 @@
+From 0cc27fe8d44e3083057b4287c3a5d5da9dfb3f8d Mon Sep 17 00:00:00 2001
+From: Matt Caswell <matt@openssl.org>
+Date: Fri, 21 Oct 2022 14:08:29 +0100
+Subject: [PATCH 026/381] Pipeline output/input buf arrays must live until the
+ EVP_Cipher is called
+
+The pipeline input/output buf arrays must remain accessible to the
+EVP_CIPHER_CTX until EVP_Cipher is subsequently called. This fixes an
+asan error discovered by the newly added pipeline test.
+
+Reviewed-by: Tomas Mraz <tomas@openssl.org>
+Reviewed-by: Hugo Landau <hlandau@openssl.org>
+Reviewed-by: Paul Dale <pauli@openssl.org>
+(Merged from https://github.com/openssl/openssl/pull/20208)
+
+(cherry picked from commit df9c7ceefef59cc870c80346906471fabec62494)
+---
+ ssl/record/ssl3_record.c | 3 +--
+ 1 file changed, 1 insertion(+), 2 deletions(-)
+
+diff --git a/ssl/record/ssl3_record.c b/ssl/record/ssl3_record.c
+index 1867f00117..edcbd6d5a9 100644
+--- a/ssl/record/ssl3_record.c
++++ b/ssl/record/ssl3_record.c
+@@ -964,6 +964,7 @@ int tls1_enc(SSL *s, SSL3_RECORD *recs, size_t n_recs, int sending,
+     EVP_CIPHER_CTX *ds;
+     size_t reclen[SSL_MAX_PIPELINES];
+     unsigned char buf[SSL_MAX_PIPELINES][EVP_AEAD_TLS1_AAD_LEN];
++    unsigned char *data[SSL_MAX_PIPELINES];
+     int i, pad = 0, tmpr;
+     size_t bs, ctr, padnum, loop;
+     unsigned char padval;
+@@ -1123,8 +1124,6 @@ int tls1_enc(SSL *s, SSL3_RECORD *recs, size_t n_recs, int sending,
+             }
+         }
+         if (n_recs > 1) {
+-            unsigned char *data[SSL_MAX_PIPELINES];
+-
+             /* Set the output buffers */
+             for (ctr = 0; ctr < n_recs; ctr++) {
+                 data[ctr] = recs[ctr].data;
+-- 
+2.34.1
+

@@ -1,0 +1,184 @@
+From 4893559108b39e4fe90a719edb1ab11c6f2976e8 Mon Sep 17 00:00:00 2001
+From: Richard Levitte <levitte@openssl.org>
+Date: Mon, 2 Oct 2023 09:12:12 +0200
+Subject: [PATCH 338/381] Restore the meaning of EVP_PKEY_print_private()
+
+With pre-3.0 OpenSSL, EVP_PKEY_print_private() calls the EVP_PKEY_ASN1_METHOD
+function "priv_print", effectively asking the backend to print whatever it
+regards as private key components.
+
+In all backends that were built into libcrypto, this function printed what
+was included in the private key structure, which usually includes the
+public key components as well.
+
+With OpenSSL 3.0, some of the corresponding key2text encoders got a
+slightly different behavior, where the presence of the selector
+OSSL_KEYMGMT_SELECT_PRIVATE_KEY without the presence of the selector
+OSSL_KEYMGMT_SELECT_PUBLIC_KEY would only get what would intuitively be
+regarded as private key components printed.  This isn't entirely consistent,
+though, as the RSA key2text encoder will still print the public key
+components regardless.
+
+To compensate for the changed backend behavior, EVP_PKEY_print_private()
+was made to ask the encoder to print the keypair rather than just the
+private key, thereby moving the backend semantics to the application API.
+Unfortunately, this causes confusion for providers where the key2text
+encoder really should print the private key only.
+
+This change restores the built-in 1.1.1 backend behavior in the encoders
+that OpenSSL provides, and renders EVP_PKEY_print_private() more true to its
+documented behavior, leaving it to the backend to decide what it regards as
+"private key components".
+
+Fixes #22233
+
+Reviewed-by: Tomas Mraz <tomas@openssl.org>
+Reviewed-by: Paul Dale <pauli@openssl.org>
+(Merged from https://github.com/openssl/openssl/pull/22237)
+
+(cherry picked from commit 1296c2ec7866a4f2f4d210432c771142e8de33a0)
+---
+ crypto/evp/p_lib.c                            |  2 +-
+ include/openssl/evp.h                         |  2 +
+ .../encode_decode/encode_key2text.c           | 63 ++++++++-----------
+ 3 files changed, 28 insertions(+), 39 deletions(-)
+
+diff --git a/crypto/evp/p_lib.c b/crypto/evp/p_lib.c
+index 59a7a867ec..04b148a912 100644
+--- a/crypto/evp/p_lib.c
++++ b/crypto/evp/p_lib.c
+@@ -1201,7 +1201,7 @@ int EVP_PKEY_print_public(BIO *out, const EVP_PKEY *pkey,
+ int EVP_PKEY_print_private(BIO *out, const EVP_PKEY *pkey,
+                            int indent, ASN1_PCTX *pctx)
+ {
+-    return print_pkey(pkey, out, indent, EVP_PKEY_KEYPAIR, NULL,
++    return print_pkey(pkey, out, indent, EVP_PKEY_PRIVATE_KEY, NULL,
+                       (pkey->ameth != NULL ? pkey->ameth->priv_print : NULL),
+                       pctx);
+ }
+diff --git a/include/openssl/evp.h b/include/openssl/evp.h
+index 49e8e1df78..22e8c25098 100644
+--- a/include/openssl/evp.h
++++ b/include/openssl/evp.h
+@@ -85,6 +85,8 @@
+ /* Easy to use macros for EVP_PKEY related selections */
+ # define EVP_PKEY_KEY_PARAMETERS                                            \
+     ( OSSL_KEYMGMT_SELECT_ALL_PARAMETERS )
++# define EVP_PKEY_PRIVATE_KEY                                               \
++    ( EVP_PKEY_KEY_PARAMETERS | OSSL_KEYMGMT_SELECT_PRIVATE_KEY )
+ # define EVP_PKEY_PUBLIC_KEY                                                \
+     ( EVP_PKEY_KEY_PARAMETERS | OSSL_KEYMGMT_SELECT_PUBLIC_KEY )
+ # define EVP_PKEY_KEYPAIR                                                   \
+diff --git a/providers/implementations/encode_decode/encode_key2text.c b/providers/implementations/encode_decode/encode_key2text.c
+index 7d983f5e51..9ec3490c3a 100644
+--- a/providers/implementations/encode_decode/encode_key2text.c
++++ b/providers/implementations/encode_decode/encode_key2text.c
+@@ -241,7 +241,7 @@ static int dh_to_text(BIO *out, const void *key, int selection)
+             return 0;
+         }
+     }
+-    if ((selection & OSSL_KEYMGMT_SELECT_PUBLIC_KEY) != 0) {
++    if ((selection & OSSL_KEYMGMT_SELECT_KEYPAIR) != 0) {
+         pub_key = DH_get0_pub_key(dh);
+         if (pub_key == NULL) {
+             ERR_raise(ERR_LIB_PROV, PROV_R_NOT_A_PUBLIC_KEY);
+@@ -316,7 +316,7 @@ static int dsa_to_text(BIO *out, const void *key, int selection)
+             return 0;
+         }
+     }
+-    if ((selection & OSSL_KEYMGMT_SELECT_PUBLIC_KEY) != 0) {
++    if ((selection & OSSL_KEYMGMT_SELECT_KEYPAIR) != 0) {
+         pub_key = DSA_get0_pub_key(dsa);
+         if (pub_key == NULL) {
+             ERR_raise(ERR_LIB_PROV, PROV_R_NOT_A_PUBLIC_KEY);
+@@ -525,7 +525,7 @@ static int ec_to_text(BIO *out, const void *key, int selection)
+         if (priv_len == 0)
+             goto err;
+     }
+-    if ((selection & OSSL_KEYMGMT_SELECT_PUBLIC_KEY) != 0) {
++    if ((selection & OSSL_KEYMGMT_SELECT_KEYPAIR) != 0) {
+         const EC_POINT *pub_pt = EC_KEY_get0_public_key(ec);
+ 
+         if (pub_pt == NULL) {
+@@ -575,26 +575,31 @@ static int ecx_to_text(BIO *out, const void *key, int selection)
+         return 0;
+     }
+ 
++    switch (ecx->type) {
++    case ECX_KEY_TYPE_X25519:
++        type_label = "X25519";
++        break;
++    case ECX_KEY_TYPE_X448:
++        type_label = "X448";
++        break;
++    case ECX_KEY_TYPE_ED25519:
++        type_label = "ED25519";
++        break;
++    case ECX_KEY_TYPE_ED448:
++        type_label = "ED448";
++        break;
++    }
++
+     if ((selection & OSSL_KEYMGMT_SELECT_PRIVATE_KEY) != 0) {
+         if (ecx->privkey == NULL) {
+             ERR_raise(ERR_LIB_PROV, PROV_R_NOT_A_PRIVATE_KEY);
+             return 0;
+         }
+ 
+-        switch (ecx->type) {
+-        case ECX_KEY_TYPE_X25519:
+-            type_label = "X25519 Private-Key";
+-            break;
+-        case ECX_KEY_TYPE_X448:
+-            type_label = "X448 Private-Key";
+-            break;
+-        case ECX_KEY_TYPE_ED25519:
+-            type_label = "ED25519 Private-Key";
+-            break;
+-        case ECX_KEY_TYPE_ED448:
+-            type_label = "ED448 Private-Key";
+-            break;
+-        }
++        if (BIO_printf(out, "%s Private-Key:\n", type_label) <= 0)
++            return 0;
++        if (!print_labeled_buf(out, "priv:", ecx->privkey, ecx->keylen))
++            return 0;
+     } else if ((selection & OSSL_KEYMGMT_SELECT_PUBLIC_KEY) != 0) {
+         /* ecx->pubkey is an array, not a pointer... */
+         if (!ecx->haspubkey) {
+@@ -602,29 +607,11 @@ static int ecx_to_text(BIO *out, const void *key, int selection)
+             return 0;
+         }
+ 
+-        switch (ecx->type) {
+-        case ECX_KEY_TYPE_X25519:
+-            type_label = "X25519 Public-Key";
+-            break;
+-        case ECX_KEY_TYPE_X448:
+-            type_label = "X448 Public-Key";
+-            break;
+-        case ECX_KEY_TYPE_ED25519:
+-            type_label = "ED25519 Public-Key";
+-            break;
+-        case ECX_KEY_TYPE_ED448:
+-            type_label = "ED448 Public-Key";
+-            break;
+-        }
++        if (BIO_printf(out, "%s Public-Key:\n", type_label) <= 0)
++            return 0;
+     }
+ 
+-    if (BIO_printf(out, "%s:\n", type_label) <= 0)
+-        return 0;
+-    if ((selection & OSSL_KEYMGMT_SELECT_PRIVATE_KEY) != 0
+-        && !print_labeled_buf(out, "priv:", ecx->privkey, ecx->keylen))
+-        return 0;
+-    if ((selection & OSSL_KEYMGMT_SELECT_PUBLIC_KEY) != 0
+-        && !print_labeled_buf(out, "pub:", ecx->pubkey, ecx->keylen))
++    if (!print_labeled_buf(out, "pub:", ecx->pubkey, ecx->keylen))
+         return 0;
+ 
+     return 1;
+-- 
+2.34.1
+

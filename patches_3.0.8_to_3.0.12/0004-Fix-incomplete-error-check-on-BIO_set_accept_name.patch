@@ -1,0 +1,40 @@
+From d21c59efc088b276ec0c0143c93640a227837134 Mon Sep 17 00:00:00 2001
+From: ndossche <niels.dossche@ugent.be>
+Date: Fri, 3 Feb 2023 13:43:03 +0100
+Subject: [PATCH 004/381] Fix incomplete error check on BIO_set_accept_name()
+
+BIO_set_accept_name() can return error values -1 and 0 according to
+my analysis tool and the documentation. Documentation says a value of 1
+indicates success. Currently, only an error value != 0 is checked which
+erroneously interprets a -1 error return value as success.
+Fix it by changing the check condition.
+
+CLA: trivial
+
+Reviewed-by: Tomas Mraz <tomas@openssl.org>
+Reviewed-by: Paul Dale <pauli@openssl.org>
+Reviewed-by: Todd Short <todd.short@me.com>
+(Merged from https://github.com/openssl/openssl/pull/20206)
+
+(cherry picked from commit a811b6305b1f98e8ec66b8a426d359150fea69b2)
+(cherry picked from commit 510e4935ca728cf91820edcec55afb8e1f6aa5a2)
+---
+ crypto/bio/bss_acpt.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/crypto/bio/bss_acpt.c b/crypto/bio/bss_acpt.c
+index 1cda967335..e176d25ed6 100644
+--- a/crypto/bio/bss_acpt.c
++++ b/crypto/bio/bss_acpt.c
+@@ -566,7 +566,7 @@ BIO *BIO_new_accept(const char *str)
+     ret = BIO_new(BIO_s_accept());
+     if (ret == NULL)
+         return NULL;
+-    if (BIO_set_accept_name(ret, str))
++    if (BIO_set_accept_name(ret, str) > 0)
+         return ret;
+     BIO_free(ret);
+     return NULL;
+-- 
+2.34.1
+

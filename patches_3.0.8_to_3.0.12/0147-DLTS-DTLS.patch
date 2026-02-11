@@ -1,0 +1,40 @@
+From 1406ba5802f2dfd34ed97ffc60a506fa745b50d2 Mon Sep 17 00:00:00 2001
+From: Dimitri Papadopoulos
+ <3234522+DimitriPapadopoulos@users.noreply.github.com>
+Date: Tue, 9 May 2023 08:04:20 +0200
+Subject: [PATCH 147/381] =?UTF-8?q?DLTS=20=E2=86=92=20DTLS?=
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+Fix a typo that is confusing for newcomers.
+
+CLA: trivial
+
+Reviewed-by: Hugo Landau <hlandau@openssl.org>
+Reviewed-by: Tomas Mraz <tomas@openssl.org>
+Reviewed-by: Paul Dale <pauli@openssl.org>
+(Merged from https://github.com/openssl/openssl/pull/20909)
+
+(cherry picked from commit 2913b5c09fcc4e5d493589ded2c22a3116127ed0)
+(cherry picked from commit f8c2a15b0a07d6a8897af629e39aae098784193c)
+---
+ doc/man1/openssl.pod | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/doc/man1/openssl.pod b/doc/man1/openssl.pod
+index 1b6dda4b59..24a4391209 100644
+--- a/doc/man1/openssl.pod
++++ b/doc/man1/openssl.pod
+@@ -573,7 +573,7 @@ B<s_client> and B<s_server> commands.
+ 
+ =item B<-dtls>, B<-dtls1>, B<-dtls1_2>
+ 
+-These options specify to use DTLS instead of DLTS.
++These options specify to use DTLS instead of TLS.
+ With B<-dtls>, clients will negotiate any supported DTLS protocol version.
+ Use the B<-dtls1> or B<-dtls1_2> options to support only DTLS1.0 or DTLS1.2,
+ respectively.
+-- 
+2.34.1
+

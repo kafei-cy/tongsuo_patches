@@ -1,0 +1,68 @@
+From 2d79662b5febe565d39861338a5d9067a2df641f Mon Sep 17 00:00:00 2001
+From: Tomas Mraz <tomas@openssl.org>
+Date: Fri, 21 Jul 2023 17:45:32 +0200
+Subject: [PATCH 270/381] endecode_test.c: Add tests for decoding with 0
+ selection
+
+Reviewed-by: Matt Caswell <matt@openssl.org>
+Reviewed-by: Paul Dale <pauli@openssl.org>
+Reviewed-by: Todd Short <todd.short@me.com>
+(Merged from https://github.com/openssl/openssl/pull/21519)
+
+(cherry picked from commit 4c50610bdadbcf7aa6bbd968df67b8874234677b)
+(cherry picked from commit 42f32b460646d8d4ef1e8927ec976716f02a093a)
+---
+ test/endecode_test.c | 16 ++++++++++++++--
+ 1 file changed, 14 insertions(+), 2 deletions(-)
+
+diff --git a/test/endecode_test.c b/test/endecode_test.c
+index e3f7b81f69..838ab1c35a 100644
+--- a/test/endecode_test.c
++++ b/test/endecode_test.c
+@@ -158,6 +158,7 @@ static int test_encode_decode(const char *file, const int line,
+     void *encoded = NULL;
+     long encoded_len = 0;
+     EVP_PKEY *pkey2 = NULL;
++    EVP_PKEY *pkey3 = NULL;
+     void *encoded2 = NULL;
+     long encoded2_len = 0;
+     int ok = 0;
+@@ -185,15 +186,25 @@ static int test_encode_decode(const char *file, const int line,
+                                 output_type, output_structure,
+                                 (flags & FLAG_DECODE_WITH_TYPE ? type : NULL),
+                                 selection, pass))
++        || ((output_structure == NULL
++             || strcmp(output_structure, "type-specific") != 0)
++            && !TEST_true(decode_cb(file, line, (void **)&pkey3, encoded, encoded_len,
++                                    output_type, output_structure,
++                                    (flags & FLAG_DECODE_WITH_TYPE ? type : NULL),
++                                    0, pass)))
+         || !TEST_true(encode_cb(file, line, &encoded2, &encoded2_len, pkey2, selection,
+                                 output_type, output_structure, pass, pcipher)))
+         goto end;
+ 
+     if (selection == OSSL_KEYMGMT_SELECT_DOMAIN_PARAMETERS) {
+-        if (!TEST_int_eq(EVP_PKEY_parameters_eq(pkey, pkey2), 1))
++        if (!TEST_int_eq(EVP_PKEY_parameters_eq(pkey, pkey2), 1)
++            || (pkey3 != NULL
++                && !TEST_int_eq(EVP_PKEY_parameters_eq(pkey, pkey3), 1)))
+             goto end;
+     } else {
+-        if (!TEST_int_eq(EVP_PKEY_eq(pkey, pkey2), 1))
++        if (!TEST_int_eq(EVP_PKEY_eq(pkey, pkey2), 1)
++            || (pkey3 != NULL
++                && !TEST_int_eq(EVP_PKEY_eq(pkey, pkey3), 1)))
+             goto end;
+     }
+ 
+@@ -218,6 +229,7 @@ static int test_encode_decode(const char *file, const int line,
+     OPENSSL_free(encoded);
+     OPENSSL_free(encoded2);
+     EVP_PKEY_free(pkey2);
++    EVP_PKEY_free(pkey3);
+     return ok;
+ }
+ 
+-- 
+2.34.1
+

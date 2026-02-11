@@ -1,0 +1,33 @@
+From 50f3f93753c9b29ae37895fa1fa6280c1066ba67 Mon Sep 17 00:00:00 2001
+From: Pauli <pauli@openssl.org>
+Date: Tue, 19 Sep 2023 11:07:21 +1000
+Subject: [PATCH 325/381] coverity: NULL dereference
+
+Fixes coverity 1544699.
+
+Reviewed-by: Matt Caswell <matt@openssl.org>
+Reviewed-by: Tim Hudson <tjh@openssl.org>
+Reviewed-by: Tomas Mraz <tomas@openssl.org>
+Reviewed-by: Bernd Edlinger <bernd.edlinger@hotmail.de>
+(Merged from https://github.com/openssl/openssl/pull/22138)
+
+(cherry picked from commit be01f609f98a8930f2c91b813715e515a88f4d54)
+---
+ crypto/engine/eng_table.c | 1 +
+ 1 file changed, 1 insertion(+)
+
+diff --git a/crypto/engine/eng_table.c b/crypto/engine/eng_table.c
+index 3138a15260..9dc3144bbf 100644
+--- a/crypto/engine/eng_table.c
++++ b/crypto/engine/eng_table.c
+@@ -97,6 +97,7 @@ int engine_table_register(ENGINE_TABLE **table, ENGINE_CLEANUP_CB *cleanup,
+     if (added && !engine_cleanup_add_first(cleanup)) {
+         lh_ENGINE_PILE_free(&(*table)->piles);
+         *table = NULL;
++        goto end;
+     }
+     while (num_nids--) {
+         tmplate.nid = *nids;
+-- 
+2.34.1
+

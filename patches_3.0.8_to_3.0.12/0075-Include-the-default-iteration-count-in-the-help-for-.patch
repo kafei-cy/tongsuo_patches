@@ -1,0 +1,62 @@
+From f639e5705ca2e2a0fb22ab229b972caf74b03cbb Mon Sep 17 00:00:00 2001
+From: Pauli <pauli@openssl.org>
+Date: Thu, 9 Mar 2023 10:15:54 +1100
+Subject: [PATCH 075/381] Include the default iteration count in the help for
+ the enc command
+
+The only way to discover this otherwise is looking at the code.
+
+Fixes #20466
+
+Reviewed-by: Tomas Mraz <tomas@openssl.org>
+Reviewed-by: Shane Lontis <shane.lontis@oracle.com>
+(Merged from https://github.com/openssl/openssl/pull/20471)
+
+(cherry picked from commit dc43f080c5d60ef76df4087c1cf53a4bbaad93bd)
+---
+ apps/enc.c | 15 ++++++++++++---
+ 1 file changed, 12 insertions(+), 3 deletions(-)
+
+diff --git a/apps/enc.c b/apps/enc.c
+index 3dd6098563..e417908ba3 100644
+--- a/apps/enc.c
++++ b/apps/enc.c
+@@ -30,6 +30,10 @@
+ #define SIZE    (512)
+ #define BSIZE   (8*1024)
+ 
++#define PBKDF2_ITER_DEFAULT     10000
++#define STR(a) XSTR(a)
++#define XSTR(a) #a
++
+ static int set_hex(const char *in, unsigned char *out, int size);
+ static void show_ciphers(const OBJ_NAME *name, void *bio_);
+ 
+@@ -88,8 +92,13 @@ const OPTIONS enc_options[] = {
+     {"S", OPT_UPPER_S, 's', "Salt, in hex"},
+     {"iv", OPT_IV, 's', "IV in hex"},
+     {"md", OPT_MD, 's', "Use specified digest to create a key from the passphrase"},
+-    {"iter", OPT_ITER, 'p', "Specify the iteration count and force use of PBKDF2"},
+-    {"pbkdf2", OPT_PBKDF2, '-', "Use password-based key derivation function 2"},
++    {"iter", OPT_ITER, 'p',
++     "Specify the iteration count and force the use of PBKDF2"},
++    {OPT_MORE_STR, 0, 0, "Default: " STR(PBKDF2_ITER_DEFAULT)},
++    {"pbkdf2", OPT_PBKDF2, '-',
++     "Use password-based key derivation function 2 (PBKDF2)"},
++    {OPT_MORE_STR, 0, 0,
++     "Use -iter to change the iteration count from " STR(PBKDF2_ITER_DEFAULT)},
+     {"none", OPT_NONE, '-', "Don't encrypt"},
+ #ifdef ZLIB
+     {"z", OPT_Z, '-', "Compress or decompress encrypted data using zlib"},
+@@ -272,7 +281,7 @@ int enc_main(int argc, char **argv)
+         case OPT_PBKDF2:
+             pbkdf2 = 1;
+             if (iter == 0)    /* do not overwrite a chosen value */
+-                iter = 10000;
++                iter = PBKDF2_ITER_DEFAULT;
+             break;
+         case OPT_NONE:
+             cipher = NULL;
+-- 
+2.34.1
+

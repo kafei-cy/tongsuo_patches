@@ -1,0 +1,49 @@
+From 04e85be944e8fb67b66642bfad7a7b0abf990d97 Mon Sep 17 00:00:00 2001
+From: Mukesh Bharsakle <bharsaklemukesh975@gmail.com>
+Date: Sat, 22 Apr 2023 14:56:35 +0100
+Subject: [PATCH 135/381] http proxy handling: Use ossl_safe_getenv() instead
+ of getenv()
+
+CLA: trivial
+
+Reviewed-by: Paul Dale <pauli@openssl.org>
+Reviewed-by: Tomas Mraz <tomas@openssl.org>
+(Merged from https://github.com/openssl/openssl/pull/20810)
+
+(cherry picked from commit e7cbb09fdf8d835bd0d88b4b288edfd525be569c)
+---
+ crypto/http/http_lib.c | 9 ++++-----
+ 1 file changed, 4 insertions(+), 5 deletions(-)
+
+diff --git a/crypto/http/http_lib.c b/crypto/http/http_lib.c
+index bd9c096b98..b9060c41f3 100644
+--- a/crypto/http/http_lib.c
++++ b/crypto/http/http_lib.c
+@@ -253,9 +253,9 @@ static int use_proxy(const char *no_proxy, const char *server)
+      * compatible with other HTTP client implementations like wget, curl and git
+      */
+     if (no_proxy == NULL)
+-        no_proxy = getenv("no_proxy");
++        no_proxy = ossl_safe_getenv("no_proxy");
+     if (no_proxy == NULL)
+-        no_proxy = getenv(OPENSSL_NO_PROXY);
++        no_proxy = ossl_safe_getenv(OPENSSL_NO_PROXY);
+ 
+     if (no_proxy != NULL)
+         found = strstr(no_proxy, server);
+@@ -275,10 +275,9 @@ const char *OSSL_HTTP_adapt_proxy(const char *proxy, const char *no_proxy,
+      * compatible with other HTTP client implementations like wget, curl and git
+      */
+     if (proxy == NULL)
+-        proxy = getenv(use_ssl ? "https_proxy" : "http_proxy");
++        proxy = ossl_safe_getenv(use_ssl ? "https_proxy" : "http_proxy");
+     if (proxy == NULL)
+-        proxy = getenv(use_ssl ? OPENSSL_HTTP_PROXY :
+-                       OPENSSL_HTTPS_PROXY);
++        proxy = ossl_safe_getenv(use_ssl ? OPENSSL_HTTP_PROXY : OPENSSL_HTTPS_PROXY);
+ 
+     if (proxy == NULL || *proxy == '\0' || !use_proxy(no_proxy, server))
+         return NULL;
+-- 
+2.34.1
+

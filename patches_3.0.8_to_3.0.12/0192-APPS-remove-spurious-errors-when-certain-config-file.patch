@@ -1,0 +1,153 @@
+From 1737fb8f455963b0956c81504a2bec4304bd902d Mon Sep 17 00:00:00 2001
+From: "Dr. David von Oheimb" <David.von.Oheimb@siemens.com>
+Date: Mon, 15 May 2023 19:59:16 +0200
+Subject: [PATCH 192/381] APPS: remove spurious errors when certain config file
+ entries are not provided
+
+This backports the functional essence of #20971.
+
+Reviewed-by: Paul Dale <pauli@openssl.org>
+Reviewed-by: Todd Short <todd.short@me.com>
+Reviewed-by: David von Oheimb <david.von.oheimb@siemens.com>
+(Merged from https://github.com/openssl/openssl/pull/21050)
+---
+ apps/ca.c       | 29 ++++++++++++++++++++++-------
+ apps/cmp.c      |  1 +
+ apps/lib/apps.c |  3 +++
+ apps/req.c      |  4 +++-
+ 4 files changed, 29 insertions(+), 8 deletions(-)
+
+diff --git a/apps/ca.c b/apps/ca.c
+index e14a5cff78..281be08caf 100644
+--- a/apps/ca.c
++++ b/apps/ca.c
+@@ -628,6 +628,8 @@ end_of_options:
+ 
+     f = NCONF_get_string(conf, section, ENV_NAMEOPT);
+ 
++    if (f == NULL)
++        ERR_clear_error();
+     if (f != NULL) {
+         if (!set_nameopt(f)) {
+             BIO_printf(bio_err, "Invalid name options: \"%s\"\n", f);
+@@ -785,8 +787,10 @@ end_of_options:
+         /* We can have sections in the ext file */
+         if (extensions == NULL) {
+             extensions = NCONF_get_string(extfile_conf, "default", "extensions");
+-            if (extensions == NULL)
++            if (extensions == NULL) {
++                ERR_clear_error();
+                 extensions = "default";
++            }
+         }
+     }
+ 
+@@ -824,6 +828,8 @@ end_of_options:
+             char *tmp_email_dn = NULL;
+ 
+             tmp_email_dn = NCONF_get_string(conf, section, ENV_DEFAULT_EMAIL_DN);
++            if (tmp_email_dn == NULL)
++                ERR_clear_error();
+             if (tmp_email_dn != NULL && strcmp(tmp_email_dn, "no") == 0)
+                 email_dn = 0;
+         }
+@@ -839,6 +845,7 @@ end_of_options:
+         if (NCONF_get_string(conf, section, ENV_RAND_SERIAL) != NULL) {
+             rand_ser = 1;
+         } else {
++            ERR_clear_error();
+             serialfile = lookup_conf(conf, section, ENV_SERIAL);
+             if (serialfile == NULL)
+                 goto end;
+@@ -908,8 +915,10 @@ end_of_options:
+         }
+ 
+         if (days == 0) {
+-            if (!NCONF_get_number(conf, section, ENV_DEFAULT_DAYS, &days))
++            if (!NCONF_get_number(conf, section, ENV_DEFAULT_DAYS, &days)) {
++                ERR_clear_error();
+                 days = 0;
++            }
+         }
+         if (enddate == NULL && days == 0) {
+             BIO_printf(bio_err, "cannot lookup how many days to certify for\n");
+@@ -1161,22 +1170,28 @@ end_of_options:
+             }
+         }
+ 
+-        if ((crlnumberfile = NCONF_get_string(conf, section, ENV_CRLNUMBER))
+-            != NULL)
++        crlnumberfile = NCONF_get_string(conf, section, ENV_CRLNUMBER);
++        if (crlnumberfile != NULL) {
+             if ((crlnumber = load_serial(crlnumberfile, NULL, 0, NULL))
+                 == NULL) {
+                 BIO_printf(bio_err, "error while loading CRL number\n");
+                 goto end;
+             }
++        } else {
++            ERR_clear_error();
++        }
+ 
+         if (!crldays && !crlhours && !crlsec) {
+             if (!NCONF_get_number(conf, section,
+-                                  ENV_DEFAULT_CRL_DAYS, &crldays))
++                                  ENV_DEFAULT_CRL_DAYS, &crldays)) {
++                ERR_clear_error();
+                 crldays = 0;
++            }
+             if (!NCONF_get_number(conf, section,
+-                                  ENV_DEFAULT_CRL_HOURS, &crlhours))
++                                  ENV_DEFAULT_CRL_HOURS, &crlhours)) {
++                ERR_clear_error();
+                 crlhours = 0;
+-            ERR_clear_error();
++            }
+         }
+         if ((crl_nextupdate == NULL) &&
+                 (crldays == 0) && (crlhours == 0) && (crlsec == 0)) {
+diff --git a/apps/cmp.c b/apps/cmp.c
+index 4c3b29eba5..a317fdb0bf 100644
+--- a/apps/cmp.c
++++ b/apps/cmp.c
+@@ -2148,6 +2148,7 @@ static char *conf_get_string(const CONF *src_conf, const char *groups,
+     while ((end = prev_item(groups, end)) != NULL) {
+         if ((res = NCONF_get_string(src_conf, opt_item, name)) != NULL)
+             return res;
++        ERR_clear_error();
+     }
+     return res;
+ }
+diff --git a/apps/lib/apps.c b/apps/lib/apps.c
+index 0ac828fdf5..8e23e4b451 100644
+--- a/apps/lib/apps.c
++++ b/apps/lib/apps.c
+@@ -1679,7 +1679,10 @@ CA_DB *load_index(const char *dbfile, DB_ATTR *db_attr)
+         char *p = NCONF_get_string(dbattr_conf, NULL, "unique_subject");
+         if (p) {
+             retdb->attributes.unique_subject = parse_yesno(p, 1);
++        } else {
++            ERR_clear_error();
+         }
++
+     }
+ 
+     retdb->dbfname = OPENSSL_strdup(dbfile);
+diff --git a/apps/req.c b/apps/req.c
+index 4b4e36c68a..0be04d04da 100644
+--- a/apps/req.c
++++ b/apps/req.c
+@@ -635,8 +635,10 @@ int req_main(int argc, char **argv)
+     if (newreq && pkey == NULL) {
+         app_RAND_load_conf(req_conf, section);
+ 
+-        if (!NCONF_get_number(req_conf, section, BITS, &newkey_len))
++        if (!NCONF_get_number(req_conf, section, BITS, &newkey_len)) {
++            ERR_clear_error();
+             newkey_len = DEFAULT_KEY_LENGTH;
++        }
+ 
+         genctx = set_keygen_ctx(keyalg, &keyalgstr, &newkey_len, gen_eng);
+         if (genctx == NULL)
+-- 
+2.34.1
+

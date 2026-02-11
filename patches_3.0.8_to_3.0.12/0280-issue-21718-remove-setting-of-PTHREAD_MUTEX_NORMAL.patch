@@ -1,0 +1,55 @@
+From e9cffe90f9aae9d5d8a00de5eabe66dc02fef792 Mon Sep 17 00:00:00 2001
+From: Neil Horman <nhorman@gmail.com>
+Date: Fri, 11 Aug 2023 15:50:59 -0400
+Subject: [PATCH 280/381] issue-21718: remove setting of PTHREAD_MUTEX_NORMAL
+
+issue: https://github.com/openssl/openssl/issues/21718
+
+build break reported:
+crypto/threads_pthread.c:76:5: warning: implicit declaration of function 'pthread_mutexattr_settype'; did you mean 'pthread_mutexattr_destroy'? [-Wimplicit-function-declaration]
+   76 |     pthread_mutexattr_settype(&attr, PTHREAD_MUTEX_NORMAL);
+      |     ^~~~~~~~~~~~~~~~~~~~~~~~~
+      |     pthread_mutexattr_destroy
+crypto/threads_pthread.c:76:38: error: 'PTHREAD_MUTEX_NORMAL' undeclared (first use in this function); did you mean 'PTHREAD_MUTEX_TIMED_NP'?
+   76 |     pthread_mutexattr_settype(&attr, PTHREAD_MUTEX_NORMAL);
+      |                                      ^~~~~~~~~~~~~~~~~~~~
+      |                                      PTHREAD_MUTEX_TIMED_NP
+
+This occurs because PTHREAD_MUTEX_NORMAL is only defined in glibc if
+__USE_UNIX98 or __USE_XOPEN2K8 is defined, which is derived from setting
+__USE_POSIX_C_SOURCE or __XOPEN_SOURCE is selected in the glibc feature
+set for a build.  Since openssl selects no specific feature set from
+glibc, the build break occurs
+
+We could select a feature set of course, but that seems like a
+significant discussion to have prior to doing so. Instead, the simpler
+solution is to just not set the mutex type at all, given that
+pthread_mutexattr_init sets the default mutex type, which should be akin
+to normal anyway (i.e. no mutex error checking or allowed-recursive
+behavior)
+
+Reviewed-by: Hugo Landau <hlandau@openssl.org>
+Reviewed-by: Tomas Mraz <tomas@openssl.org>
+(Merged from https://github.com/openssl/openssl/pull/21726)
+
+(cherry picked from commit e4d808652b0a1a19cfe615a6659e65ead0245108)
+---
+ crypto/threads_pthread.c | 2 --
+ 1 file changed, 2 deletions(-)
+
+diff --git a/crypto/threads_pthread.c b/crypto/threads_pthread.c
+index bfc05a4e87..ec4cddb3af 100644
+--- a/crypto/threads_pthread.c
++++ b/crypto/threads_pthread.c
+@@ -72,8 +72,6 @@ CRYPTO_RWLOCK *CRYPTO_THREAD_lock_new(void)
+ #  if !defined (__TANDEM) && !defined (_SPT_MODEL_)
+ #   if !defined(NDEBUG) && !defined(OPENSSL_NO_MUTEX_ERRORCHECK)
+     pthread_mutexattr_settype(&attr, PTHREAD_MUTEX_ERRORCHECK);
+-#   else
+-    pthread_mutexattr_settype(&attr, PTHREAD_MUTEX_NORMAL);
+ #   endif
+ #  else
+     /* The SPT Thread Library does not define MUTEX attributes. */
+-- 
+2.34.1
+

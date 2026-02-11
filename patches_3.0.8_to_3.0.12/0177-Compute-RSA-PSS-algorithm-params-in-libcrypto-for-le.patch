@@ -1,0 +1,112 @@
+From ce9a53653542ad887163f9e9f5c2f76ed47593f5 Mon Sep 17 00:00:00 2001
+From: Tomas Mraz <tomas@openssl.org>
+Date: Mon, 22 May 2023 15:08:38 +0200
+Subject: [PATCH 177/381] Compute RSA-PSS algorithm params in libcrypto for
+ legacy
+
+Fixes regression of RSA signatures for legacy keys caused
+by quering the provider for the algorithm id with parameters.
+
+Legacy keys do not have a method that would create the
+algorithm id. So we revert to what was done in 3.0.7 and
+earlier versions for these keys.
+
+Fixes #21008
+
+Reviewed-by: Richard Levitte <levitte@openssl.org>
+Reviewed-by: Paul Dale <pauli@openssl.org>
+(Merged from https://github.com/openssl/openssl/pull/21019)
+
+(cherry picked from commit 3410a72dce57651e08d5d2143409cde0205a8f3b)
+---
+ crypto/cms/cms_rsa.c   | 11 +++++++++++
+ crypto/rsa/rsa_ameth.c | 32 ++++++++++++++++++++++++++++++++
+ 2 files changed, 43 insertions(+)
+
+diff --git a/crypto/cms/cms_rsa.c b/crypto/cms/cms_rsa.c
+index 997567fdbf..f79d3dce09 100644
+--- a/crypto/cms/cms_rsa.c
++++ b/crypto/cms/cms_rsa.c
+@@ -13,6 +13,7 @@
+ #include <openssl/core_names.h>
+ #include "crypto/asn1.h"
+ #include "crypto/rsa.h"
++#include "crypto/evp.h"
+ #include "cms_local.h"
+ 
+ static RSA_OAEP_PARAMS *rsa_oaep_decode(const X509_ALGOR *alg)
+@@ -210,6 +211,16 @@ static int rsa_cms_sign(CMS_SignerInfo *si)
+     if (pad_mode != RSA_PKCS1_PSS_PADDING)
+         return 0;
+ 
++    if (evp_pkey_ctx_is_legacy(pkctx)) {
++        /* No provider -> we cannot query it for algorithm ID. */
++        ASN1_STRING *os = NULL;
++
++        os = ossl_rsa_ctx_to_pss_string(pkctx);
++        if (os == NULL)
++            return 0;
++        return X509_ALGOR_set0(alg, OBJ_nid2obj(EVP_PKEY_RSA_PSS), V_ASN1_SEQUENCE, os);
++    }
++
+     params[0] = OSSL_PARAM_construct_octet_string(
+         OSSL_SIGNATURE_PARAM_ALGORITHM_ID, aid, sizeof(aid));
+     params[1] = OSSL_PARAM_construct_end();
+diff --git a/crypto/rsa/rsa_ameth.c b/crypto/rsa/rsa_ameth.c
+index 61ec53d424..5ffe3a178e 100644
+--- a/crypto/rsa/rsa_ameth.c
++++ b/crypto/rsa/rsa_ameth.c
+@@ -641,6 +641,36 @@ static int rsa_item_sign(EVP_MD_CTX *ctx, const ASN1_ITEM *it, const void *asn,
+         size_t aid_len = 0;
+         OSSL_PARAM params[2];
+ 
++        if (evp_pkey_ctx_is_legacy(pkctx)) {
++            /* No provider -> we cannot query it for algorithm ID. */
++            ASN1_STRING *os1 = NULL;
++
++            os1 = ossl_rsa_ctx_to_pss_string(pkctx);
++            if (os1 == NULL)
++                return 0;
++            /* Duplicate parameters if we have to */
++            if (alg2 != NULL) {
++                ASN1_STRING *os2 = ASN1_STRING_dup(os1);
++
++                if (os2 == NULL) {
++                    ASN1_STRING_free(os1);
++                    return 0;
++                }
++                if (!X509_ALGOR_set0(alg2, OBJ_nid2obj(EVP_PKEY_RSA_PSS),
++                                     V_ASN1_SEQUENCE, os2)) {
++                    ASN1_STRING_free(os1);
++                    ASN1_STRING_free(os2);
++                    return 0;
++                }
++            }
++            if (!X509_ALGOR_set0(alg1, OBJ_nid2obj(EVP_PKEY_RSA_PSS),
++                                 V_ASN1_SEQUENCE, os1)) {
++                    ASN1_STRING_free(os1);
++                    return 0;
++            }
++            return 3;
++        }
++
+         params[0] = OSSL_PARAM_construct_octet_string(
+             OSSL_SIGNATURE_PARAM_ALGORITHM_ID, aid, sizeof(aid));
+         params[1] = OSSL_PARAM_construct_end();
+@@ -652,11 +682,13 @@ static int rsa_item_sign(EVP_MD_CTX *ctx, const ASN1_ITEM *it, const void *asn,
+ 
+         if (alg1 != NULL) {
+             const unsigned char *pp = aid;
++
+             if (d2i_X509_ALGOR(&alg1, &pp, aid_len) == NULL)
+                 return 0;
+         }
+         if (alg2 != NULL) {
+             const unsigned char *pp = aid;
++
+             if (d2i_X509_ALGOR(&alg2, &pp, aid_len) == NULL)
+                 return 0;
+         }
+-- 
+2.34.1
+

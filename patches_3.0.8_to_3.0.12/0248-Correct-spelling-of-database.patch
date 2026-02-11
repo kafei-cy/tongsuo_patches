@@ -1,0 +1,74 @@
+From 1c38760d8d474a565d0770c288579de6f43861fe Mon Sep 17 00:00:00 2001
+From: Fatih Arslan Tugay <fatiharslantugay@gmail.com>
+Date: Mon, 24 Jul 2023 15:34:08 +0300
+Subject: [PATCH 248/381] Correct spelling of database
+
+Apply normal sentence case to db update message
+
+CLA: trivial
+
+Reviewed-by: Hugo Landau <hlandau@openssl.org>
+Reviewed-by: Tomas Mraz <tomas@openssl.org>
+Reviewed-by: Paul Dale <pauli@openssl.org>
+Reviewed-by: Tom Cosgrove <tom.cosgrove@arm.com>
+Reviewed-by: Todd Short <todd.short@me.com>
+(Merged from https://github.com/openssl/openssl/pull/21535)
+
+(cherry picked from commit ccb2f3080d84a271f17458a60e0d7ccd77929e95)
+(cherry picked from commit 4c1fc2c3ecb41b024ddafcb34210955d8ddfc684)
+---
+ apps/ca.c | 10 +++++-----
+ 1 file changed, 5 insertions(+), 5 deletions(-)
+
+diff --git a/apps/ca.c b/apps/ca.c
+index 29b10c86aa..8b34ef730f 100644
+--- a/apps/ca.c
++++ b/apps/ca.c
+@@ -1048,7 +1048,7 @@ end_of_options:
+             }
+         }
+         /*
+-         * we have a stack of newly certified certificates and a data base
++         * we have a stack of newly certified certificates and a database
+          * and serial number that need updating
+          */
+ 
+@@ -1149,7 +1149,7 @@ end_of_options:
+             if (!rotate_index(dbfile, "new", "old"))
+                 goto end;
+ 
+-            BIO_printf(bio_err, "Data Base Updated\n");
++            BIO_printf(bio_err, "Database updated\n");
+         }
+     }
+ 
+@@ -1336,7 +1336,7 @@ end_of_options:
+             if (!rotate_index(dbfile, "new", "old"))
+                 goto end;
+ 
+-            BIO_printf(bio_err, "Data Base Updated\n");
++            BIO_printf(bio_err, "Database updated\n");
+         }
+     }
+     ret = 0;
+@@ -1778,7 +1778,7 @@ static int do_body(X509 **xret, EVP_PKEY *pkey, X509 *x509,
+ 
+     if (verbose)
+         BIO_printf(bio_err,
+-                   "The subject name appears to be ok, checking data base for clashes\n");
++                   "The subject name appears to be ok, checking database for clashes\n");
+ 
+     /* Build the correct Subject if no e-mail is wanted in the subject. */
+     if (!email_dn) {
+@@ -1867,7 +1867,7 @@ static int do_body(X509 **xret, EVP_PKEY *pkey, X509 *x509,
+         else if (rrow[DB_type][0] == DB_TYPE_VAL)
+             p = "Valid";
+         else
+-            p = "\ninvalid type, Data base error\n";
++            p = "\ninvalid type, Database error\n";
+         BIO_printf(bio_err, "Type          :%s\n", p);;
+         if (rrow[DB_type][0] == DB_TYPE_REV) {
+             p = rrow[DB_exp_date];
+-- 
+2.34.1
+

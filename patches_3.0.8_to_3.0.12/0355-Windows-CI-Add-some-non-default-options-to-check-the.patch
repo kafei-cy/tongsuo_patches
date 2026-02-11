@@ -1,0 +1,49 @@
+From e657444c6fd580dc955173dfde3b81982f5860c4 Mon Sep 17 00:00:00 2001
+From: Tomas Mraz <tomas@openssl.org>
+Date: Wed, 11 Oct 2023 11:05:37 +0200
+Subject: [PATCH 355/381] Windows CI: Add some non-default options to check
+ they are working
+
+Some of the non-default options that enable more
+code to be built need to be enabled in one of the
+Windows builds to avoid regressions.
+
+Reviewed-by: Tom Cosgrove <tom.cosgrove@arm.com>
+Reviewed-by: Paul Dale <pauli@openssl.org>
+(Merged from https://github.com/openssl/openssl/pull/22347)
+
+(cherry picked from commit 10767fd9db14b6eedfb0827f9e404c0d4b94424b)
+---
+ .github/workflows/ci.yml      | 2 +-
+ .github/workflows/windows.yml | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/.github/workflows/ci.yml b/.github/workflows/ci.yml
+index 4c4af6763f..5fc3fe44b3 100644
+--- a/.github/workflows/ci.yml
++++ b/.github/workflows/ci.yml
+@@ -180,7 +180,7 @@ jobs:
+     - name: modprobe tls
+       run: sudo modprobe tls
+     - name: config
+-      run: ./config --banner=Configured --strict-warnings no-ec enable-ssl-trace enable-zlib enable-zlib-dynamic enable-crypto-mdebug enable-crypto-mdebug-backtrace enable-egd enable-ktls enable-fips && perl configdata.pm --dump
++      run: ./config --banner=Configured --strict-warnings no-ec enable-ssl-trace enable-zlib enable-zlib-dynamic enable-crypto-mdebug enable-egd enable-ktls enable-fips && perl configdata.pm --dump
+     - name: make
+       run: make -s -j4
+     - name: make test
+diff --git a/.github/workflows/windows.yml b/.github/workflows/windows.yml
+index 10005d3522..a3274457c3 100644
+--- a/.github/workflows/windows.yml
++++ b/.github/workflows/windows.yml
+@@ -71,7 +71,7 @@ jobs:
+     - name: config
+       working-directory: _build
+       run: |
+-        perl ..\Configure --banner=Configured no-makedepend no-shared no-fips VC-WIN64A-masm
++        perl ..\Configure --banner=Configured no-makedepend no-shared no-fips enable-md2 enable-rc5 enable-ssl3 enable-ssl3-method enable-weak-ssl-ciphers enable-trace enable-crypto-mdebug VC-WIN64A-masm
+         perl configdata.pm --dump
+     - name: build
+       working-directory: _build
+-- 
+2.34.1
+

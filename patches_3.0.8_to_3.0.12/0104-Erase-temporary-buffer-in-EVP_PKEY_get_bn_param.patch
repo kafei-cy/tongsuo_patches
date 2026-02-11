@@ -1,0 +1,45 @@
+From b2c6a24aefb8d3fd5f71f3e0c09528341088b1d2 Mon Sep 17 00:00:00 2001
+From: Anatolii Lishchynskyi <iamnotacake@protonmail.com>
+Date: Wed, 29 Mar 2023 17:16:48 +0300
+Subject: [PATCH 104/381] Erase temporary buffer in EVP_PKEY_get_bn_param()
+
+Function EVP_PKEY_get_bn_param() uses temporary buffer (on stack or
+heap allocated) to store serialized bignum, but after deserializing it
+into BIGNUM*, the buffer is not erased and may contain sensitive data.
+
+This change makes sure the buffer is erased if it was successfully
+filled before. Unfortunately, it does not distinguish between public and
+private key components, and will always erase the buffer.
+
+Reviewed-by: Paul Dale <pauli@openssl.org>
+Reviewed-by: Tomas Mraz <tomas@openssl.org>
+(Merged from https://github.com/openssl/openssl/pull/20639)
+
+(cherry picked from commit 34e4a962bca998cc2d6eb4be721153fbde2f4c35)
+---
+ crypto/evp/p_lib.c | 9 ++++++++-
+ 1 file changed, 8 insertions(+), 1 deletion(-)
+
+diff --git a/crypto/evp/p_lib.c b/crypto/evp/p_lib.c
+index 259e97ae81..3895307d36 100644
+--- a/crypto/evp/p_lib.c
++++ b/crypto/evp/p_lib.c
+@@ -2178,7 +2178,14 @@ int EVP_PKEY_get_bn_param(const EVP_PKEY *pkey, const char *key_name,
+         goto err;
+     ret = OSSL_PARAM_get_BN(params, bn);
+ err:
+-    OPENSSL_free(buf);
++    if (buf != NULL) {
++        if (OSSL_PARAM_modified(params))
++            OPENSSL_clear_free(buf, buf_sz);
++        else
++            OPENSSL_free(buf);
++    } else if (OSSL_PARAM_modified(params)) {
++        OPENSSL_cleanse(buffer, params[0].data_size);
++    }
+     return ret;
+ }
+ 
+-- 
+2.34.1
+

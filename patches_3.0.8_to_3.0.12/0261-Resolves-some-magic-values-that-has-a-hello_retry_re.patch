@@ -1,0 +1,48 @@
+From 8d23e35d3a8922b44da4ae8896ce9ea90740ab3b Mon Sep 17 00:00:00 2001
+From: Frederik Wedel-Heinen <frederik.wedel-heinen@dencrypt.dk>
+Date: Wed, 2 Aug 2023 14:49:17 +0200
+Subject: [PATCH 261/381] Resolves some magic values that has a
+ hello_retry_request enum type.
+
+CLA: trivial
+
+Reviewed-by: Matt Caswell <matt@openssl.org>
+Reviewed-by: Tom Cosgrove <tom.cosgrove@arm.com>
+Reviewed-by: Paul Dale <pauli@openssl.org>
+(Merged from https://github.com/openssl/openssl/pull/21636)
+
+(cherry picked from commit 5ac7ee4d5a38e4f163ed6a7c9c283d45038625a8)
+---
+ ssl/ssl_lib.c                | 2 +-
+ ssl/statem/extensions_srvr.c | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/ssl/ssl_lib.c b/ssl/ssl_lib.c
+index 214884b0f1..e5310133c6 100644
+--- a/ssl/ssl_lib.c
++++ b/ssl/ssl_lib.c
+@@ -582,7 +582,7 @@ int SSL_clear(SSL *s)
+     OPENSSL_free(s->psksession_id);
+     s->psksession_id = NULL;
+     s->psksession_id_len = 0;
+-    s->hello_retry_request = 0;
++    s->hello_retry_request = SSL_HRR_NONE;
+     s->sent_tickets = 0;
+ 
+     s->error = 0;
+diff --git a/ssl/statem/extensions_srvr.c b/ssl/statem/extensions_srvr.c
+index 16765a5a5b..7085585082 100644
+--- a/ssl/statem/extensions_srvr.c
++++ b/ssl/statem/extensions_srvr.c
+@@ -883,7 +883,7 @@ int tls_parse_ctos_cookie(SSL *s, PACKET *pkt, unsigned int context, X509 *x,
+     }
+ 
+     /* Act as if this ClientHello came after a HelloRetryRequest */
+-    s->hello_retry_request = 1;
++    s->hello_retry_request = SSL_HRR_PENDING;
+ 
+     s->ext.cookieok = 1;
+ #endif
+-- 
+2.34.1
+

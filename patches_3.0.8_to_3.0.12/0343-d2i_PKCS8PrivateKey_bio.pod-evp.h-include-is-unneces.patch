@@ -1,0 +1,34 @@
+From 604ec0d792bbd465ed76f4a721df2e10b97316df Mon Sep 17 00:00:00 2001
+From: Tomas Mraz <tomas@openssl.org>
+Date: Wed, 4 Oct 2023 12:30:22 +0200
+Subject: [PATCH 343/381] d2i_PKCS8PrivateKey_bio.pod: evp.h include is
+ unnecessary
+
+It is also not allowed by doc nits check to have
+multiple includes.
+
+Reviewed-by: Matt Caswell <matt@openssl.org>
+Reviewed-by: Dmitry Belyavskiy <beldmit@gmail.com>
+Reviewed-by: Tom Cosgrove <tom.cosgrove@arm.com>
+(Merged from https://github.com/openssl/openssl/pull/22276)
+
+(cherry picked from commit 831602922f19a8f39d0c0fae425b81e9ab402c69)
+---
+ doc/man3/d2i_PKCS8PrivateKey_bio.pod | 1 -
+ 1 file changed, 1 deletion(-)
+
+diff --git a/doc/man3/d2i_PKCS8PrivateKey_bio.pod b/doc/man3/d2i_PKCS8PrivateKey_bio.pod
+index e84283f63e..55ec346575 100644
+--- a/doc/man3/d2i_PKCS8PrivateKey_bio.pod
++++ b/doc/man3/d2i_PKCS8PrivateKey_bio.pod
+@@ -8,7 +8,6 @@ i2d_PKCS8PrivateKey_nid_bio, i2d_PKCS8PrivateKey_nid_fp - PKCS#8 format private
+ 
+ =head1 SYNOPSIS
+ 
+- #include <openssl/evp.h>
+  #include <openssl/pem.h>
+ 
+  EVP_PKEY *d2i_PKCS8PrivateKey_bio(BIO *bp, EVP_PKEY **x, pem_password_cb *cb, void *u);
+-- 
+2.34.1
+

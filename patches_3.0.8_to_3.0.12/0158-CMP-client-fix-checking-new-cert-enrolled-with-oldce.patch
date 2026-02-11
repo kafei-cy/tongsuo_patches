@@ -1,0 +1,336 @@
+From 09382af6f294a029d0f9c88f6f2c8cc7f205b1c1 Mon Sep 17 00:00:00 2001
+From: "Dr. David von Oheimb" <David.von.Oheimb@siemens.com>
+Date: Tue, 25 Apr 2023 19:26:36 +0200
+Subject: [PATCH 158/381] CMP client: fix checking new cert enrolled with
+ oldcert and without private key
+
+Reviewed-by: Tomas Mraz <tomas@openssl.org>
+Reviewed-by: Todd Short <todd.short@me.com>
+Reviewed-by: David von Oheimb <david.von.oheimb@siemens.com>
+(Merged from https://github.com/openssl/openssl/pull/20832)
+
+(cherry picked from commit e0f1ec3b2ec1b137695abc3199a62def5965351f)
+---
+ crypto/cmp/cmp_client.c                       |  6 +--
+ crypto/cmp/cmp_ctx.c                          | 16 +++++++
+ crypto/cmp/cmp_local.h                        |  5 ++-
+ crypto/cmp/cmp_msg.c                          | 25 ++++-------
+ crypto/cmp/cmp_vfy.c                          |  4 +-
+ .../man3/ossl_cmp_pkisi_get_status.pod        |  6 +--
+ test/cmp_client_test.c                        | 45 ++++++++++++++++---
+ test/cmp_msg_test.c                           |  4 +-
+ 8 files changed, 75 insertions(+), 36 deletions(-)
+
+diff --git a/crypto/cmp/cmp_client.c b/crypto/cmp/cmp_client.c
+index dd19b9a6d7..dc41f4c3b7 100644
+--- a/crypto/cmp/cmp_client.c
++++ b/crypto/cmp/cmp_client.c
+@@ -412,12 +412,10 @@ static X509 *get1_cert_status(OSSL_CMP_CTX *ctx, int bodytype,
+ {
+     char buf[OSSL_CMP_PKISI_BUFLEN];
+     X509 *crt = NULL;
+-    EVP_PKEY *privkey;
+ 
+     if (!ossl_assert(ctx != NULL && crep != NULL))
+         return NULL;
+ 
+-    privkey = OSSL_CMP_CTX_get0_newPkey(ctx, 1);
+     switch (ossl_cmp_pkisi_get_status(crep->status)) {
+     case OSSL_CMP_PKISTATUS_waiting:
+         ossl_cmp_err(ctx,
+@@ -455,7 +453,7 @@ static X509 *get1_cert_status(OSSL_CMP_CTX *ctx, int bodytype,
+         ERR_raise(ERR_LIB_CMP, CMP_R_UNKNOWN_PKISTATUS);
+         goto err;
+     }
+-    crt = ossl_cmp_certresponse_get1_cert(crep, ctx, privkey);
++    crt = ossl_cmp_certresponse_get1_cert(ctx, crep);
+     if (crt == NULL) /* according to PKIStatus, we can expect a cert */
+         ERR_raise(ERR_LIB_CMP, CMP_R_CERTIFICATE_NOT_FOUND);
+ 
+@@ -560,7 +558,7 @@ static int cert_response(OSSL_CMP_CTX *ctx, int sleep, int rid,
+                          OSSL_CMP_MSG **resp, int *checkAfter,
+                          int req_type, int expected_type)
+ {
+-    EVP_PKEY *rkey = OSSL_CMP_CTX_get0_newPkey(ctx /* may be NULL */, 0);
++    EVP_PKEY *rkey = ossl_cmp_ctx_get0_newPubkey(ctx);
+     int fail_info = 0; /* no failure */
+     const char *txt = NULL;
+     OSSL_CMP_CERTREPMESSAGE *crepmsg;
+diff --git a/crypto/cmp/cmp_ctx.c b/crypto/cmp/cmp_ctx.c
+index ed840fb53c..fd38d06b32 100644
+--- a/crypto/cmp/cmp_ctx.c
++++ b/crypto/cmp/cmp_ctx.c
+@@ -834,6 +834,7 @@ int OSSL_CMP_CTX_set0_newPkey(OSSL_CMP_CTX *ctx, int priv, EVP_PKEY *pkey)
+ }
+ 
+ /* Get the private/public key to use for cert enrollment, or NULL on error */
++/* In case |priv| == 0, better use ossl_cmp_ctx_get0_newPubkey() below */
+ EVP_PKEY *OSSL_CMP_CTX_get0_newPkey(const OSSL_CMP_CTX *ctx, int priv)
+ {
+     if (ctx == NULL) {
+@@ -848,6 +849,21 @@ EVP_PKEY *OSSL_CMP_CTX_get0_newPkey(const OSSL_CMP_CTX *ctx, int priv)
+     return ctx->pkey; /* may be NULL */
+ }
+ 
++EVP_PKEY *ossl_cmp_ctx_get0_newPubkey(const OSSL_CMP_CTX *ctx)
++{
++    if (!ossl_assert(ctx != NULL))
++        return NULL;
++    if (ctx->newPkey != NULL)
++        return ctx->newPkey;
++    if (ctx->p10CSR != NULL)
++        return X509_REQ_get0_pubkey(ctx->p10CSR);
++    if (ctx->oldCert != NULL)
++        return X509_get0_pubkey(ctx->oldCert);
++    if (ctx->cert != NULL)
++        return X509_get0_pubkey(ctx->cert);
++    return ctx->pkey;
++}
++
+ /* Set the given transactionID to the context */
+ int OSSL_CMP_CTX_set1_transactionID(OSSL_CMP_CTX *ctx,
+                                     const ASN1_OCTET_STRING *id)
+diff --git a/crypto/cmp/cmp_local.h b/crypto/cmp/cmp_local.h
+index 3afeb16f8e..4e74755862 100644
+--- a/crypto/cmp/cmp_local.h
++++ b/crypto/cmp/cmp_local.h
+@@ -789,6 +789,7 @@ int ossl_cmp_ctx_set1_extraCertsIn(OSSL_CMP_CTX *ctx,
+                                    STACK_OF(X509) *extraCertsIn);
+ int ossl_cmp_ctx_set1_recipNonce(OSSL_CMP_CTX *ctx,
+                                  const ASN1_OCTET_STRING *nonce);
++EVP_PKEY *ossl_cmp_ctx_get0_newPubkey(const OSSL_CMP_CTX *ctx);
+ 
+ /* from cmp_status.c */
+ int ossl_cmp_pkisi_get_status(const OSSL_CMP_PKISI *si);
+@@ -902,8 +903,8 @@ ossl_cmp_pollrepcontent_get0_pollrep(const OSSL_CMP_POLLREPCONTENT *prc,
+ OSSL_CMP_CERTRESPONSE *
+ ossl_cmp_certrepmessage_get0_certresponse(const OSSL_CMP_CERTREPMESSAGE *crm,
+                                           int rid);
+-X509 *ossl_cmp_certresponse_get1_cert(const OSSL_CMP_CERTRESPONSE *crep,
+-                                      const OSSL_CMP_CTX *ctx, EVP_PKEY *pkey);
++X509 *ossl_cmp_certresponse_get1_cert(const OSSL_CMP_CTX *ctx,
++                                      const OSSL_CMP_CERTRESPONSE *crep);
+ OSSL_CMP_MSG *ossl_cmp_msg_load(const char *file);
+ 
+ /* from cmp_protect.c */
+diff --git a/crypto/cmp/cmp_msg.c b/crypto/cmp/cmp_msg.c
+index 5b7bef7c02..fd1dd83425 100644
+--- a/crypto/cmp/cmp_msg.c
++++ b/crypto/cmp/cmp_msg.c
+@@ -274,7 +274,7 @@ OSSL_CRMF_MSG *OSSL_CMP_CTX_setup_CRM(OSSL_CMP_CTX *ctx, int for_KUR, int rid)
+     OSSL_CRMF_MSG *crm = NULL;
+     X509 *refcert = ctx->oldCert != NULL ? ctx->oldCert : ctx->cert;
+     /* refcert defaults to current client cert */
+-    EVP_PKEY *rkey = OSSL_CMP_CTX_get0_newPkey(ctx, 0);
++    EVP_PKEY *rkey = ossl_cmp_ctx_get0_newPubkey(ctx);
+     STACK_OF(GENERAL_NAME) *default_sans = NULL;
+     const X509_NAME *ref_subj =
+         refcert != NULL ? X509_get_subject_name(refcert) : NULL;
+@@ -286,12 +286,6 @@ OSSL_CRMF_MSG *OSSL_CMP_CTX_setup_CRM(OSSL_CMP_CTX *ctx, int for_KUR, int rid)
+     /* RFC5280: subjectAltName MUST be critical if subject is null */
+     X509_EXTENSIONS *exts = NULL;
+ 
+-    if (rkey == NULL && ctx->p10CSR != NULL)
+-        rkey = X509_REQ_get0_pubkey(ctx->p10CSR);
+-    if (rkey == NULL && refcert != NULL)
+-        rkey = X509_get0_pubkey(refcert);
+-    if (rkey == NULL)
+-        rkey = ctx->pkey; /* default is independent of ctx->oldCert */
+     if (rkey == NULL) {
+ #ifndef FUZZING_BUILD_MODE_UNSAFE_FOR_PRODUCTION
+         ERR_raise(ERR_LIB_CMP, CMP_R_MISSING_PUBLIC_KEY);
+@@ -411,13 +405,7 @@ OSSL_CMP_MSG *ossl_cmp_certreq_new(OSSL_CMP_CTX *ctx, int type,
+     if (type != OSSL_CMP_PKIBODY_P10CR) {
+         EVP_PKEY *privkey = OSSL_CMP_CTX_get0_newPkey(ctx, 1);
+ 
+-        /*
+-         * privkey is NULL in case ctx->newPkey does not include a private key.
+-         * We then may try to use ctx->pkey as fallback/default, but only
+-         * if ctx-> newPkey does not include a (non-matching) public key:
+-         */
+-        if (privkey == NULL && OSSL_CMP_CTX_get0_newPkey(ctx, 0) == NULL)
+-            privkey = ctx->pkey; /* default is independent of ctx->oldCert */
++        /* privkey is ctx->newPkey (if private, else NULL) or ctx->pkey */
+         if (ctx->popoMethod >= OSSL_CRMF_POPO_SIGNATURE && privkey == NULL) {
+             ERR_raise(ERR_LIB_CMP, CMP_R_MISSING_PRIVATE_KEY_FOR_POPO);
+             goto err;
+@@ -1036,14 +1024,15 @@ ossl_cmp_certrepmessage_get0_certresponse(const OSSL_CMP_CERTREPMESSAGE *crm,
+ 
+ /*-
+  * Retrieve the newly enrolled certificate from the given certResponse crep.
+- * In case of indirect POPO uses the libctx and propq from ctx and private key.
++ * Uses libctx and propq from ctx, in case of indirect POPO also private key.
+  * Returns a pointer to a copy of the found certificate, or NULL if not found.
+  */
+-X509 *ossl_cmp_certresponse_get1_cert(const OSSL_CMP_CERTRESPONSE *crep,
+-                                      const OSSL_CMP_CTX *ctx, EVP_PKEY *pkey)
++X509 *ossl_cmp_certresponse_get1_cert(const OSSL_CMP_CTX *ctx,
++                                      const OSSL_CMP_CERTRESPONSE *crep)
+ {
+     OSSL_CMP_CERTORENCCERT *coec;
+     X509 *crt = NULL;
++    EVP_PKEY *pkey;
+ 
+     if (!ossl_assert(crep != NULL && ctx != NULL))
+         return NULL;
+@@ -1056,6 +1045,8 @@ X509 *ossl_cmp_certresponse_get1_cert(const OSSL_CMP_CERTRESPONSE *crep,
+             break;
+         case OSSL_CMP_CERTORENCCERT_ENCRYPTEDCERT:
+             /* cert encrypted for indirect PoP; RFC 4210, 5.2.8.2 */
++            pkey = OSSL_CMP_CTX_get0_newPkey(ctx, 1);
++            /* pkey is ctx->newPkey (if private, else NULL) or ctx->pkey */
+             if (pkey == NULL) {
+                 ERR_raise(ERR_LIB_CMP, CMP_R_MISSING_PRIVATE_KEY);
+                 return NULL;
+diff --git a/crypto/cmp/cmp_vfy.c b/crypto/cmp/cmp_vfy.c
+index aae332cc7b..89c1e3c6fa 100644
+--- a/crypto/cmp/cmp_vfy.c
++++ b/crypto/cmp/cmp_vfy.c
+@@ -323,11 +323,11 @@ static int check_cert_path_3gpp(const OSSL_CMP_CTX *ctx,
+          * verify that the newly enrolled certificate (which assumed rid ==
+          * OSSL_CMP_CERTREQID) can also be validated with the same trusted store
+          */
+-        EVP_PKEY *pkey = OSSL_CMP_CTX_get0_newPkey(ctx, 1);
+         OSSL_CMP_CERTRESPONSE *crep =
+             ossl_cmp_certrepmessage_get0_certresponse(msg->body->value.ip,
+                                                       OSSL_CMP_CERTREQID);
+-        X509 *newcrt = ossl_cmp_certresponse_get1_cert(crep, ctx, pkey);
++        X509 *newcrt = ossl_cmp_certresponse_get1_cert(ctx, crep);
++
+         /*
+          * maybe better use get_cert_status() from cmp_client.c, which catches
+          * errors
+diff --git a/doc/internal/man3/ossl_cmp_pkisi_get_status.pod b/doc/internal/man3/ossl_cmp_pkisi_get_status.pod
+index 21f6f90b39..135be39ed6 100644
+--- a/doc/internal/man3/ossl_cmp_pkisi_get_status.pod
++++ b/doc/internal/man3/ossl_cmp_pkisi_get_status.pod
+@@ -43,8 +43,8 @@ ossl_cmp_pkisi_check_pkifailureinfo
+ # define OSSL_CMP_PKIFAILUREINFO_duplicateCertReq    26
+ # define OSSL_CMP_PKIFAILUREINFO_MAX                 26
+ 
+-  X509 *ossl_cmp_certresponse_get1_cert(const OSSL_CMP_CERTRESPONSE *crep,
+-                                        const OSSL_CMP_CTX *ctx, EVP_PKEY *pkey);
++  X509 *ossl_cmp_certresponse_get1_cert(const OSSL_CMP_CTX *ctx,
++                                        const OSSL_CMP_CERTRESPONSE *crep);
+   int ossl_cmp_pkisi_get_status(const OSSL_CMP_PKISI *si);
+   const char *ossl_cmp_PKIStatus_to_string(int status);
+   OSSL_CMP_PKIFREETEXT *ossl_cmp_pkisi_get0_statusString(const OSSL_CMP_PKISI *si);
+@@ -55,7 +55,7 @@ ossl_cmp_pkisi_check_pkifailureinfo
+ 
+ ossl_cmp_certresponse_get1_cert() returns a pointer to a copy of the newly
+ enrolled certificate from the given certResponse I<crep>, or NULL on error.
+-In case of indirect POPO uses data from the I<ctx> and the private key I<pkey>.
++Uses data from I<ctx>, which in case of indirect POPO includes the private key.
+ 
+ ossl_cmp_pkisi_get_status() returns the PKIStatus of I<si>, or -1 on error.
+ 
+diff --git a/test/cmp_client_test.c b/test/cmp_client_test.c
+index 7b3aa90fde..c1148b82aa 100644
+--- a/test/cmp_client_test.c
++++ b/test/cmp_client_test.c
+@@ -78,6 +78,7 @@ static CMP_SES_TEST_FIXTURE *set_up(const char *const test_case_name)
+             || !OSSL_CMP_CTX_set_option(ctx, OSSL_CMP_OPT_UNPROTECTED_ERRORS, 1)
+             || !OSSL_CMP_CTX_set1_oldCert(ctx, client_cert)
+             || !OSSL_CMP_CTX_set1_pkey(ctx, client_key)
++            /* client_key is by default used also for newPkey */
+             || !OSSL_CMP_CTX_set1_srvCert(ctx, server_cert)
+             || !OSSL_CMP_CTX_set1_referenceValue(ctx, ref, sizeof(ref)))
+         goto err;
+@@ -253,26 +254,57 @@ static int test_exec_CR_ses_implicit_confirm(void)
+         && test_exec_CR_ses(1, 1 /* granted */, 0);
+ }
+ 
+-static int test_exec_KUR_ses(int transfer_error)
++static int test_exec_KUR_ses(int transfer_error, int pubkey, int raverified)
+ {
+     SETUP_TEST_FIXTURE(CMP_SES_TEST_FIXTURE, set_up);
+     fixture->req_type = OSSL_CMP_KUR;
++    /* ctx->oldCert has already been set */
++
+     if (transfer_error)
+         OSSL_CMP_CTX_set_transfer_cb_arg(fixture->cmp_ctx, NULL);
+-    fixture->expected = transfer_error ? OSSL_CMP_PKISTATUS_trans
+-        : OSSL_CMP_PKISTATUS_accepted;
++    if (pubkey) {
++        EVP_PKEY *key = raverified /* wrong key */ ? server_key : client_key;
++
++        EVP_PKEY_up_ref(key);
++        OSSL_CMP_CTX_set0_newPkey(fixture->cmp_ctx, 0 /* not priv */, key);
++        OSSL_CMP_SRV_CTX_set_accept_raverified(fixture->srv_ctx, 1);
++    }
++    if (pubkey || raverified)
++        OSSL_CMP_CTX_set_option(fixture->cmp_ctx, OSSL_CMP_OPT_POPO_METHOD,
++                                OSSL_CRMF_POPO_RAVERIFIED);
++    fixture->expected = transfer_error ? OSSL_CMP_PKISTATUS_trans :
++        raverified ? OSSL_CMP_PKISTATUS_rejection : OSSL_CMP_PKISTATUS_accepted;
+     EXECUTE_TEST(execute_exec_certrequest_ses_test, tear_down);
+     return result;
+ }
+ 
+ static int test_exec_KUR_ses_ok(void)
+ {
+-    return test_exec_KUR_ses(0);
++    return test_exec_KUR_ses(0, 0, 0);
+ }
+ 
+ static int test_exec_KUR_ses_transfer_error(void)
+ {
+-    return test_exec_KUR_ses(1);
++    return test_exec_KUR_ses(1, 0, 0);
++}
++
++static int test_exec_KUR_ses_wrong_popo(void)
++{
++#ifndef FUZZING_BUILD_MODE_UNSAFE_FOR_PRODUCTION /* cf ossl_cmp_verify_popo() */
++    return test_exec_KUR_ses(0, 0, 1);
++#else
++    return 1;
++#endif
++}
++
++static int test_exec_KUR_ses_pub(void)
++{
++    return test_exec_KUR_ses(0, 1, 0);
++}
++
++static int test_exec_KUR_ses_wrong_pub(void)
++{
++    return test_exec_KUR_ses(0, 1, 1);
+ }
+ 
+ static int test_certConf_cb(OSSL_CMP_CTX *ctx, X509 *cert, int fail_info,
+@@ -497,6 +529,9 @@ int setup_tests(void)
+     ADD_TEST(test_exec_IR_ses_poll_total_timeout);
+     ADD_TEST(test_exec_KUR_ses_ok);
+     ADD_TEST(test_exec_KUR_ses_transfer_error);
++    ADD_TEST(test_exec_KUR_ses_wrong_popo);
++    ADD_TEST(test_exec_KUR_ses_pub);
++    ADD_TEST(test_exec_KUR_ses_wrong_pub);
+     ADD_TEST(test_exec_P10CR_ses_ok);
+     ADD_TEST(test_exec_P10CR_ses_reject);
+     ADD_TEST(test_try_certreq_poll);
+diff --git a/test/cmp_msg_test.c b/test/cmp_msg_test.c
+index 348099470a..29b52c793e 100644
+--- a/test/cmp_msg_test.c
++++ b/test/cmp_msg_test.c
+@@ -383,7 +383,6 @@ static int execute_certrep_create(CMP_MSG_TEST_FIXTURE *fixture)
+     OSSL_CMP_CTX *ctx = fixture->cmp_ctx;
+     OSSL_CMP_CERTREPMESSAGE *crepmsg = OSSL_CMP_CERTREPMESSAGE_new();
+     OSSL_CMP_CERTRESPONSE *read_cresp, *cresp = OSSL_CMP_CERTRESPONSE_new();
+-    EVP_PKEY *privkey;
+     X509 *certfromresp = NULL;
+     int res = 0;
+ 
+@@ -405,8 +404,7 @@ static int execute_certrep_create(CMP_MSG_TEST_FIXTURE *fixture)
+         goto err;
+     if (!TEST_ptr_null(ossl_cmp_certrepmessage_get0_certresponse(crepmsg, 88)))
+         goto err;
+-    privkey = OSSL_CMP_CTX_get0_newPkey(ctx, 1); /* may be NULL */
+-    certfromresp = ossl_cmp_certresponse_get1_cert(read_cresp, ctx, privkey);
++    certfromresp = ossl_cmp_certresponse_get1_cert(ctx, read_cresp);
+     if (certfromresp == NULL || !TEST_int_eq(X509_cmp(cert, certfromresp), 0))
+         goto err;
+ 
+-- 
+2.34.1
+

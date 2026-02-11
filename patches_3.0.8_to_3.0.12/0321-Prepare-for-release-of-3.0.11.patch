@@ -1,0 +1,56 @@
+From 6ba3884c3235e1bb474b379026087f8216afacf4 Mon Sep 17 00:00:00 2001
+From: Richard Levitte <levitte@openssl.org>
+Date: Tue, 19 Sep 2023 15:02:31 +0200
+Subject: [PATCH 321/381] Prepare for release of 3.0.11
+
+Reviewed-by: Matt Caswell <matt@openssl.org>
+Release: yes
+---
+ CHANGES.md  | 2 +-
+ NEWS.md     | 2 +-
+ VERSION.dat | 4 ++--
+ 3 files changed, 4 insertions(+), 4 deletions(-)
+
+diff --git a/CHANGES.md b/CHANGES.md
+index e519978842..a26bdbdd0a 100644
+--- a/CHANGES.md
++++ b/CHANGES.md
+@@ -28,7 +28,7 @@ breaking changes, and mappings for the large list of deprecated functions.
+ 
+ [Migration guide]: https://github.com/openssl/openssl/tree/master/doc/man7/migration_guide.pod
+ 
+-### Changes between 3.0.10 and 3.0.11 [xx XXX xxxx]
++### Changes between 3.0.10 and 3.0.11 [19 Sep 2023]
+ 
+  * Fix POLY1305 MAC implementation corrupting XMM registers on Windows.
+ 
+diff --git a/NEWS.md b/NEWS.md
+index 1b8ec67442..f7ca47baff 100644
+--- a/NEWS.md
++++ b/NEWS.md
+@@ -18,7 +18,7 @@ OpenSSL Releases
+ OpenSSL 3.0
+ -----------
+ 
+-### Major changes between OpenSSL 3.0.10 and OpenSSL 3.0.11 [under development]
++### Major changes between OpenSSL 3.0.10 and OpenSSL 3.0.11 [19 Sep 2023]
+ 
+   * Fix POLY1305 MAC implementation corrupting XMM registers on Windows
+     ([CVE-2023-4807])
+diff --git a/VERSION.dat b/VERSION.dat
+index bc7aac6146..c4157a8627 100644
+--- a/VERSION.dat
++++ b/VERSION.dat
+@@ -1,7 +1,7 @@
+ MAJOR=3
+ MINOR=0
+ PATCH=11
+-PRE_RELEASE_TAG=dev
++PRE_RELEASE_TAG=
+ BUILD_METADATA=
+-RELEASE_DATE=""
++RELEASE_DATE="19 Sep 2023"
+ SHLIB_VERSION=3
+-- 
+2.34.1
+

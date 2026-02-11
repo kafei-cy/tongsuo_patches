@@ -1,0 +1,82 @@
+From 5645d5ff47aa304d2be6c07a5102f47e1193243f Mon Sep 17 00:00:00 2001
+From: Richard Levitte <levitte@openssl.org>
+Date: Mon, 15 May 2023 10:09:42 +0200
+Subject: [PATCH 162/381] Update VMS configurations
+
+A native x86_64 C compiler has appeared.
+
+We preserve the previous config target with a new name to indicate that it's
+for cross compilation, at least for the time being.
+
+Reviewed-by: Tomas Mraz <tomas@openssl.org>
+Reviewed-by: Hugo Landau <hlandau@openssl.org>
+Reviewed-by: Paul Dale <pauli@openssl.org>
+(Merged from https://github.com/openssl/openssl/pull/20983)
+
+(cherry picked from commit d6175dcca746f0996db18ab2b6b37a4152097afe)
+---
+ Configurations/10-main.conf       |  6 +++++-
+ Configurations/50-vms-x86_64.conf | 12 +++---------
+ util/perl/OpenSSL/config.pm       |  6 +++++-
+ 3 files changed, 13 insertions(+), 11 deletions(-)
+
+diff --git a/Configurations/10-main.conf b/Configurations/10-main.conf
+index b578a3c2a8..8010087b46 100644
+--- a/Configurations/10-main.conf
++++ b/Configurations/10-main.conf
+@@ -1934,5 +1934,9 @@ my %targets = (
+         cflags           => add("/POINTER_SIZE=64=ARGV"),
+         pointer_size     => "64",
+     },
+-
++    "vms-x86_64" => {
++        inherit_from     => [ "vms-generic" ],
++        bn_ops           => "SIXTY_FOUR_BIT",
++        pointer_size     => "",
++    }
+ );
+diff --git a/Configurations/50-vms-x86_64.conf b/Configurations/50-vms-x86_64.conf
+index ef6bd7b62c..edde2629ad 100644
+--- a/Configurations/50-vms-x86_64.conf
++++ b/Configurations/50-vms-x86_64.conf
+@@ -1,16 +1,10 @@
+ ## -*- mode: perl; -*-
+ 
+-# OpenVMS for x86_64 is currently out on a field test.  A native C compiler
+-# is currently not available, but there are cross-compilation tools for
+-# OpenVMS for Itanium.  This configuration file holds the necessary target(s)
+-# to make that useful.
+-#
+-# The assumption is that *building* is done on Itanium, and then the source
+-# tree and build tree are transferred to x86_64, where tests can be performed,
+-# and installation can be done.
++# OpenVMS cross compilation of x86_64 binaries on Itanium.  This doesn't
++# fit the usual cross compilation parameters that are used on Unixly machines
+ 
+ (
+- 'vms-x86_64' => {
++ 'vms-x86_64-cross-ia64' => {
+      inherit_from   => [ 'vms-generic' ],
+      CC             => 'XCC',
+      bn_ops         => 'SIXTY_FOUR_BIT',
+diff --git a/util/perl/OpenSSL/config.pm b/util/perl/OpenSSL/config.pm
+index 2f1edcafb6..5c7bf459a2 100755
+--- a/util/perl/OpenSSL/config.pm
++++ b/util/perl/OpenSSL/config.pm
+@@ -354,8 +354,12 @@ sub determine_compiler_settings {
+         if ( $SYSTEM eq 'OpenVMS' ) {
+             my $v = `CC/VERSION NLA0:`;
+             if ($? == 0) {
++                # The normal releases have a version number prefixed with a V.
++                # However, other letters have been seen as well (for example X),
++                # and it's documented that HP (now VSI) reserve the letter W, X,
++                # Y and Z for their own uses.
+                 my ($vendor, $version) =
+-                    ( $v =~ m/^([A-Z]+) C V([0-9\.-]+) on / );
++                    ( $v =~ m/^([A-Z]+) C [VWXYZ]([0-9\.-]+)(:? +\(.*?\))? on / );
+                 my ($major, $minor, $patch) =
+                     ( $version =~ m/^([0-9]+)\.([0-9]+)-0*?(0|[1-9][0-9]*)$/ );
+                 $CC = 'CC';
+-- 
+2.34.1
+

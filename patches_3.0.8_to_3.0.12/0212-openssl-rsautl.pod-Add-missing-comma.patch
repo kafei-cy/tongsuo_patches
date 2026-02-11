@@ -1,0 +1,32 @@
+From a30db5005dfc253687e694bcd71c4572353b89bc Mon Sep 17 00:00:00 2001
+From: Jakub Wilk <jwilk@jwilk.net>
+Date: Wed, 28 Jun 2023 22:17:00 +0200
+Subject: [PATCH 212/381] openssl-rsautl.pod: Add missing comma
+
+CLA: trivial
+
+Reviewed-by: Tom Cosgrove <tom.cosgrove@arm.com>
+Reviewed-by: Paul Dale <pauli@openssl.org>
+(Merged from https://github.com/openssl/openssl/pull/21318)
+
+(cherry picked from commit 83f9d03e7c4913c3eb34edd4a8feb3833650b58f)
+---
+ doc/man1/openssl-rsautl.pod.in | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/doc/man1/openssl-rsautl.pod.in b/doc/man1/openssl-rsautl.pod.in
+index 186e49e5e4..f9b7250cb4 100644
+--- a/doc/man1/openssl-rsautl.pod.in
++++ b/doc/man1/openssl-rsautl.pod.in
+@@ -99,7 +99,7 @@ Encrypt the input data using an RSA public key.
+ 
+ Decrypt the input data using an RSA private key.
+ 
+-=item B<-pkcs>, B<-oaep>, B<-x931> B<-raw>
++=item B<-pkcs>, B<-oaep>, B<-x931>, B<-raw>
+ 
+ The padding to use: PKCS#1 v1.5 (the default), PKCS#1 OAEP,
+ ANSI X9.31, or no padding, respectively.
+-- 
+2.34.1
+

@@ -1,0 +1,50 @@
+From c62b0c73bb1b55ab6b49da1faff5602f130ebb9c Mon Sep 17 00:00:00 2001
+From: Matt Caswell <matt@openssl.org>
+Date: Fri, 23 Jun 2023 11:50:17 +0100
+Subject: [PATCH 206/381] Don't truncate the input when decrypting in pkeyutl
+
+The pkeyutl app was truncating the input file for decryption leading to
+incorrect results. This was probably ok historically when RSA was being
+used for decryption which has short maximum sizes. This is not ok with SM2.
+
+Reviewed-by: Hugo Landau <hlandau@openssl.org>
+Reviewed-by: Tomas Mraz <tomas@openssl.org>
+Reviewed-by: Paul Dale <pauli@openssl.org>
+(Merged from https://github.com/openssl/openssl/pull/21272)
+
+(cherry picked from commit 849450746f38a5658ef783abb0a8c79ae2861464)
+---
+ apps/lib/apps.c | 3 ++-
+ apps/pkeyutl.c  | 2 +-
+ 2 files changed, 3 insertions(+), 2 deletions(-)
+
+diff --git a/apps/lib/apps.c b/apps/lib/apps.c
+index 8e23e4b451..4baeb352fe 100644
+--- a/apps/lib/apps.c
++++ b/apps/lib/apps.c
+@@ -2011,7 +2011,8 @@ int bio_to_mem(unsigned char **out, int maxlen, BIO *in)
+             BIO_free(mem);
+             return -1;
+         }
+-        maxlen -= len;
++        if (maxlen != -1)
++            maxlen -= len;
+ 
+         if (maxlen == 0)
+             break;
+diff --git a/apps/pkeyutl.c b/apps/pkeyutl.c
+index 518a741661..d6d1d49d5d 100644
+--- a/apps/pkeyutl.c
++++ b/apps/pkeyutl.c
+@@ -421,7 +421,7 @@ int pkeyutl_main(int argc, char **argv)
+     /* Raw input data is handled elsewhere */
+     if (in != NULL && !rawin) {
+         /* Read the input data */
+-        buf_inlen = bio_to_mem(&buf_in, keysize * 10, in);
++        buf_inlen = bio_to_mem(&buf_in, -1, in);
+         if (buf_inlen < 0) {
+             BIO_printf(bio_err, "Error reading input Data\n");
+             goto end;
+-- 
+2.34.1
+

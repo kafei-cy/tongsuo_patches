@@ -1,0 +1,79 @@
+From a3e71dc38b757e526c5417ae4274885b1869b7d2 Mon Sep 17 00:00:00 2001
+From: Bernd Edlinger <bernd.edlinger@hotmail.de>
+Date: Fri, 8 Sep 2023 10:33:24 +0200
+Subject: [PATCH 303/381] Fix output corruption in req command
+
+when used in conjunction with -out and -modulus options.
+
+Fixes #21403
+
+Reviewed-by: Dmitry Belyavskiy <beldmit@gmail.com>
+Reviewed-by: Tomas Mraz <tomas@openssl.org>
+(Merged from https://github.com/openssl/openssl/pull/22026)
+
+(cherry picked from commit d2873946dfaff5537ea3d1adf3890e33a3f276ff)
+---
+ apps/req.c                 |  8 ++++----
+ test/recipes/25-test_req.t | 13 ++++++++++++-
+ 2 files changed, 16 insertions(+), 5 deletions(-)
+
+diff --git a/apps/req.c b/apps/req.c
+index 73b320a709..926f0796bc 100644
+--- a/apps/req.c
++++ b/apps/req.c
+@@ -990,10 +990,10 @@ int req_main(int argc, char **argv)
+         else
+             tpubkey = X509_REQ_get0_pubkey(req);
+         if (tpubkey == NULL) {
+-            fprintf(stdout, "Modulus is unavailable\n");
++            BIO_puts(bio_err, "Modulus is unavailable\n");
+             goto end;
+         }
+-        fprintf(stdout, "Modulus=");
++        BIO_puts(out, "Modulus=");
+         if (EVP_PKEY_is_a(tpubkey, "RSA") || EVP_PKEY_is_a(tpubkey, "RSA-PSS")) {
+             BIGNUM *n = NULL;
+ 
+@@ -1002,9 +1002,9 @@ int req_main(int argc, char **argv)
+             BN_print(out, n);
+             BN_free(n);
+         } else {
+-            fprintf(stdout, "Wrong Algorithm type");
++            BIO_puts(out, "Wrong Algorithm type");
+         }
+-        fprintf(stdout, "\n");
++        BIO_puts(out, "\n");
+     }
+ 
+     if (!noout && !gen_x509) {
+diff --git a/test/recipes/25-test_req.t b/test/recipes/25-test_req.t
+index e615f1b338..f4526f3669 100644
+--- a/test/recipes/25-test_req.t
++++ b/test/recipes/25-test_req.t
+@@ -15,7 +15,7 @@ use OpenSSL::Test qw/:DEFAULT srctop_file/;
+ 
+ setup("test_req");
+ 
+-plan tests => 44;
++plan tests => 46;
+ 
+ require_ok(srctop_file('test', 'recipes', 'tconversion.pl'));
+ 
+@@ -473,3 +473,14 @@ my $cert = "self-signed_CA_with_keyUsages.pem";
+ generate_cert($cert, "-in", srctop_file(@certs, "ext-check.csr"),
+     "-copy_extensions", "copy");
+ has_keyUsage($cert, 1);
++
++# Generate cert using req with '-modulus'
++ok(run(app(["openssl", "req", "-x509", "-new", "-days", "365",
++            "-key", srctop_file("test", "testrsa.pem"),
++            "-config", srctop_file('test', 'test.cnf'),
++            "-out", "testreq-cert.pem",
++            "-modulus"])), "cert req creation - with -modulus");
++
++# Verify cert
++ok(run(app(["openssl", "x509", "-in", "testreq-cert.pem",
++            "-noout", "-text"])), "cert verification");
+-- 
+2.34.1
+

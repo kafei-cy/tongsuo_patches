@@ -1,0 +1,59 @@
+From 62985679e825f16c3e846099b94a76cdc3dfd591 Mon Sep 17 00:00:00 2001
+From: Matt Caswell <matt@openssl.org>
+Date: Wed, 26 Apr 2023 15:04:42 +0100
+Subject: [PATCH 144/381] Prevent a fuzzing timeout in the conf fuzzer
+
+The fuzzer was creating a config file with large numbers of includes
+which are expensive to process. However this should not cause a security
+issue, and should never happen in normal operation so we can ignore it.
+
+Fixes ossfuzz issue 57718.
+
+Reviewed-by: Paul Dale <pauli@openssl.org>
+Reviewed-by: Tim Hudson <tjh@openssl.org>
+Reviewed-by: Tomas Mraz <tomas@openssl.org>
+(Merged from https://github.com/openssl/openssl/pull/20839)
+
+(cherry picked from commit 5f3adf396b06ee3b81938468995e69cff4ca64d1)
+---
+ crypto/conf/conf_def.c | 17 +++++++++++++++++
+ 1 file changed, 17 insertions(+)
+
+diff --git a/crypto/conf/conf_def.c b/crypto/conf/conf_def.c
+index b5d6668f42..443b8ec650 100644
+--- a/crypto/conf/conf_def.c
++++ b/crypto/conf/conf_def.c
+@@ -226,6 +226,9 @@ static int def_load_bio(CONF *conf, BIO *in, long *line)
+     char *dirpath = NULL;
+     OPENSSL_DIR_CTX *dirctx = NULL;
+ #endif
++#ifdef FUZZING_BUILD_MODE_UNSAFE_FOR_PRODUCTION
++    int numincludes = 0;
++#endif
+ 
+     if ((buff = BUF_MEM_new()) == NULL) {
+         ERR_raise(ERR_LIB_CONF, ERR_R_BUF_LIB);
+@@ -442,6 +445,20 @@ static int def_load_bio(CONF *conf, BIO *in, long *line)
+                 const char *include_dir = ossl_safe_getenv("OPENSSL_CONF_INCLUDE");
+                 char *include_path = NULL;
+ 
++#ifdef FUZZING_BUILD_MODE_UNSAFE_FOR_PRODUCTION
++                /*
++                 * The include processing below can cause the "conf" fuzzer to
++                 * timeout due to the fuzzer inserting large and complicated
++                 * includes - with a large amount of time spent in
++                 * OPENSSL_strlcat/OPENSSL_strcpy. This is not a security
++                 * concern because config files should never come from untrusted
++                 * sources. We just set an arbitrary limit on the allowed
++                 * number of includes when fuzzing to prevent this timeout.
++                 */
++                if (numincludes++ > 10)
++                    goto err;
++#endif
++
+                 if (include_dir == NULL)
+                     include_dir = conf->includedir;
+ 
+-- 
+2.34.1
+

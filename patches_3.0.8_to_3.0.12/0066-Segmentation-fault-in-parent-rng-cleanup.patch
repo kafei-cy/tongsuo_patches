@@ -1,0 +1,38 @@
+From d4f812219244412078f05a523eef3ea548875e43 Mon Sep 17 00:00:00 2001
+From: afshinpir <afshinpir@users.noreply.github.com>
+Date: Wed, 8 Mar 2023 16:42:00 +1300
+Subject: [PATCH 066/381] Segmentation fault in parent rng cleanup
+
+CLA: trivial
+When `cleanup_entropy()` is called to cleanup parent by calling
+provided `OSSL_FUNC_rand_clear_seed_fn` method, incorrect random
+context is passed to the method. So accessing that context creates
+a segmentation fault. Parent context should be passed rather than
+DRBG's own context.
+
+Reviewed-by: Tomas Mraz <tomas@openssl.org>
+Reviewed-by: Matthias St. Pierre <Matthias.St.Pierre@ncp-e.com>
+Reviewed-by: Paul Dale <pauli@openssl.org>
+(Merged from https://github.com/openssl/openssl/pull/20454)
+
+(cherry picked from commit 6d45fd47f4849c8dc55b8dd5fa1e1b8a158774a0)
+---
+ providers/implementations/rands/drbg.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/providers/implementations/rands/drbg.c b/providers/implementations/rands/drbg.c
+index c8fe66aa57..27df10e8e2 100644
+--- a/providers/implementations/rands/drbg.c
++++ b/providers/implementations/rands/drbg.c
+@@ -256,7 +256,7 @@ static void cleanup_entropy(PROV_DRBG *drbg, unsigned char *out, size_t outlen)
+     } else if (drbg->parent_clear_seed != NULL) {
+         if (!ossl_drbg_lock_parent(drbg))
+             return;
+-        drbg->parent_clear_seed(drbg, out, outlen);
++        drbg->parent_clear_seed(drbg->parent, out, outlen);
+         ossl_drbg_unlock_parent(drbg);
+     }
+ }
+-- 
+2.34.1
+

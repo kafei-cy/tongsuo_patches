@@ -1,0 +1,29 @@
+From 44e816bd540c8687c1b4995febbde2626a655338 Mon Sep 17 00:00:00 2001
+From: "Dr. David von Oheimb" <David.von.Oheimb@siemens.com>
+Date: Wed, 1 Feb 2023 17:22:17 +0100
+Subject: [PATCH 125/381] CMP cert_response(): add missing rejection status on
+ client rejecting new cert
+
+Reviewed-by: Tomas Mraz <tomas@openssl.org>
+Reviewed-by: Paul Dale <pauli@openssl.org>
+Reviewed-by: David von Oheimb <david.von.oheimb@siemens.com>
+(Merged from https://github.com/openssl/openssl/pull/20257)
+---
+ crypto/cmp/cmp_client.c | 1 +
+ 1 file changed, 1 insertion(+)
+
+diff --git a/crypto/cmp/cmp_client.c b/crypto/cmp/cmp_client.c
+index df14d49aa0..dd19b9a6d7 100644
+--- a/crypto/cmp/cmp_client.c
++++ b/crypto/cmp/cmp_client.c
+@@ -659,6 +659,7 @@ static int cert_response(OSSL_CMP_CTX *ctx, int sleep, int rid,
+         ERR_raise_data(ERR_LIB_CMP, CMP_R_CERTIFICATE_NOT_ACCEPTED,
+                        "rejecting newly enrolled cert with subject: %s; %s",
+                        subj, txt);
++        ctx->status = OSSL_CMP_PKISTATUS_rejection;
+         ret = 0;
+     }
+     OPENSSL_free(subj);
+-- 
+2.34.1
+

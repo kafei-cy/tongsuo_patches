@@ -1,0 +1,54 @@
+From 2eb7a11035144b5556b81aa7e8233927165a5880 Mon Sep 17 00:00:00 2001
+From: "Dr. David von Oheimb" <David.von.Oheimb@siemens.com>
+Date: Wed, 1 Feb 2023 15:36:25 +0100
+Subject: [PATCH 119/381] ossl_cmp_msg_check_update(): fix two wrong error
+ return values (-1 instead of 0)
+
+Reviewed-by: Tomas Mraz <tomas@openssl.org>
+Reviewed-by: Paul Dale <pauli@openssl.org>
+Reviewed-by: David von Oheimb <david.von.oheimb@siemens.com>
+(Merged from https://github.com/openssl/openssl/pull/20257)
+---
+ crypto/cmp/cmp_vfy.c | 12 ++++++------
+ 1 file changed, 6 insertions(+), 6 deletions(-)
+
+diff --git a/crypto/cmp/cmp_vfy.c b/crypto/cmp/cmp_vfy.c
+index 99cd56cb09..e6143b99d6 100644
+--- a/crypto/cmp/cmp_vfy.c
++++ b/crypto/cmp/cmp_vfy.c
+@@ -765,6 +765,11 @@ int ossl_cmp_msg_check_update(OSSL_CMP_CTX *ctx, const OSSL_CMP_MSG *msg,
+ #endif
+     }
+ 
++    /* if not yet present, learn transactionID */
++    if (ctx->transactionID == NULL
++        && !OSSL_CMP_CTX_set1_transactionID(ctx, hdr->transactionID))
++        return 0;
++
+     /*
+      * RFC 4210 section 5.1.1 states: the recipNonce is copied from
+      * the senderNonce of the previous message in the transaction.
+@@ -773,11 +778,6 @@ int ossl_cmp_msg_check_update(OSSL_CMP_CTX *ctx, const OSSL_CMP_MSG *msg,
+     if (!ossl_cmp_ctx_set1_recipNonce(ctx, hdr->senderNonce))
+         return 0;
+ 
+-    /* if not yet present, learn transactionID */
+-    if (ctx->transactionID == NULL
+-        && !OSSL_CMP_CTX_set1_transactionID(ctx, hdr->transactionID))
+-        return -1;
+-
+     /*
+      * Store any provided extraCerts in ctx for future use,
+      * such that they are available to ctx->certConf_cb and
+@@ -788,7 +788,7 @@ int ossl_cmp_msg_check_update(OSSL_CMP_CTX *ctx, const OSSL_CMP_MSG *msg,
+                         /* this allows self-signed certs */
+                         X509_ADD_FLAG_UP_REF | X509_ADD_FLAG_NO_DUP
+                         | X509_ADD_FLAG_PREPEND))
+-        return -1;
++        return 0;
+ 
+     if (ossl_cmp_hdr_get_protection_nid(hdr) == NID_id_PasswordBasedMAC) {
+         /*
+-- 
+2.34.1
+

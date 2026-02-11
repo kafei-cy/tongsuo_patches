@@ -1,0 +1,36 @@
+From b4033367b47e9e1358cf8dff1af6f57ecf21065a Mon Sep 17 00:00:00 2001
+From: Kovalev Vasiliy <minskij10@yandex.ru>
+Date: Thu, 4 May 2023 16:12:33 +0400
+Subject: [PATCH 146/381] Fix memory leak in engine_cleanup_add_first()
+
+Fixes #20870
+
+Reviewed-by: Tom Cosgrove <tom.cosgrove@arm.com>
+Reviewed-by: Matt Caswell <matt@openssl.org>
+Reviewed-by: Tomas Mraz <tomas@openssl.org>
+(Merged from https://github.com/openssl/openssl/pull/20880)
+
+(cherry picked from commit 8c63b14296f117b07781509ced529a8955d78fb9)
+---
+ crypto/engine/eng_lib.c | 5 +++--
+ 1 file changed, 3 insertions(+), 2 deletions(-)
+
+diff --git a/crypto/engine/eng_lib.c b/crypto/engine/eng_lib.c
+index 05c6a67c1e..f4a3550423 100644
+--- a/crypto/engine/eng_lib.c
++++ b/crypto/engine/eng_lib.c
+@@ -140,8 +140,9 @@ void engine_cleanup_add_first(ENGINE_CLEANUP_CB *cb)
+     if (!int_cleanup_check(1))
+         return;
+     item = int_cleanup_item(cb);
+-    if (item)
+-        sk_ENGINE_CLEANUP_ITEM_insert(cleanup_stack, item, 0);
++    if (item != NULL)
++        if (sk_ENGINE_CLEANUP_ITEM_insert(cleanup_stack, item, 0) <= 0)
++            OPENSSL_free(item);
+ }
+ 
+ void engine_cleanup_add_last(ENGINE_CLEANUP_CB *cb)
+-- 
+2.34.1
+

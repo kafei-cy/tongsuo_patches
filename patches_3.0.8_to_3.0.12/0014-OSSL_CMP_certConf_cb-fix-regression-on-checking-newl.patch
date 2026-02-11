@@ -1,0 +1,406 @@
+From 96ab3c052640237f984f1050fefdba9e6816a63d Mon Sep 17 00:00:00 2001
+From: "Dr. David von Oheimb" <David.von.Oheimb@siemens.com>
+Date: Fri, 27 Jan 2023 21:17:50 +0100
+Subject: [PATCH 014/381] OSSL_CMP_certConf_cb(): fix regression on checking
+ newly enrolled cert
+
+Also add corresponding tests and to this end update credentials
+
+Reviewed-by: Tomas Mraz <tomas@openssl.org>
+Reviewed-by: Paul Dale <pauli@openssl.org>
+Reviewed-by: David von Oheimb <david.von.oheimb@siemens.com>
+(Merged from https://github.com/openssl/openssl/pull/20160)
+
+(cherry picked from commit 6b58f498b3f5d8e4c9197c3c5228fb450e33aaaf)
+---
+ apps/cmp.c                                    |  4 +-
+ crypto/cmp/cmp_client.c                       | 38 +++++++++++--
+ doc/man1/openssl-cmp.pod.in                   |  1 +
+ doc/man3/OSSL_CMP_CTX_new.pod                 |  1 +
+ .../80-test_cmp_http_data/Mock/issuing.crt    | 23 --------
+ .../Mock/issuing_expired.crt                  | 22 ++++++++
+ .../Mock/root_expired.crt                     | 21 +++++++
+ .../80-test_cmp_http_data/Mock/server.crt     | 39 +++++++------
+ .../80-test_cmp_http_data/Mock/server.key     | 55 ++++++++++---------
+ .../80-test_cmp_http_data/Mock/test.cnf       |  6 +-
+ .../80-test_cmp_http_data/Mock/trusted.crt    | 38 +++++++------
+ .../80-test_cmp_http_data/test_enrollment.csv |  4 +-
+ 12 files changed, 158 insertions(+), 94 deletions(-)
+ create mode 100644 test/recipes/80-test_cmp_http_data/Mock/issuing_expired.crt
+ create mode 100644 test/recipes/80-test_cmp_http_data/Mock/root_expired.crt
+
+diff --git a/apps/cmp.c b/apps/cmp.c
+index 9b9e405bb2..bb7b124c48 100644
+--- a/apps/cmp.c
++++ b/apps/cmp.c
+@@ -1283,7 +1283,9 @@ static SSL_CTX *setup_ssl_ctx(OSSL_CMP_CTX *ctx, const char *host,
+                 /* disable any cert status/revocation checking etc. */
+                 X509_VERIFY_PARAM_clear_flags(tls_vpm,
+                                               ~(X509_V_FLAG_USE_CHECK_TIME
+-                                                | X509_V_FLAG_NO_CHECK_TIME));
++                                                | X509_V_FLAG_NO_CHECK_TIME
++                                                | X509_V_FLAG_PARTIAL_CHAIN
++                                                | X509_V_FLAG_POLICY_CHECK));
+             }
+             CMP_debug("trying to build cert chain for own TLS cert");
+             if (SSL_CTX_build_cert_chain(ssl_ctx,
+diff --git a/crypto/cmp/cmp_client.c b/crypto/cmp/cmp_client.c
+index 22ae7d07e8..decb9ef20e 100644
+--- a/crypto/cmp/cmp_client.c
++++ b/crypto/cmp/cmp_client.c
+@@ -493,18 +493,46 @@ int OSSL_CMP_certConf_cb(OSSL_CMP_CTX *ctx, X509 *cert, int fail_info,
+     if (fail_info != 0) /* accept any error flagged by CMP core library */
+         return fail_info;
+ 
+-    ossl_cmp_debug(ctx, "trying to build chain for newly enrolled cert");
+-    chain = X509_build_chain(cert, ctx->untrusted, out_trusted /* maybe NULL */,
+-                             0, ctx->libctx, ctx->propq);
++    if (out_trusted == NULL) {
++        ossl_cmp_debug(ctx, "trying to build chain for newly enrolled cert");
++        chain = X509_build_chain(cert, ctx->untrusted, out_trusted,
++                                 0, ctx->libctx, ctx->propq);
++    } else {
++        X509_STORE_CTX *csc = X509_STORE_CTX_new_ex(ctx->libctx, ctx->propq);
++
++        ossl_cmp_debug(ctx, "validating newly enrolled cert");
++        if (csc == NULL)
++            goto err;
++        if (!X509_STORE_CTX_init(csc, out_trusted, cert, ctx->untrusted))
++            goto err;
++        /* disable any cert status/revocation checking etc. */
++        X509_VERIFY_PARAM_clear_flags(X509_STORE_CTX_get0_param(csc),
++                                      ~(X509_V_FLAG_USE_CHECK_TIME
++                                        | X509_V_FLAG_NO_CHECK_TIME
++                                        | X509_V_FLAG_PARTIAL_CHAIN
++                                        | X509_V_FLAG_POLICY_CHECK));
++        if (X509_verify_cert(csc) <= 0)
++            goto err;
++
++        if (!ossl_x509_add_certs_new(&chain,  X509_STORE_CTX_get0_chain(csc),
++                                     X509_ADD_FLAG_UP_REF | X509_ADD_FLAG_NO_DUP
++                                     | X509_ADD_FLAG_NO_SS)) {
++            sk_X509_free(chain);
++            chain = NULL;
++        }
++    err:
++        X509_STORE_CTX_free(csc);
++    }
++
+     if (sk_X509_num(chain) > 0)
+         X509_free(sk_X509_shift(chain)); /* remove leaf (EE) cert */
+     if (out_trusted != NULL) {
+         if (chain == NULL) {
+-            ossl_cmp_err(ctx, "failed building chain for newly enrolled cert");
++            ossl_cmp_err(ctx, "failed to validate newly enrolled cert");
+             fail_info = 1 << OSSL_CMP_PKIFAILUREINFO_incorrectData;
+         } else {
+             ossl_cmp_debug(ctx,
+-                           "succeeded building proper chain for newly enrolled cert");
++                           "success validating newly enrolled cert");
+         }
+     } else if (chain == NULL) {
+         ossl_cmp_warn(ctx, "could not build approximate chain for newly enrolled cert, resorting to received extraCerts");
+diff --git a/doc/man1/openssl-cmp.pod.in b/doc/man1/openssl-cmp.pod.in
+index 77e8209141..82ff95d3c9 100644
+--- a/doc/man1/openssl-cmp.pod.in
++++ b/doc/man1/openssl-cmp.pod.in
+@@ -363,6 +363,7 @@ via the included subject name and public key.
+ =item B<-out_trusted> I<filenames>|I<uris>
+ 
+ Trusted certificate(s) to use for validating the newly enrolled certificate.
++During this verification, any certificate status checking is disabled.
+ 
+ Multiple sources may be given, separated by commas and/or whitespace
+ (where in the latter case the whole argument must be enclosed in "...").
+diff --git a/doc/man3/OSSL_CMP_CTX_new.pod b/doc/man3/OSSL_CMP_CTX_new.pod
+index 3c4e2d3f7d..ef5d6c8b5d 100644
+--- a/doc/man3/OSSL_CMP_CTX_new.pod
++++ b/doc/man3/OSSL_CMP_CTX_new.pod
+@@ -587,6 +587,7 @@ If the callback argument is not NULL it must point to a trust store.
+ In this case the function checks that the newly enrolled certificate can be
+ verified using this trust store and untrusted certificates from the I<ctx>,
+ which have been augmented by the list of extraCerts received.
++During this verification, any certificate status checking is disabled.
+ If the callback argument is NULL the function tries building an approximate
+ chain as far as possible using the same untrusted certificates from the I<ctx>,
+ and if this fails it takes the received extraCerts as fallback.
+diff --git a/test/recipes/80-test_cmp_http_data/Mock/issuing.crt b/test/recipes/80-test_cmp_http_data/Mock/issuing.crt
+index ebecbb79cd..1ec7377481 100644
+--- a/test/recipes/80-test_cmp_http_data/Mock/issuing.crt
++++ b/test/recipes/80-test_cmp_http_data/Mock/issuing.crt
+@@ -20,26 +20,3 @@ mC7DtilSZIgO2vwbTBL6ifmw9n1dd/Bl8Wdjnl7YJqTIf0Ozc2SZSMRUq9ryn4Wq
+ YrjRl8NwioGb1LfjEJ0wJi2ngL3IgaN94qmDn10OJs8hlsufwP1n+Bca3fsl0m5U
+ gUMG+CXxbF0kdCKZ9kQb1MJE4vOk6zfyBGQndmQnxHjt5botI/xpXg==
+ -----END CERTIFICATE-----
+-
+-Subject: C = AU, ST = Some-State, O = Internet Widgits Pty Ltd, CN = interCA
+------BEGIN CERTIFICATE-----
+-MIIDgDCCAmigAwIBAgIJANnoWlLlEsTgMA0GCSqGSIb3DQEBCwUAMFYxCzAJBgNV
+-BAYTAkFVMRMwEQYDVQQIDApTb21lLVN0YXRlMSEwHwYDVQQKDBhJbnRlcm5ldCBX
+-aWRnaXRzIFB0eSBMdGQxDzANBgNVBAMMBnJvb3RDQTAeFw0xNTA3MDIxMzE3MDVa
+-Fw0zNTA3MDIxMzE3MDVaMFcxCzAJBgNVBAYTAkFVMRMwEQYDVQQIEwpTb21lLVN0
+-YXRlMSEwHwYDVQQKExhJbnRlcm5ldCBXaWRnaXRzIFB0eSBMdGQxEDAOBgNVBAMT
+-B2ludGVyQ0EwggEiMA0GCSqGSIb3DQEBAQUAA4IBDwAwggEKAoIBAQC7s0ejvpQO
+-nvfwD+e4R+9WQovtrsqOTw8khiREqi5JlmAFbpDEFam18npRkt6gOcGMnjuFzuz6
+-iEuQmeeyh0BqWAwpMgWMMteEzLOAaqkEl//J2+WgRbA/8pmwHfbPW/d+f3bp64Fo
+-D1hQAenBzXmLxVohEQ9BA+xEDRkL/cA3Y+k/O1C9ORhSQrJNsB9aE3zKbFHd9mOm
+-H4aNSsF8On3SqlRVOCQine5c6ACSd0HUEjYy9aObqY47ySNULbzVq5y6VOjMs0W+
+-2G/XqrcVkxzf9bVqyVBrrAJrnb35/y/iK0zWgJBP+HXhwr5mMTvNuEirBeVYuz+6
+-hUerUbuJhr0FAgMBAAGjUDBOMAwGA1UdEwQFMAMBAf8wHQYDVR0OBBYEFBj61iO5
+-j11dE30+j6iRx9lhwBcuMB8GA1UdIwQYMBaAFIVWiTXinwAa4YYDC0uvdhJrM239
+-MA0GCSqGSIb3DQEBCwUAA4IBAQDAU0MvL/yZpmibhxUsoSsa97UJbejn5IbxpPzZ
+-4WHw8lsoUGs12ZHzQJ9LxkZVeuccFXy9yFEHW56GTlkBmD2qrddlmQCfQ3m8jtZ9
+-Hh5feKAyrqfmfsWF5QPjAmdj/MFdq+yMJVosDftkmUmaBHjzbvbcq1sWh/6drH8U
+-7pdYRpfeEY8dHSU6FHwVN/H8VaBB7vYYc2wXwtk8On7z2ocIVHn9RPkcLwmwJjb/
+-e4jmcYiyZev22KXQudeHc4w6crWiEFkVspomn5PqDmza3rkdB3baXFVZ6sd23ufU
+-wjkiKKtwRBwU+5tCCagQZoeQ5dZXQThkiH2XEIOCOLxyD/tb
+------END CERTIFICATE-----
+diff --git a/test/recipes/80-test_cmp_http_data/Mock/issuing_expired.crt b/test/recipes/80-test_cmp_http_data/Mock/issuing_expired.crt
+new file mode 100644
+index 0000000000..c2168edda0
+--- /dev/null
++++ b/test/recipes/80-test_cmp_http_data/Mock/issuing_expired.crt
+@@ -0,0 +1,22 @@
++-----BEGIN CERTIFICATE-----
++MIIDjzCCAnegAwIBAgIUdQqeLAGVa/bud7qeTcfwfhpeKdQwDQYJKoZIhvcNAQEL
++BQAwVzELMAkGA1UEBhMCQVUxEzARBgNVBAgTClNvbWUtU3RhdGUxITAfBgNVBAoT
++GEludGVybmV0IFdpZGdpdHMgUHR5IEx0ZDEQMA4GA1UEAxMHaW50ZXJDQTAeFw0y
++MzAxMjcxNzUyMzhaFw0yMzAxMjYxNzUyMzhaMFoxCzAJBgNVBAYTAkFVMRMwEQYD
++VQQIDApTb21lLVN0YXRlMSEwHwYDVQQKDBhJbnRlcm5ldCBXaWRnaXRzIFB0eSBM
++dGQxEzARBgNVBAMMCnN1YmludGVyQ0EwggEiMA0GCSqGSIb3DQEBAQUAA4IBDwAw
++ggEKAoIBAQD/NCO+FtTtFYOxFoSRVQFlZH8+pnj0agT2nc7JE3imS3VzXJvYBFWR
++hk/l72AdvTjA9XPb4VjL7aY2SX64BltwrnDl9Y7dYkgSfnuF7gyRa7d7DWcl5K/e
++dryDI6gKF4briRZVsDZgv3aZHtChIKjhI/tGbKQuvCPpOUPGqAfoPEpIP8Kl0IcT
++cMoDMCKuLcZVz3Q4kCzNgeWN7j+ZpUg5rIZE5URPfFrlxu1EmXwgGCaqEzLC3PiG
++Fj9dlO90Sfb3RovznseTsmOiADuYsqLTvIrOSczEdX6TolfvEkS22Rw1BEUc41Zk
++bVPiZFjUOuHpVskZv7QY0iV00tCqKCR/AgMBAAGjUDBOMAwGA1UdEwQFMAMBAf8w
++HQYDVR0OBBYEFOlnfRB0wZquuEw/CT4ccBXdHxpPMB8GA1UdIwQYMBaAFBj61iO5
++j11dE30+j6iRx9lhwBcuMA0GCSqGSIb3DQEBCwUAA4IBAQAb20F/gBkHu8E7Jg1e
++dhRBia9GaXARuKidZ0D9OnT0eYpY4TjpMli21avVJF+eNOBvEGdlVaYdnUKGkyk4
++8mjPq0vZj1ikK2CBprhv08/Lqxt2aDBsGZ14LbP2BAvckiFBDmBcD+AClmnuTIOI
++O/3v5IwQCNQF6duBp3T7RbfY2ACg7TNf405atmfmrJcVOtLNbDYvUhUuK7W9wiRX
++nKnWsrThw7pCTp/ZAOnH5L5/rcoys28hOXm+GAlQaIDsg9NXcNtUJvjaLQTNib7c
++iFCIUsQB7u8+hUJOZR/mIFPgh3M+amCaTTCihQzlUx/aJV3yovw+oVt06esoZBKd
++poqi
++-----END CERTIFICATE-----
+diff --git a/test/recipes/80-test_cmp_http_data/Mock/root_expired.crt b/test/recipes/80-test_cmp_http_data/Mock/root_expired.crt
+new file mode 100644
+index 0000000000..f3939af290
+--- /dev/null
++++ b/test/recipes/80-test_cmp_http_data/Mock/root_expired.crt
+@@ -0,0 +1,21 @@
++-----BEGIN CERTIFICATE-----
++MIIDaTCCAlGgAwIBAgIUBUv9qdSv5TiDPA9vqqcKeo5H4SUwDQYJKoZIhvcNAQEL
++BQAwVjELMAkGA1UEBhMCQVUxEzARBgNVBAgMClNvbWUtU3RhdGUxITAfBgNVBAoM
++GEludGVybmV0IFdpZGdpdHMgUHR5IEx0ZDEPMA0GA1UEAwwGcm9vdENBMB4XDTIz
++MDEyNzE4MjgxOVoXDTIzMDEyNjE4MjgxOVowVjELMAkGA1UEBhMCQVUxEzARBgNV
++BAgMClNvbWUtU3RhdGUxITAfBgNVBAoMGEludGVybmV0IFdpZGdpdHMgUHR5IEx0
++ZDEPMA0GA1UEAwwGcm9vdENBMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKC
++AQEAwPFrd4isNd/7c1MvkoAvdBYyTfUQIG9sOo7R3GvhLj7DBA+/m8TJEtHkC0WX
++5QbNZjrh4OIr36LE7HvTPTyK/150oKunA2oWW16SxH5beYpp1LyDXq5CknSlK+cA
++wanc1bFTBw9z946tFD4lnuUe5syRzZUMgEQgw/0Xz5E9YxAcFFv7w6jBiLJ3/5zb
++/GpERET3hewILNTfgaN5yf4em5MWU7eXq75PGqXi+kYF5A2cKqTMuR4hoGzEq1mw
++QDm7+Yit/d+NtAuvfkHgITzIM0VJhC+TBu79T+1P87yb3vwlXlXVddTFezpANQaf
++xIS0bJMMrzdar7ZBTSYjHLgCswIDAQABoy8wLTAMBgNVHRMEBTADAQH/MB0GA1Ud
++DgQWBBSFVok14p8AGuGGAwtLr3YSazNt/TANBgkqhkiG9w0BAQsFAAOCAQEAVvAx
++iBaBKxY/oN48TSbu4yUJeb9scFqBwto0SdCKPie4y17fgcssmcxfU0+/RV/NeQhN
++JxNDWnTOsAd9HGPeOYPYwNLv8fb0psZ2B+EM+k3WZRLiFrzKw+qWcl1koyqVAjRg
++RNpAH/vcDK5MMBxYjLuAsdvTMVjlXVjmguCNhaFQbm4FY7aU61G+okaAsY73bpwJ
++pA9aHFVYQj+nlA+EfVP2UFYNWi5qBkL1+iSZspl2iK9c99174BA+nYiEma1ihAXG
++tN/v3L8jccZoZTSpDdIykqRLW78JOnUx34lQS4DFCFn5LPnVDQZM3bN3PlLHthbC
++hMlygwUn44JvTKI50w==
++-----END CERTIFICATE-----
+diff --git a/test/recipes/80-test_cmp_http_data/Mock/server.crt b/test/recipes/80-test_cmp_http_data/Mock/server.crt
+index 31d9cc9c09..07eab2e63b 100644
+--- a/test/recipes/80-test_cmp_http_data/Mock/server.crt
++++ b/test/recipes/80-test_cmp_http_data/Mock/server.crt
+@@ -1,19 +1,24 @@
+-        Subject: O = openssl_cmp
+-        Issuer: O = openssl_cmp
++        Issuer: CN=Root CA
++        Validity
++            Not Before: Jan 14 22:29:46 2016 GMT
++            Not After : Jan 15 22:29:46 2116 GMT
++        Subject: CN=server.example
+ -----BEGIN CERTIFICATE-----
+-MIICpTCCAY2gAwIBAgIBATANBgkqhkiG9w0BAQUFADAWMRQwEgYDVQQKDAtvcGVu
+-c3NsX2NtcDAeFw0xNzEyMjAxMzA0MDBaFw0xODEyMjAxMzA0MDBaMBYxFDASBgNV
+-BAoMC29wZW5zc2xfY21wMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA
+-4ckRrH0UWmIJFj99kBqvCipGjJRAaPkdvWjdDQLglTpI3eZAJHnq0ypW/PZccrWj
+-o7mxuvAStEYWF+5Jx6ZFmAsC1K0NNebSAZQoLWYZqiOzkfVVpLicMnItNFElfCoh
+-BzPCYmF5UlC5yp9PSUEfNwPJqDIRMtw+IlVUV3AJw9TJ3uuWq/vWW9r96/gBKKdd
+-mj/q2gGT8RC6LxEaolTbhfPbHaA1DFpv1WQFb3oAV3Wq14SOZf9bH1olBVsmBMsU
+-shFEw5MXVrNCv2moM4HtITMyjvZe7eIwHzSzf6dvQjERG6GvZ/i5KOhaqgJCnRKd
+-HHzijz9cLec5p9NSOuC1OwIDAQABMA0GCSqGSIb3DQEBBQUAA4IBAQDGUXpFCBkV
+-WgPrBfZyBwt6VCjWB/e67q4IdcKMfDa4hwSquah1AyXHI0PlC/qitnoSx2+7f7pY
+-TEOay/3eEPUl1J5tdPF2Vg56Dw8jdhSkMwO7bXKDEE3R6o6jaa4ECgxwQtdGHmNU
+-A41PgKX76yEXku803ptO39/UR7i7Ye3MbyAmWE+PvixJYUbxd3fqz5fsaJqTCzAy
+-AT9hrr4uu8J7m3LYaYXo4LVL4jw5UsP5bIYtpmmEBfy9GhpUqH5/LzBNij7y3ziE
+-T59wHkzawAQDHsBPuCe07DFtlzqWWvaih0TQAw9MZ2tbyK9jt7P80Rqt9CwpM/i9
+-jQYqSl/ix5hn
++MIIDJTCCAg2gAwIBAgIBAjANBgkqhkiG9w0BAQsFADASMRAwDgYDVQQDDAdSb290
++IENBMCAXDTE2MDExNDIyMjk0NloYDzIxMTYwMTE1MjIyOTQ2WjAZMRcwFQYDVQQD
++DA5zZXJ2ZXIuZXhhbXBsZTCCASIwDQYJKoZIhvcNAQEBBQADggEPADCCAQoCggEB
++ANVdYGrf/GHuSKqMEUhDpW22Ul2qmEmxYZI1sfw6BCUMbXn/tNXJ6VwcO+Crs7h9
++o95tveDd11q/FEcRQl6mgtBhwX/dE0bmCYUHDvLU/Bpk0gqtIKsga5bwrczEGVNV
++3AEdpLPvirRJU12KBRzx3OFEv8XX4ncZV1yXC3XuiENxD8pswbSyUKd3RmxYDxG/
++8XYkWq45QrdRZynh0FUwbxfkkeqt+CjCQ2+iZKn7nZiSYkg+6w1PgkqK/z9y7pa1
++rqHBmLrvfZB1bf9aUp6r9cB+0IdD24UHBw99OHr90dPuZR3T6jlqhzfuStPgDW71
++cKzCvfFu85KVXqnwoWWVk40CAwEAAaN9MHswHQYDVR0OBBYEFMDnhL/oWSczELBS
++T1FSLwbWwHrNMB8GA1UdIwQYMBaAFHB/Lq6DaFmYBCMqzes+F80k3QFJMAkGA1Ud
++EwQCMAAwEwYDVR0lBAwwCgYIKwYBBQUHAwEwGQYDVR0RBBIwEIIOc2VydmVyLmV4
++YW1wbGUwDQYJKoZIhvcNAQELBQADggEBAHvTBEN1ig8RrsT716Ginv4gGNX0LzGI
++RrZ1jO7lm5emuaPNYJpGw0iX5Zdo91qGNXPZaZ75X3S55pQTActq3OPEBOll2pyk
++iyjz+Zp/v5cfRZLlBbFW5gv2R94eibYr4U3fSn4B0yPcl4xH/l/HzJhGDsSDW8qK
++8VIJvmvsPwmL0JMCv+FR59F+NFYZdND/KCXet59WUpF9ICmFCoBEX3EyJXEPwhbi
++X2sdPzJbCjx0HLli8e0HUKNttLQxCsBTRGo6iISLLamwN47mGDa9miBADwGSiz2q
++YeeuLO02zToHhnQ6KbPXOrQAqcL1kngO4g+j/ru+4AZThFkdkGnltvk=
+ -----END CERTIFICATE-----
+diff --git a/test/recipes/80-test_cmp_http_data/Mock/server.key b/test/recipes/80-test_cmp_http_data/Mock/server.key
+index 2324266798..0d7e4049fd 100644
+--- a/test/recipes/80-test_cmp_http_data/Mock/server.key
++++ b/test/recipes/80-test_cmp_http_data/Mock/server.key
+@@ -1,27 +1,28 @@
+------BEGIN RSA PRIVATE KEY-----
+-MIIEowIBAAKCAQEA4ckRrH0UWmIJFj99kBqvCipGjJRAaPkdvWjdDQLglTpI3eZA
+-JHnq0ypW/PZccrWjo7mxuvAStEYWF+5Jx6ZFmAsC1K0NNebSAZQoLWYZqiOzkfVV
+-pLicMnItNFElfCohBzPCYmF5UlC5yp9PSUEfNwPJqDIRMtw+IlVUV3AJw9TJ3uuW
+-q/vWW9r96/gBKKddmj/q2gGT8RC6LxEaolTbhfPbHaA1DFpv1WQFb3oAV3Wq14SO
+-Zf9bH1olBVsmBMsUshFEw5MXVrNCv2moM4HtITMyjvZe7eIwHzSzf6dvQjERG6Gv
+-Z/i5KOhaqgJCnRKdHHzijz9cLec5p9NSOuC1OwIDAQABAoIBAGiYVO+rIfqc38jG
+-sMxJED2NSBFnvE7k2LoeEgktBA0daxQgziYXtIkOXC3jkwAw1RXLuGH5RTDuJt3/
+-LX6nsCW3NCCB6lTGERNaJyKg4dLHpzA+juY3/2P/MKHD1bGncpV7jNk2fpV7gBY1
+-pu0wld1Oi+S3DPCaxs3w6Zl39Y4Z7oSNf6DRO5lGN3Asc8TSVjIOWpAl8LIg+P2B
+-ZvFeHRANVXaV9YmF2uEi7iMgH4vGrK2svsmM9VThVO4ArGcTRTvGYn7aw3/H4Pt+
+-lYuhERdpkKBT0tCgIpO5IJXMl4/5RSDTtcBwiJcReN5IHUAItBIPSHcMflNSKG/I
+-aQf4u0ECgYEA8+PAyzn096Y2UrKzE75yuadCveLjsUWx2NN5ZMohQru99F4k7Pab
+-/Te4qOe5zlxHAPK3LRwvbwUWo5mLfs45wFrSgZoRlYcCuL+JaX0y2oXMMF9E+UkY
+-tljMt/HpLo1SfSjN2Sae4LVhC7rWJ43LtyRepptzBPGqd26eLPGAMr8CgYEA7P8u
+-RGkMOrMzEKAb0A9smrzq2xW88T1VejqEt6R8mUcNt8PFHMgjuzVU4zDysrlb7G/0
+-VSkQWnJxBh1yNGc1Av7YgwicIgApr4ty0hZhLcnKX2VrNw+L/sSe/cnwVAc6RtPK
+-RR6xQubuLlrCGcbYXmyn5Jv+nlY0S3uCyDFHqIUCgYAwtpLxhJf7RwWeqva9wNJl
+-ZpUcHE9iPwtwxXx/tyfBjoI4Zv11HyS1BQYrJm2kXCYKeHBB4FlREXEeKDMGluZO
+-F1XocP+GIDtY71jg6xLXNtY76yt5pzH6ae4p53WtyKhrO1UyRFaDh3bkwuK3b8j6
+-wZbuLCpjGGn2BPAvBeWXPQKBgEewKN6op/pZmmi9Bay5/bAQ1TnQKYcPdnuyl9K0
+-/ruespeTsFw0bhqC11qhw8gsKZIri0z3TusNEwM2hQU08uQlEnkQcaoXQoTHOcQy
+-4NJo575Tf0r4ePBnqXA7VWcViJtEFTszPYtvLzz2VyBU9b4aP+73AN4EVW0/vx+v
+-SG3BAoGBAMzESFA2TXwUFmozK5zowIszc995Xqpi7mXKk77WESOpoS1dQ1wF1dSg
+-XOwxzFoYovLxcc1K9lqOrod8BV+qGuEfc/PIJ2aiXjvEDeZYX2eWaANNmj4OSLoJ
+-MNYj9tZxbq56slD7snf7AgUBnwKz0Pj6H6UsbE3gdJqZWCDyw/bB
+------END RSA PRIVATE KEY-----
++-----BEGIN PRIVATE KEY-----
++MIIEvgIBADANBgkqhkiG9w0BAQEFAASCBKgwggSkAgEAAoIBAQDVXWBq3/xh7kiq
++jBFIQ6VttlJdqphJsWGSNbH8OgQlDG15/7TVyelcHDvgq7O4faPebb3g3ddavxRH
++EUJepoLQYcF/3RNG5gmFBw7y1PwaZNIKrSCrIGuW8K3MxBlTVdwBHaSz74q0SVNd
++igUc8dzhRL/F1+J3GVdclwt17ohDcQ/KbMG0slCnd0ZsWA8Rv/F2JFquOUK3UWcp
++4dBVMG8X5JHqrfgowkNvomSp+52YkmJIPusNT4JKiv8/cu6Wta6hwZi6732QdW3/
++WlKeq/XAftCHQ9uFBwcPfTh6/dHT7mUd0+o5aoc37krT4A1u9XCswr3xbvOSlV6p
++8KFllZONAgMBAAECggEADLTt7A+A2Vg2jamf0dztejY0e42QWjstI2b9PZc67fXq
++gyx+WYkX07t+uWegYWliG/oPJ9guXiIpE/5sJHToL37S5kmFP2CtynVcJ4wVo4DD
++nY0n9+kLX0bgIuS+2V6wpoRcbbbjXM9NHrH8kfe5ftT4UtEDlLI2qLX6IcDd7p4u
++OYjILChR8GSGTw96yIy2Ws/1Uq9PMw64JoT4RcK5QqnkcPMDFRH1SeLOL+zXP2c4
++nEl9yOy3HauZKxwl/Ry/XK1s3DdjopIAU29ut+hAuMiTb06kzZnumL9NoplKoZtU
++otw/gVcCKhT+Ep+p6i8InLF0XEME8A0qUR0niWebgQKBgQD6vkxR49B8ZZQrzjw4
++XKs1lI9cP7cgPiuWlDHMNjYou3WbOaGrMeScvbB1Ldh9A8pjAhxlw8AaV/xs4qcA
++trmVmSISVMVyc1wSGlJXWi2nUzTNs9OE3vj22SyStihf8UUZtWwX2b5Y4JrYhA/V
+++ThGGqHR03oLNLShNLtJc2c7YQKBgQDZ1nkibEyrepexw/fnwkw61IJKq9wRIh1G
++PREakhbe9wU5ie0knuf9razt7awzQiwFmlixmWqsM7UEtLuXNnNPciwdrKhhbvrd
++vD/rkbIEHEPllIhFlDtOzn3hRBWTzWmXFjpou/2LvHTSbVis4IYVZymTp2jb1ZLs
++7VbiG9JTrQKBgQDc6n75g1szzpdehQT/r33U5j/syeJBUSU8NPMu9fB/sLHsgjlT
++SNEf2+y1QSBE/Or6kmiMrIv7advn30W+Vj9qc5HWTsPrk4HiHTjA553jl2alebN5
++lK4LZspjtIQcC8mS3goPdXPEgJdM/gWpwzr2YQ6DfOxBJT2j7n64NyoT4QKBgH7/
++yx+GhCx1DHtXBPDZFhg2TL+78lEK0oZgk9gp06up2CHzh44SFq6O0oLkTcCUk5Ww
++poTkLIy4mJBlzfgahp+KsK2cO46SZS9g0ONFzcMXt33hWpE2Gl2XhUwPpYTF/QlY
++rDTjZK5S8Mi9dzVSsNlJi7PJphiEK2R1+nFYRwcBAoGBANWoIG85jpXAOnq/Kcgx
++Rl3YivR0Ke6r1tFlP58rT7X3EkiboXyQl5vLIFCAwUte6RGrLl1dy3Qyh80B9ySL
++Jx6vj42CK7vgv6A96TuVYhnXTnEI6ZvwAQ2VGaw4BizhjALs/kdSE/og9aSCs3ws
++KQypwAFz0tbHxaNag/bSAN0J
++-----END PRIVATE KEY-----
+diff --git a/test/recipes/80-test_cmp_http_data/Mock/test.cnf b/test/recipes/80-test_cmp_http_data/Mock/test.cnf
+index 87dd575a8a..c680956613 100644
+--- a/test/recipes/80-test_cmp_http_data/Mock/test.cnf
++++ b/test/recipes/80-test_cmp_http_data/Mock/test.cnf
+@@ -15,7 +15,7 @@ policies = certificatePolicies
+ ############################# server configurations
+ 
+ [Mock] # the built-in OpenSSL CMP mock server
+-no_check_time = 1
++# no_check_time = 1
+ server_host = 127.0.0.1 # localhost
+ # server_port = 0 means that the port is determined by the server
+ server_port = 0
+@@ -24,9 +24,9 @@ server_cert = server.crt
+ server = $server_host:$server_port
+ server_path = pkix/
+ path = $server_path
+-ca_dn = /O=openssl_cmp
++ca_dn = /CN=Root CA
+ recipient = $ca_dn
+-server_dn = /O=openssl_cmp
++server_dn = /CN=server.example
+ expect_sender = $server_dn
+ subject = "/C=AU/ST=Some-State/O=Internet Widgits Pty Ltd/CN=leaf"
+ newkey = signer.key
+diff --git a/test/recipes/80-test_cmp_http_data/Mock/trusted.crt b/test/recipes/80-test_cmp_http_data/Mock/trusted.crt
+index 31d9cc9c09..23406e998d 100644
+--- a/test/recipes/80-test_cmp_http_data/Mock/trusted.crt
++++ b/test/recipes/80-test_cmp_http_data/Mock/trusted.crt
+@@ -1,19 +1,23 @@
+-        Subject: O = openssl_cmp
+-        Issuer: O = openssl_cmp
++        Issuer: CN=Root CA
++        Validity
++            Not Before: Jan 14 22:29:05 2016 GMT
++            Not After : Jan 15 22:29:05 2116 GMT
++        Subject: CN=Root CA
+ -----BEGIN CERTIFICATE-----
+-MIICpTCCAY2gAwIBAgIBATANBgkqhkiG9w0BAQUFADAWMRQwEgYDVQQKDAtvcGVu
+-c3NsX2NtcDAeFw0xNzEyMjAxMzA0MDBaFw0xODEyMjAxMzA0MDBaMBYxFDASBgNV
+-BAoMC29wZW5zc2xfY21wMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA
+-4ckRrH0UWmIJFj99kBqvCipGjJRAaPkdvWjdDQLglTpI3eZAJHnq0ypW/PZccrWj
+-o7mxuvAStEYWF+5Jx6ZFmAsC1K0NNebSAZQoLWYZqiOzkfVVpLicMnItNFElfCoh
+-BzPCYmF5UlC5yp9PSUEfNwPJqDIRMtw+IlVUV3AJw9TJ3uuWq/vWW9r96/gBKKdd
+-mj/q2gGT8RC6LxEaolTbhfPbHaA1DFpv1WQFb3oAV3Wq14SOZf9bH1olBVsmBMsU
+-shFEw5MXVrNCv2moM4HtITMyjvZe7eIwHzSzf6dvQjERG6GvZ/i5KOhaqgJCnRKd
+-HHzijz9cLec5p9NSOuC1OwIDAQABMA0GCSqGSIb3DQEBBQUAA4IBAQDGUXpFCBkV
+-WgPrBfZyBwt6VCjWB/e67q4IdcKMfDa4hwSquah1AyXHI0PlC/qitnoSx2+7f7pY
+-TEOay/3eEPUl1J5tdPF2Vg56Dw8jdhSkMwO7bXKDEE3R6o6jaa4ECgxwQtdGHmNU
+-A41PgKX76yEXku803ptO39/UR7i7Ye3MbyAmWE+PvixJYUbxd3fqz5fsaJqTCzAy
+-AT9hrr4uu8J7m3LYaYXo4LVL4jw5UsP5bIYtpmmEBfy9GhpUqH5/LzBNij7y3ziE
+-T59wHkzawAQDHsBPuCe07DFtlzqWWvaih0TQAw9MZ2tbyK9jt7P80Rqt9CwpM/i9
+-jQYqSl/ix5hn
++MIIC8TCCAdmgAwIBAgIBATANBgkqhkiG9w0BAQsFADASMRAwDgYDVQQDDAdSb290
++IENBMCAXDTE2MDExNDIyMjkwNVoYDzIxMTYwMTE1MjIyOTA1WjASMRAwDgYDVQQD
++DAdSb290IENBMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAv5oV1s3N
++us7SINg7omu5AxueEgK97mh5PU3hgZpliSFaESmL2qLGeP609oXs/68XDXVW4utU
++LCOjLh0np+5Xy3i3GRDXgBZ72QDe23WqqQqqaBlQVVm1WxG+amRtZJEWdSIsiFBt
++k+8dBElHh2WQDhDOWqHGHQarQgJPxGB97MRhMSlbTwK1T5KAWOlqi5mJW5L6vNrQ
++7Tra/YceH70fU0fJYOXhBxM92NwD1bbVd9GPYFSqrdrVj19bvo63XsxZduex5QHr
++RkWqT5w5mgAHaEgCqWrS/64q9TR9UEwrB8kiZZg3k9/im+zBwEULTZu0r8oMEkpj
++bTlXLmt8EMBqxwIDAQABo1AwTjAdBgNVHQ4EFgQUcH8uroNoWZgEIyrN6z4XzSTd
++AUkwHwYDVR0jBBgwFoAUcH8uroNoWZgEIyrN6z4XzSTdAUkwDAYDVR0TBAUwAwEB
++/zANBgkqhkiG9w0BAQsFAAOCAQEAuiLq2lhcOJHrwUP0txbHk2vy6rmGTPxqmcCo
++CUQFZ3KrvUQM+rtRqqQ0+LzU4wSTFogBz9KSMfT03gPegY3b/7L2TOaMmUFRzTdd
++c9PNT0lP8V3pNQrxp0IjKir791QkGe2Ux45iMKf/SXpeTWASp4zeMiD6/LXFzzaK
++BfNS5IrIWRDev41lFasDzudK5/kmVaMvDOFyW51KkKkqb64VS4UA81JIEzClvz+3
++Vp3k1AXup5+XnTvhqu2nRhrLpJR5w8OXQpcn6qjKlVc2BXtb3xwci1/ibHlZy3CZ
++n70e2NYihU5yYKccReP+fjLgVFsuhsDs/0hRML1u9bLp9nUbYA==
+ -----END CERTIFICATE-----
+diff --git a/test/recipes/80-test_cmp_http_data/test_enrollment.csv b/test/recipes/80-test_cmp_http_data/test_enrollment.csv
+index 358521de28..ed05733920 100644
+--- a/test/recipes/80-test_cmp_http_data/test_enrollment.csv
++++ b/test/recipes/80-test_cmp_http_data/test_enrollment.csv
+@@ -73,7 +73,9 @@ expected,description, -section,val, -cmd,val, -newkey,val,val, -newkeypass,val,
+ 0,out_trusted is directory, -section,, -cmd,ir, -newkey,new.key,, -newkeypass,pass:,,,BLANK,,BLANK,,BLANK,,BLANK,,BLANK,,BLANK,,BLANK,,BLANK,, -certout,_RESULT_DIR/test.certout_out_trusted2.pem,, -out_trusted,dir/,,BLANK,,BLANK,,,
+ 0,out_trusted too many parameters, -section,, -cmd,ir, -newkey,new.key,, -newkeypass,pass:,,,BLANK,,BLANK,,BLANK,,BLANK,,BLANK,,BLANK,,BLANK,,BLANK,, -certout,_RESULT_DIR/test.certout_out_trusted3.pem,, -out_trusted,abc,def,BLANK,,BLANK,,,
+ 0,out_trusted empty certificate file, -section,, -cmd,ir, -newkey,new.key,, -newkeypass,pass:,,,BLANK,,BLANK,,BLANK,,BLANK,,BLANK,,BLANK,,BLANK,,BLANK,, -certout,_RESULT_DIR/test.certout_out_trusted4.pem,, -out_trusted,empty.txt,,BLANK,,BLANK,,,
+-0,out_trusted expired ca certificate, -section,, -cmd,ir, -newkey,new.key,, -newkeypass,pass:,,,BLANK,,BLANK,,BLANK,,BLANK,,BLANK,,BLANK,,BLANK,,BLANK,, -certout,_RESULT_DIR/test.certout_out_trusted5.pem,, -out_trusted,root_expired.crt,,BLANK,,BLANK,,,
++1,out_trusted accept issuing ca cert even with CRL check enabled by default, -section,, -cmd,ir, -newkey,new.key,, -newkeypass,pass:,,,BLANK,,BLANK,,BLANK,,BLANK,,BLANK,,BLANK,,BLANK,,BLANK,, -certout,_RESULT_DIR/test.certout_out_trusted5.pem,, -out_trusted,issuing.crt,,BLANK,,BLANK,,,-partial_chain,-crl_check,-srvcert,server.crt
++0,out_trusted expired issuing ca cert, -section,, -cmd,ir, -newkey,new.key,, -newkeypass,pass:,,,BLANK,,BLANK,,BLANK,,BLANK,,BLANK,,BLANK,,BLANK,,BLANK,, -certout,_RESULT_DIR/test.certout_out_trusted5.pem,, -out_trusted,issuing_expired.crt,,BLANK,,BLANK,,,-partial_chain
++0,out_trusted expired root ca cert, -section,, -cmd,ir, -newkey,new.key,, -newkeypass,pass:,,,BLANK,,BLANK,,BLANK,,BLANK,,BLANK,,BLANK,,BLANK,,BLANK,, -certout,_RESULT_DIR/test.certout_out_trusted5.pem,, -out_trusted,root_expired.crt,,BLANK,,BLANK,,,
+ 0,out_trusted wrong ca, -section,, -cmd,ir, -newkey,new.key,, -newkeypass,pass:,,,BLANK,,BLANK,,BLANK,,BLANK,,BLANK,,BLANK,,BLANK,,BLANK,, -certout,_RESULT_DIR/test.certout_out_trusted6.pem,, -out_trusted,signer.crt,,BLANK,,BLANK,,,
+ 0,out_trusted random input, -section,, -cmd,ir, -newkey,new.key,, -newkeypass,pass:,,,BLANK,,BLANK,,BLANK,,BLANK,,BLANK,,BLANK,,BLANK,,BLANK,, -certout,_RESULT_DIR/test.certout_out_trusted7.pem,, -out_trusted,random.bin,,BLANK,,BLANK,,,
+ ,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,
+-- 
+2.34.1
+

@@ -1,0 +1,36 @@
+From 9c2c763fc34d39c6fc156e0bd1a18eb3219ca932 Mon Sep 17 00:00:00 2001
+From: ndossche <niels.dossche@ugent.be>
+Date: Thu, 9 Feb 2023 09:49:47 +0100
+Subject: [PATCH 040/381] Fix incomplete error check on RSA_public_decrypt()
+
+According to the documentation and my analysis tool RSA_public_decrypt()
+can return -1 on error, but this is not checked. Fix it by changing the
+error condition.
+
+CLA: trivial
+
+Reviewed-by: Tomas Mraz <tomas@openssl.org>
+Reviewed-by: Paul Dale <pauli@openssl.org>
+(Merged from https://github.com/openssl/openssl/pull/20250)
+
+(cherry picked from commit 8195e59986031f6f33e2569551d771904433fa04)
+---
+ providers/implementations/signature/rsa_sig.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/providers/implementations/signature/rsa_sig.c b/providers/implementations/signature/rsa_sig.c
+index 7023a86613..6fa9db38db 100644
+--- a/providers/implementations/signature/rsa_sig.c
++++ b/providers/implementations/signature/rsa_sig.c
+@@ -827,7 +827,7 @@ static int rsa_verify(void *vprsactx, const unsigned char *sig, size_t siglen,
+             return 0;
+         rslen = RSA_public_decrypt(siglen, sig, prsactx->tbuf, prsactx->rsa,
+                                    prsactx->pad_mode);
+-        if (rslen == 0) {
++        if (rslen <= 0) {
+             ERR_raise(ERR_LIB_PROV, ERR_R_RSA_LIB);
+             return 0;
+         }
+-- 
+2.34.1
+

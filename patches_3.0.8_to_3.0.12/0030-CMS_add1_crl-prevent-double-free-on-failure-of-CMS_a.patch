@@ -1,0 +1,39 @@
+From 416e155a21ba188fcd88f2e32318886b19f8b311 Mon Sep 17 00:00:00 2001
+From: "Dr. David von Oheimb" <David.von.Oheimb@siemens.com>
+Date: Fri, 10 Feb 2023 09:53:43 +0100
+Subject: [PATCH 030/381] CMS_add1_crl(): prevent double free on failure of
+ CMS_add0_crl()
+
+Reviewed-by: Paul Dale <pauli@openssl.org>
+Reviewed-by: Hugo Landau <hlandau@openssl.org>
+Reviewed-by: David von Oheimb <david.von.oheimb@siemens.com>
+(Merged from https://github.com/openssl/openssl/pull/20275)
+---
+ crypto/cms/cms_lib.c | 11 ++++++-----
+ 1 file changed, 6 insertions(+), 5 deletions(-)
+
+diff --git a/crypto/cms/cms_lib.c b/crypto/cms/cms_lib.c
+index a2b9e9127e..d74c96110d 100644
+--- a/crypto/cms/cms_lib.c
++++ b/crypto/cms/cms_lib.c
+@@ -615,11 +615,12 @@ int CMS_add0_crl(CMS_ContentInfo *cms, X509_CRL *crl)
+ 
+ int CMS_add1_crl(CMS_ContentInfo *cms, X509_CRL *crl)
+ {
+-    int r;
+-    r = CMS_add0_crl(cms, crl);
+-    if (r > 0)
+-        X509_CRL_up_ref(crl);
+-    return r;
++    if (!X509_CRL_up_ref(crl))
++        return 0;
++    if (CMS_add0_crl(cms, crl))
++        return 1;
++    X509_CRL_free(crl);
++    return 0;
+ }
+ 
+ STACK_OF(X509) *CMS_get1_certs(CMS_ContentInfo *cms)
+-- 
+2.34.1
+

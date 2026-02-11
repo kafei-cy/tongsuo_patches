@@ -1,0 +1,44 @@
+From 2822a88d1e69d5007063cb8032d559f7ab05d39f Mon Sep 17 00:00:00 2001
+From: Tomas Mraz <tomas@openssl.org>
+Date: Wed, 8 Feb 2023 08:47:15 +0100
+Subject: [PATCH 013/381] Correct a copy&paste error in a link URL
+
+Reviewed-by: Matt Caswell <matt@openssl.org>
+Reviewed-by: Paul Dale <pauli@openssl.org>
+(Merged from https://github.com/openssl/openssl/pull/20228)
+
+(cherry picked from commit 1472127d9d6bc4866ab26b503e0d5937b40dca37)
+---
+ CHANGES.md | 2 +-
+ NEWS.md    | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/CHANGES.md b/CHANGES.md
+index 0e4fdebfde..2ba422c09a 100644
+--- a/CHANGES.md
++++ b/CHANGES.md
+@@ -19592,7 +19592,7 @@ ndif
+ [CVE-2022-4203]: https://www.openssl.org/news/vulnerabilities.html#CVE-2022-4203
+ [CVE-2022-3996]: https://www.openssl.org/news/vulnerabilities.html#CVE-2022-3996
+ [CVE-2022-2274]: https://www.openssl.org/news/vulnerabilities.html#CVE-2022-2274
+-[CVE-2022-2097]: https://www.openssl.org/news/vulnerabilities.html#CVE-2022-2274
++[CVE-2022-2097]: https://www.openssl.org/news/vulnerabilities.html#CVE-2022-2097
+ [CVE-2020-1971]: https://www.openssl.org/news/vulnerabilities.html#CVE-2020-1971
+ [CVE-2020-1967]: https://www.openssl.org/news/vulnerabilities.html#CVE-2020-1967
+ [CVE-2019-1563]: https://www.openssl.org/news/vulnerabilities.html#CVE-2019-1563
+diff --git a/NEWS.md b/NEWS.md
+index e7a23e908c..c6e4926bd5 100644
+--- a/NEWS.md
++++ b/NEWS.md
+@@ -1444,7 +1444,7 @@ OpenSSL 0.9.x
+ [CVE-2022-4203]: https://www.openssl.org/news/vulnerabilities.html#CVE-2022-4203
+ [CVE-2022-3996]: https://www.openssl.org/news/vulnerabilities.html#CVE-2022-3996
+ [CVE-2022-2274]: https://www.openssl.org/news/vulnerabilities.html#CVE-2022-2274
+-[CVE-2022-2097]: https://www.openssl.org/news/vulnerabilities.html#CVE-2022-2274
++[CVE-2022-2097]: https://www.openssl.org/news/vulnerabilities.html#CVE-2022-2097
+ [CVE-2020-1971]: https://www.openssl.org/news/vulnerabilities.html#CVE-2020-1971
+ [CVE-2020-1967]: https://www.openssl.org/news/vulnerabilities.html#CVE-2020-1967
+ [CVE-2019-1563]: https://www.openssl.org/news/vulnerabilities.html#CVE-2019-1563
+-- 
+2.34.1
+

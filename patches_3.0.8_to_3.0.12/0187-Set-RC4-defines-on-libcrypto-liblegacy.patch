@@ -1,0 +1,54 @@
+From fce1cb15d8d3bddbd68d23eb206ef95f902778d9 Mon Sep 17 00:00:00 2001
+From: Tomas Mraz <tomas@openssl.org>
+Date: Thu, 8 Jun 2023 10:50:52 +0200
+Subject: [PATCH 187/381] Set RC4 defines on libcrypto/liblegacy
+
+Also add missing prototype for rc4_md5_enc.
+
+Fixes #21150
+
+Reviewed-by: Matt Caswell <matt@openssl.org>
+Reviewed-by: Paul Dale <pauli@openssl.org>
+(Merged from https://github.com/openssl/openssl/pull/21153)
+
+(cherry picked from commit 58e8af4cecd23dbea2e6b061ab68190b38d64145)
+---
+ crypto/rc4/build.info                                   | 7 ++++++-
+ providers/implementations/ciphers/cipher_rc4_hmac_md5.h | 3 +++
+ 2 files changed, 9 insertions(+), 1 deletion(-)
+
+diff --git a/crypto/rc4/build.info b/crypto/rc4/build.info
+index 68b3c73f55..c9c81f87da 100644
+--- a/crypto/rc4/build.info
++++ b/crypto/rc4/build.info
+@@ -21,10 +21,15 @@ SOURCE[../../libcrypto]=$RC4ASM
+ 
+ # When all deprecated symbols are removed, libcrypto doesn't export the
+ # rc4 functions, so we must include them directly in liblegacy.a
+-IF[{- $disabled{'deprecated-3.0'} && !$disabled{module} && !$disabled{shared} -}]
++IF[{- !$disabled{module} && !$disabled{shared} -}]
+   SOURCE[../../providers/liblegacy.a]=$RC4ASM
+ ENDIF
+ 
++# Implementations are now spread across several libraries, so the defines
++# need to be applied to all affected libraries and modules.
++DEFINE[../../libcrypto]=$RC4DEF
++DEFINE[../../providers/liblegacy.a]=$RC4DEF
++
+ GENERATE[rc4-586.S]=asm/rc4-586.pl
+ DEPEND[rc4-586.S]=../perlasm/x86asm.pl
+ 
+diff --git a/providers/implementations/ciphers/cipher_rc4_hmac_md5.h b/providers/implementations/ciphers/cipher_rc4_hmac_md5.h
+index 1697aabbf3..c79e5ad6df 100644
+--- a/providers/implementations/ciphers/cipher_rc4_hmac_md5.h
++++ b/providers/implementations/ciphers/cipher_rc4_hmac_md5.h
+@@ -31,3 +31,6 @@ typedef struct prov_cipher_hw_rc4_hmac_md5_st {
+ } PROV_CIPHER_HW_RC4_HMAC_MD5;
+ 
+ const PROV_CIPHER_HW *ossl_prov_cipher_hw_rc4_hmac_md5(size_t keybits);
++
++void rc4_md5_enc(RC4_KEY *key, const void *in0, void *out,
++                 MD5_CTX *ctx, const void *inp, size_t blocks);
+-- 
+2.34.1
+

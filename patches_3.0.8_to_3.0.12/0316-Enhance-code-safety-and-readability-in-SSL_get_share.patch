@@ -1,0 +1,58 @@
+From 36f1b6eada1a5a8e6f9665ec85c86db37733742a Mon Sep 17 00:00:00 2001
+From: Sumitra Sharma <sumitraartsy@gmail.com>
+Date: Tue, 12 Sep 2023 12:00:21 +0530
+Subject: [PATCH 316/381] Enhance code safety and readability in
+ SSL_get_shared_ciphers()
+
+This commit introduces two key improvements:
+
+1. Improve code safety by replacing the conditional statement with
+`if (n >= size)` and using OPENSSL_strnlen() instead of strlen().
+This change ensures proper buffer size handling and adheres to
+secure coding practices.
+
+2. Enhance code readability by substituting `strcpy(p, c->name)` with
+`memcpy(p, c->name, n)`. This adjustment prioritizes code clarity and
+maintenance, even while mitigating a minimal buffer overflow risk.
+
+These enhancements bolster the code's robustness and comprehensibility,
+aligning with secure coding principles and best practices.
+
+Fixes #19837
+
+Signed-off-by: Sumitra Sharma <sumitraartsy@gmail.com>
+
+Reviewed-by: Paul Dale <pauli@openssl.org>
+Reviewed-by: Tomas Mraz <tomas@openssl.org>
+(Merged from https://github.com/openssl/openssl/pull/21934)
+
+(cherry picked from commit 2743594d73e65c38375c619e89ec62579e2c24a9)
+---
+ ssl/ssl_lib.c | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/ssl/ssl_lib.c b/ssl/ssl_lib.c
+index e5310133c6..67c4359878 100644
+--- a/ssl/ssl_lib.c
++++ b/ssl/ssl_lib.c
+@@ -2809,14 +2809,14 @@ char *SSL_get_shared_ciphers(const SSL *s, char *buf, int size)
+         if (sk_SSL_CIPHER_find(srvrsk, c) < 0)
+             continue;
+ 
+-        n = strlen(c->name);
+-        if (n + 1 > size) {
++        n = OPENSSL_strnlen(c->name, size);
++        if (n >= size) {
+             if (p != buf)
+                 --p;
+             *p = '\0';
+             return buf;
+         }
+-        strcpy(p, c->name);
++        memcpy(p, c->name, n);
+         p += n;
+         *(p++) = ':';
+         size -= n + 1;
+-- 
+2.34.1
+

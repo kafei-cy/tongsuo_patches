@@ -1,0 +1,128 @@
+From 5e01ec3088ffb054393373ae2b3dc9b13878b6ce Mon Sep 17 00:00:00 2001
+From: "Matthias St. Pierre" <matthias.st.pierre@ncp-e.com>
+Date: Sun, 24 Sep 2023 01:13:20 +0200
+Subject: [PATCH 341/381] test: evp_extra: test signing with legacy app method
+ based keys
+
+This commit adds `test_EVP_PKEY_sign_with_app_method`, a regression
+test for the bug fix in commit 1acc3e8cc3c6 (pull request #22163).
+
+It is analogous to `test_EVP_PKEY_sign`, only with a fake app method
+based key. (The EC key test case was omitted, because there is no
+`EC_KEY_METHOD_dup` method.)
+
+Reviewed-by: Paul Dale <pauli@openssl.org>
+Reviewed-by: Tomas Mraz <tomas@openssl.org>
+(Merged from https://github.com/openssl/openssl/pull/22185)
+
+(cherry picked from commit 860e36d0dd72f4aa4791e88aa185cb42065a30c4)
+---
+ test/evp_extra_test.c | 85 +++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 85 insertions(+)
+
+diff --git a/test/evp_extra_test.c b/test/evp_extra_test.c
+index 4a10e7fb04..2899c69b19 100644
+--- a/test/evp_extra_test.c
++++ b/test/evp_extra_test.c
+@@ -1179,6 +1179,88 @@ static int test_EVP_PKEY_sign(int tst)
+     return ret;
+ }
+ 
++#ifndef OPENSSL_NO_DEPRECATED_3_0
++static int test_EVP_PKEY_sign_with_app_method(int tst)
++{
++    int ret = 0;
++    EVP_PKEY *pkey = NULL;
++    RSA *rsa = NULL;
++    RSA_METHOD *rsa_meth = NULL;
++#ifndef OPENSSL_NO_DSA
++    DSA *dsa = NULL;
++    DSA_METHOD *dsa_meth = NULL;
++#endif
++    unsigned char *sig = NULL;
++    size_t sig_len = 0, shortsig_len = 1;
++    EVP_PKEY_CTX *ctx = NULL;
++    unsigned char tbs[] = {
++        0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0a, 0x0b,
++        0x0c, 0x0d, 0x0e, 0x0f, 0x10, 0x11, 0x12, 0x13
++    };
++
++    if (tst == 0) {
++        if (!TEST_ptr(pkey = load_example_rsa_key()))
++            goto out;
++        if (!TEST_ptr(rsa_meth = RSA_meth_dup(RSA_get_default_method())))
++            goto out;
++
++        if (!TEST_ptr(rsa = EVP_PKEY_get1_RSA(pkey))
++            || !TEST_int_gt(RSA_set_method(rsa, rsa_meth), 0)
++            || !TEST_int_gt(EVP_PKEY_assign_RSA(pkey, rsa), 0))
++            goto out;
++        rsa = NULL; /* now owned by the pkey */
++    } else {
++#ifndef OPENSSL_NO_DSA
++        if (!TEST_ptr(pkey = load_example_dsa_key()))
++                goto out;
++        if (!TEST_ptr(dsa_meth = DSA_meth_dup(DSA_get_default_method())))
++            goto out;
++
++        if (!TEST_ptr(dsa = EVP_PKEY_get1_DSA(pkey))
++            || !TEST_int_gt(DSA_set_method(dsa, dsa_meth), 0)
++            || !TEST_int_gt(EVP_PKEY_assign_DSA(pkey, dsa), 0))
++            goto out;
++        dsa = NULL; /* now owned by the pkey */
++#else
++        ret = 1;
++        goto out;
++#endif
++    }
++
++    ctx = EVP_PKEY_CTX_new_from_pkey(testctx, pkey, NULL);
++    if (!TEST_ptr(ctx)
++            || !TEST_int_gt(EVP_PKEY_sign_init(ctx), 0)
++            || !TEST_int_gt(EVP_PKEY_sign(ctx, NULL, &sig_len, tbs,
++                                          sizeof(tbs)), 0))
++        goto out;
++    sig = OPENSSL_malloc(sig_len);
++    if (!TEST_ptr(sig)
++            /* Test sending a signature buffer that is too short is rejected */
++            || !TEST_int_le(EVP_PKEY_sign(ctx, sig, &shortsig_len, tbs,
++                                          sizeof(tbs)), 0)
++            || !TEST_int_gt(EVP_PKEY_sign(ctx, sig, &sig_len, tbs, sizeof(tbs)),
++                            0)
++            /* Test the signature round-trips */
++            || !TEST_int_gt(EVP_PKEY_verify_init(ctx), 0)
++            || !TEST_int_gt(EVP_PKEY_verify(ctx, sig, sig_len, tbs, sizeof(tbs)),
++                            0))
++        goto out;
++
++    ret = 1;
++ out:
++    EVP_PKEY_CTX_free(ctx);
++    OPENSSL_free(sig);
++    EVP_PKEY_free(pkey);
++    RSA_free(rsa);
++    RSA_meth_free(rsa_meth);
++#ifndef OPENSSL_NO_DSA
++    DSA_free(dsa);
++    DSA_meth_free(dsa_meth);
++#endif
++    return ret;
++}
++#endif /* !OPENSSL_NO_DEPRECATED_3_0 */
++
+ /*
+  * n = 0 => test using legacy cipher
+  * n = 1 => test using fetched cipher
+@@ -4771,6 +4853,9 @@ int setup_tests(void)
+     ADD_TEST(test_EVP_Digest);
+     ADD_TEST(test_EVP_md_null);
+     ADD_ALL_TESTS(test_EVP_PKEY_sign, 3);
++#ifndef OPENSSL_NO_DEPRECATED_3_0
++    ADD_ALL_TESTS(test_EVP_PKEY_sign_with_app_method, 2);
++#endif
+     ADD_ALL_TESTS(test_EVP_Enveloped, 2);
+     ADD_ALL_TESTS(test_d2i_AutoPrivateKey, OSSL_NELEM(keydata));
+     ADD_TEST(test_privatekey_to_pkcs8);
+-- 
+2.34.1
+

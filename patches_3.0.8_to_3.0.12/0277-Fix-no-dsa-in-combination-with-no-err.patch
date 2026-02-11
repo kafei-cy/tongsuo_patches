@@ -1,0 +1,32 @@
+From dd8243b3905b671b1702faf9b50bfa0b9203066a Mon Sep 17 00:00:00 2001
+From: Matt Caswell <matt@openssl.org>
+Date: Fri, 11 Aug 2023 09:42:36 +0100
+Subject: [PATCH 277/381] Fix no-dsa in combination with no-err
+
+Reviewed-by: Hugo Landau <hlandau@openssl.org>
+Reviewed-by: Tom Cosgrove <tom.cosgrove@arm.com>
+Reviewed-by: Tomas Mraz <tomas@openssl.org>
+(Merged from https://github.com/openssl/openssl/pull/21722)
+
+(cherry picked from commit 4efd84fdd648279367683b280c9d9feb2ba54e9e)
+---
+ test/recipes/30-test_evp.t | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/test/recipes/30-test_evp.t b/test/recipes/30-test_evp.t
+index 0a036b7da0..d4d26667c8 100644
+--- a/test/recipes/30-test_evp.t
++++ b/test/recipes/30-test_evp.t
+@@ -173,7 +173,8 @@ sub test_errors { # actually tests diagnostics of OSSL_STORE
+ }
+ 
+ SKIP: {
+-    skip "DSA not disabled", 2 if !disabled("dsa");
++    skip "DSA not disabled or ERR disabled", 2
++        if !disabled("dsa") || disabled("err");
+ 
+     ok(test_errors(key => 'server-dsa-key.pem',
+                    out => 'server-dsa-key.err'),
+-- 
+2.34.1
+

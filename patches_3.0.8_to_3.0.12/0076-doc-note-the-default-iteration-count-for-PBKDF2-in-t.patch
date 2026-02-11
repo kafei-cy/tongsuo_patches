@@ -1,0 +1,34 @@
+From c99da76fc8aa9738af425d762cb3a9d0c391cb7b Mon Sep 17 00:00:00 2001
+From: Pauli <pauli@openssl.org>
+Date: Thu, 9 Mar 2023 10:17:53 +1100
+Subject: [PATCH 076/381] doc: note the default iteration count for PBKDF2 in
+ the enc command
+
+Fixes #20466
+
+Reviewed-by: Tomas Mraz <tomas@openssl.org>
+Reviewed-by: Shane Lontis <shane.lontis@oracle.com>
+(Merged from https://github.com/openssl/openssl/pull/20471)
+
+(cherry picked from commit 6678b0868b7660177f8b5af299894e2e99330a21)
+---
+ doc/man1/openssl-enc.pod.in | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/doc/man1/openssl-enc.pod.in b/doc/man1/openssl-enc.pod.in
+index fdfa7f67d3..e6d5103bd9 100644
+--- a/doc/man1/openssl-enc.pod.in
++++ b/doc/man1/openssl-enc.pod.in
+@@ -129,7 +129,8 @@ This option enables the use of PBKDF2 algorithm to derive the key.
+ 
+ =item B<-pbkdf2>
+ 
+-Use PBKDF2 algorithm with default iteration count unless otherwise specified.
++Use PBKDF2 algorithm with a default iteration count of 10000
++unless otherwise specified by the B<-iter> command line option.
+ 
+ =item B<-nosalt>
+ 
+-- 
+2.34.1
+

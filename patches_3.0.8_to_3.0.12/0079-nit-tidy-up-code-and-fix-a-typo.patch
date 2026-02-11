@@ -1,0 +1,73 @@
+From a7f534925cb088e9aff287854636129fcb2c063e Mon Sep 17 00:00:00 2001
+From: FdaSilvaYY <fdasilvayy@gmail.com>
+Date: Fri, 10 Mar 2023 15:21:05 +0100
+Subject: [PATCH 079/381] nit: tidy-up code, and fix a typo.
+
+Reviewed-by: David von Oheimb <david.von.oheimb@siemens.com>
+Reviewed-by: Matthias St. Pierre <Matthias.St.Pierre@ncp-e.com>
+(Merged from https://github.com/openssl/openssl/pull/20436)
+
+(cherry picked from commit f42d6b7ae62a2b2914b144153af56096f9b4a6d5)
+---
+ crypto/cmp/cmp_ctx.c          | 4 ++--
+ doc/man3/OSSL_CMP_CTX_new.pod | 6 +++---
+ include/openssl/cmp.h.in      | 4 ++--
+ 3 files changed, 7 insertions(+), 7 deletions(-)
+
+diff --git a/crypto/cmp/cmp_ctx.c b/crypto/cmp/cmp_ctx.c
+index 4b610b746e..410fc0e999 100644
+--- a/crypto/cmp/cmp_ctx.c
++++ b/crypto/cmp/cmp_ctx.c
+@@ -457,8 +457,8 @@ int OSSL_CMP_CTX_set1_referenceValue(OSSL_CMP_CTX *ctx,
+ }
+ 
+ /* Set or clear the password to be used for protecting messages with PBMAC */
+-int OSSL_CMP_CTX_set1_secretValue(OSSL_CMP_CTX *ctx, const unsigned char *sec,
+-                                  const int len)
++int OSSL_CMP_CTX_set1_secretValue(OSSL_CMP_CTX *ctx,
++                                  const unsigned char *sec, int len)
+ {
+     ASN1_OCTET_STRING *secretValue = NULL;
+     if (ctx == NULL) {
+diff --git a/doc/man3/OSSL_CMP_CTX_new.pod b/doc/man3/OSSL_CMP_CTX_new.pod
+index ef5d6c8b5d..fb90437b97 100644
+--- a/doc/man3/OSSL_CMP_CTX_new.pod
++++ b/doc/man3/OSSL_CMP_CTX_new.pod
+@@ -111,8 +111,8 @@ OSSL_CMP_CTX_set1_senderNonce
+  int OSSL_CMP_CTX_set1_pkey(OSSL_CMP_CTX *ctx, EVP_PKEY *pkey);
+  int OSSL_CMP_CTX_set1_referenceValue(OSSL_CMP_CTX *ctx,
+                                       const unsigned char *ref, int len);
+- int OSSL_CMP_CTX_set1_secretValue(OSSL_CMP_CTX *ctx, const unsigned char *sec,
+-                                   const int len);
++ int OSSL_CMP_CTX_set1_secretValue(OSSL_CMP_CTX *ctx,
++                                   const unsigned char *sec, const int len);
+ 
+  /* CMP message header and extra certificates: */
+  int OSSL_CMP_CTX_set1_recipient(OSSL_CMP_CTX *ctx, const X509_NAME *name);
+@@ -464,7 +464,7 @@ OSSL_CMP_CTX_build_cert_chain() builds a certificate chain for the CMP signer
+ certificate previously set in the I<ctx>. It adds the optional I<candidates>,
+ a list of intermediate CA certs that may already constitute the targeted chain,
+ to the untrusted certs that may already exist in the I<ctx>.
+-Then the function uses this augumented set of certs for chain construction.
++Then the function uses this augmented set of certs for chain construction.
+ If I<own_trusted> is NULL it builds the chain as far down as possible and
+ ignores any verification errors. Else the CMP signer certificate must be
+ verifiable where the chain reaches a trust anchor contained in I<own_trusted>.
+diff --git a/include/openssl/cmp.h.in b/include/openssl/cmp.h.in
+index f05cb3e548..fda401127d 100644
+--- a/include/openssl/cmp.h.in
++++ b/include/openssl/cmp.h.in
+@@ -323,8 +323,8 @@ int OSSL_CMP_CTX_build_cert_chain(OSSL_CMP_CTX *ctx, X509_STORE *own_trusted,
+ int OSSL_CMP_CTX_set1_pkey(OSSL_CMP_CTX *ctx, EVP_PKEY *pkey);
+ int OSSL_CMP_CTX_set1_referenceValue(OSSL_CMP_CTX *ctx,
+                                      const unsigned char *ref, int len);
+-int OSSL_CMP_CTX_set1_secretValue(OSSL_CMP_CTX *ctx, const unsigned char *sec,
+-                                  const int len);
++int OSSL_CMP_CTX_set1_secretValue(OSSL_CMP_CTX *ctx,
++                                  const unsigned char *sec, const int len);
+ /* CMP message header and extra certificates: */
+ int OSSL_CMP_CTX_set1_recipient(OSSL_CMP_CTX *ctx, const X509_NAME *name);
+ int OSSL_CMP_CTX_push0_geninfo_ITAV(OSSL_CMP_CTX *ctx, OSSL_CMP_ITAV *itav);
+-- 
+2.34.1
+

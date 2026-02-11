@@ -1,0 +1,38 @@
+From cf011de133e4b85ebe3e99fd1d64d021b88e3cef Mon Sep 17 00:00:00 2001
+From: yangyangtiantianlonglong <yangtianlong1224@163.com>
+Date: Mon, 31 Jul 2023 07:04:41 -0700
+Subject: [PATCH 258/381] A null pointer dereference occurs when memory
+ allocation fails
+
+Fixes #21605
+
+Reviewed-by: Hugo Landau <hlandau@openssl.org>
+Reviewed-by: Matthias St. Pierre <Matthias.St.Pierre@ncp-e.com>
+Reviewed-by: Paul Dale <pauli@openssl.org>
+(Merged from https://github.com/openssl/openssl/pull/21606)
+
+(cherry picked from commit a8da305fa3dd6e34ba5aab3978281f652fd12883)
+---
+ ssl/ssl_sess.c | 5 ++++-
+ 1 file changed, 4 insertions(+), 1 deletion(-)
+
+diff --git a/ssl/ssl_sess.c b/ssl/ssl_sess.c
+index c322a11d9c..d836b33ed0 100644
+--- a/ssl/ssl_sess.c
++++ b/ssl/ssl_sess.c
+@@ -198,8 +198,11 @@ SSL_SESSION *ssl_session_dup(const SSL_SESSION *src, int ticket)
+     dest->references = 1;
+ 
+     dest->lock = CRYPTO_THREAD_lock_new();
+-    if (dest->lock == NULL)
++    if (dest->lock == NULL) {
++        OPENSSL_free(dest);
++        dest = NULL;
+         goto err;
++    }
+ 
+     if (!CRYPTO_new_ex_data(CRYPTO_EX_INDEX_SSL_SESSION, dest, &dest->ex_data))
+         goto err;
+-- 
+2.34.1
+

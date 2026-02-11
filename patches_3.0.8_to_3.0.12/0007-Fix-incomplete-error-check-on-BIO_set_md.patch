@@ -1,0 +1,38 @@
+From b2b18abaaa31e7f9008673f57f1d21d32e4d1d9b Mon Sep 17 00:00:00 2001
+From: ndossche <niels.dossche@ugent.be>
+Date: Thu, 2 Feb 2023 16:11:16 +0100
+Subject: [PATCH 007/381] Fix incomplete error check on BIO_set_md()
+
+BIO_set_md() can return an error value <= 0 according to my analysis
+tool and the documentation. But only an error value == 0 is currently
+checked. Fix it by changing the check condition.
+
+CLA: trivial
+
+Reviewed-by: Hugo Landau <hlandau@openssl.org>
+Reviewed-by: Tomas Mraz <tomas@openssl.org>
+Reviewed-by: Todd Short <todd.short@me.com>
+(Merged from https://github.com/openssl/openssl/pull/20195)
+
+(cherry picked from commit abf654645dee168b229f3fa6a365f6a8e4dd7c31)
+(cherry picked from commit 9b77bd92f898d7ee6a9f135eb39d84591452f330)
+---
+ crypto/cms/cms_lib.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/crypto/cms/cms_lib.c b/crypto/cms/cms_lib.c
+index 1fd542d237..a2b9e9127e 100644
+--- a/crypto/cms/cms_lib.c
++++ b/crypto/cms/cms_lib.c
+@@ -432,7 +432,7 @@ BIO *ossl_cms_DigestAlgorithm_init_bio(X509_ALGOR *digestAlgorithm,
+     (void)ERR_pop_to_mark();
+ 
+     mdbio = BIO_new(BIO_f_md());
+-    if (mdbio == NULL || !BIO_set_md(mdbio, digest)) {
++    if (mdbio == NULL || BIO_set_md(mdbio, digest) <= 0) {
+         ERR_raise(ERR_LIB_CMS, CMS_R_MD_BIO_INIT_ERROR);
+         goto err;
+     }
+-- 
+2.34.1
+

@@ -1,0 +1,217 @@
+From 909e1d5690c9cdc2bacf28415fba1fed73bea18c Mon Sep 17 00:00:00 2001
+From: Dimitri Papadopoulos
+ <3234522+DimitriPapadopoulos@users.noreply.github.com>
+Date: Wed, 10 May 2023 12:10:57 +0200
+Subject: [PATCH 154/381] Fix typos found by codespell
+
+Fix only typos in doc/man* for inclusion in 3.* branches.
+
+Other typos have been fixed in a different commit.
+
+Reviewed-by: Paul Dale <pauli@openssl.org>
+Reviewed-by: Tomas Mraz <tomas@openssl.org>
+(Merged from https://github.com/openssl/openssl/pull/20924)
+
+(cherry picked from commit 9a271795f84eb5402ce1ecfbcfd21392ad1560d0)
+---
+ doc/man3/EC_GROUP_copy.pod               |  2 +-
+ doc/man3/EC_KEY_new.pod                  |  2 +-
+ doc/man3/EC_POINT_add.pod                |  2 +-
+ doc/man3/EC_POINT_new.pod                | 26 ++++++++++++------------
+ doc/man3/OSSL_CRMF_MSG_set0_validity.pod |  2 +-
+ doc/man3/OSSL_PARAM.pod                  |  6 +++---
+ doc/man3/OSSL_PARAM_int.pod              |  2 +-
+ doc/man3/PKCS7_sign.pod                  |  2 +-
+ doc/man3/SSL_CTX_set_options.pod         |  2 +-
+ doc/man7/provider-base.pod               |  2 +-
+ 10 files changed, 24 insertions(+), 24 deletions(-)
+
+diff --git a/doc/man3/EC_GROUP_copy.pod b/doc/man3/EC_GROUP_copy.pod
+index 651f059d4f..e525fad0bf 100644
+--- a/doc/man3/EC_GROUP_copy.pod
++++ b/doc/man3/EC_GROUP_copy.pod
+@@ -129,7 +129,7 @@ point_conversion_form_t is an enum defined as follows:
+ For POINT_CONVERSION_UNCOMPRESSED the point is encoded as an octet signifying the UNCOMPRESSED form has been used followed by
+ the octets for x, followed by the octets for y.
+ 
+-For any given x co-ordinate for a point on a curve it is possible to derive two possible y values. For
++For any given x coordinate for a point on a curve it is possible to derive two possible y values. For
+ POINT_CONVERSION_COMPRESSED the point is encoded as an octet signifying that the COMPRESSED form has been used AND which of
+ the two possible solutions for y has been used, followed by the octets for x.
+ 
+diff --git a/doc/man3/EC_KEY_new.pod b/doc/man3/EC_KEY_new.pod
+index e611b4d691..979c902c97 100644
+--- a/doc/man3/EC_KEY_new.pod
++++ b/doc/man3/EC_KEY_new.pod
+@@ -128,7 +128,7 @@ EC_KEY_check_key() performs various sanity checks on the EC_KEY object to
+ confirm that it is valid.
+ 
+ EC_KEY_set_public_key_affine_coordinates() sets the public key for I<key> based
+-on its affine co-ordinates; i.e., it constructs an EC_POINT object based on
++on its affine coordinates; i.e., it constructs an EC_POINT object based on
+ the supplied I<x> and I<y> values and sets the public key to be this
+ EC_POINT. It also performs certain sanity checks on the key to confirm
+ that it is valid.
+diff --git a/doc/man3/EC_POINT_add.pod b/doc/man3/EC_POINT_add.pod
+index 97bd34c393..5a9b92eac2 100644
+--- a/doc/man3/EC_POINT_add.pod
++++ b/doc/man3/EC_POINT_add.pod
+@@ -44,7 +44,7 @@ EC_POINT_is_on_curve tests whether the supplied point is on the curve or not.
+ EC_POINT_cmp compares the two supplied points and tests whether or not they are equal.
+ 
+ The functions EC_POINT_make_affine and EC_POINTs_make_affine force the internal representation of the EC_POINT(s) into the affine
+-co-ordinate system. In the case of EC_POINTs_make_affine the value B<num> provides the number of points in the array B<points> to be
++coordinate system. In the case of EC_POINTs_make_affine the value B<num> provides the number of points in the array B<points> to be
+ forced. These functions were deprecated in OpenSSL 3.0 and should no longer be used.
+ Modern versions automatically perform this conversion when needed.
+ 
+diff --git a/doc/man3/EC_POINT_new.pod b/doc/man3/EC_POINT_new.pod
+index f92cc2c8e2..ec5f3cb0e4 100644
+--- a/doc/man3/EC_POINT_new.pod
++++ b/doc/man3/EC_POINT_new.pod
+@@ -124,9 +124,9 @@ public concept.
+ A valid point on a curve is the special point at infinity. A point is set to
+ be at infinity by calling EC_POINT_set_to_infinity().
+ 
+-The affine co-ordinates for a point describe a point in terms of its x and y
++The affine coordinates for a point describe a point in terms of its x and y
+ position. The function EC_POINT_set_affine_coordinates() sets the B<x> and B<y>
+-co-ordinates for the point B<p> defined over the curve given in B<group>. The
++coordinates for the point B<p> defined over the curve given in B<group>. The
+ function EC_POINT_get_affine_coordinates() sets B<x> and B<y>, either of which
+ may be NULL, to the corresponding coordinates of B<p>.
+ 
+@@ -140,27 +140,27 @@ EC_POINT_get_affine_coordinates_GF2m() are synonyms for
+ EC_POINT_get_affine_coordinates(). They are defined for backwards compatibility
+ only and should not be used.
+ 
+-As well as the affine co-ordinates, a point can alternatively be described in
+-terms of its Jacobian projective co-ordinates (for Fp curves only). Jacobian
+-projective co-ordinates are expressed as three values x, y and z. Working in
+-this co-ordinate system provides more efficient point multiplication
+-operations.  A mapping exists between Jacobian projective co-ordinates and
+-affine co-ordinates. A Jacobian projective co-ordinate (x, y, z) can be written
+-as an affine co-ordinate as (x/(z^2), y/(z^3)). Conversion to Jacobian
+-projective from affine co-ordinates is simple. The co-ordinate (x, y) is mapped
++As well as the affine coordinates, a point can alternatively be described in
++terms of its Jacobian projective coordinates (for Fp curves only). Jacobian
++projective coordinates are expressed as three values x, y and z. Working in
++this coordinate system provides more efficient point multiplication
++operations.  A mapping exists between Jacobian projective coordinates and
++affine coordinates. A Jacobian projective coordinate (x, y, z) can be written
++as an affine coordinate as (x/(z^2), y/(z^3)). Conversion to Jacobian
++projective from affine coordinates is simple. The coordinate (x, y) is mapped
+ to (x, y, 1). Although deprecated in OpenSSL 3.0 and should no longer be used,
+-to set or get the projective co-ordinates in older versions use
++to set or get the projective coordinates in older versions use
+ EC_POINT_set_Jprojective_coordinates_GFp() and
+ EC_POINT_get_Jprojective_coordinates_GFp() respectively.
+ Modern versions should instead use EC_POINT_set_affine_coordinates() and
+ EC_POINT_get_affine_coordinates(), performing the conversion manually using the
+ above maps in such rare circumstances.
+ 
+-Points can also be described in terms of their compressed co-ordinates. For a
++Points can also be described in terms of their compressed coordinates. For a
+ point (x, y), for any given value for x such that the point is on the curve
+ there will only ever be two possible values for y. Therefore, a point can be set
+ using the EC_POINT_set_compressed_coordinates() function where B<x> is the x
+-co-ordinate and B<y_bit> is a value 0 or 1 to identify which of the two
++coordinate and B<y_bit> is a value 0 or 1 to identify which of the two
+ possible values for y should be used.
+ 
+ The functions EC_POINT_set_compressed_coordinates_GFp() and
+diff --git a/doc/man3/OSSL_CRMF_MSG_set0_validity.pod b/doc/man3/OSSL_CRMF_MSG_set0_validity.pod
+index a87b7d5307..40f4b36fe2 100644
+--- a/doc/man3/OSSL_CRMF_MSG_set0_validity.pod
++++ b/doc/man3/OSSL_CRMF_MSG_set0_validity.pod
+@@ -68,7 +68,7 @@ may be NULL to select the defaults.
+ In case the method is OSSL_CRMF_POPO_SIGNATURE the POPO is calculated
+ using the private key I<pkey> and the digest method I<digest>,
+ where the I<digest> argument is ignored if I<pkey> is of a type (such as
+-Ed25519 and Ed448) that is implicitly associated with a digest alorithm.
++Ed25519 and Ed448) that is implicitly associated with a digest algorithm.
+ 
+ I<meth> can be one of the following:
+ 
+diff --git a/doc/man3/OSSL_PARAM.pod b/doc/man3/OSSL_PARAM.pod
+index 0aad61924f..78a465c8fd 100644
+--- a/doc/man3/OSSL_PARAM.pod
++++ b/doc/man3/OSSL_PARAM.pod
+@@ -40,11 +40,11 @@ suitable form for the internal structure of the object.
+ 
+ =item * Request parameters of some object
+ 
+-The caller (the I<requestor>) sets up the B<OSSL_PARAM> array and
++The caller (the I<requester>) sets up the B<OSSL_PARAM> array and
+ calls some function (the I<responder>) that has intimate knowledge
+ about the object, which can take the internal data of the object and
+ copy (possibly convert) that to the memory prepared by the
+-I<requestor> and pointed at with the B<OSSL_PARAM> I<data>.
++I<requester> and pointed at with the B<OSSL_PARAM> I<data>.
+ 
+ =item * Request parameter descriptors
+ 
+@@ -111,7 +111,7 @@ size should be set to the size of the buffer to be populated, which
+ should accomodate enough space for a terminating NUL byte.
+ 
+ When I<requesting parameters>, it's acceptable for I<data> to be NULL.
+-This can be used by the I<requestor> to figure out dynamically exactly
++This can be used by the I<requester> to figure out dynamically exactly
+ how much buffer space is needed to store the parameter data.
+ In this case, I<data_size> is ignored.
+ 
+diff --git a/doc/man3/OSSL_PARAM_int.pod b/doc/man3/OSSL_PARAM_int.pod
+index 8864404a7a..e559d7256e 100644
+--- a/doc/man3/OSSL_PARAM_int.pod
++++ b/doc/man3/OSSL_PARAM_int.pod
+@@ -368,7 +368,7 @@ This example is for setting parameters on some object:
+ =head2 Example 2
+ 
+ This example is for requesting parameters on some object, and also
+-demonstrates that the requestor isn't obligated to request all
++demonstrates that the requester isn't obligated to request all
+ available parameters:
+ 
+     const char *foo = NULL;
+diff --git a/doc/man3/PKCS7_sign.pod b/doc/man3/PKCS7_sign.pod
+index c0a0709075..f0b3508535 100644
+--- a/doc/man3/PKCS7_sign.pod
++++ b/doc/man3/PKCS7_sign.pod
+@@ -96,7 +96,7 @@ not be NULL.
+ 
+ PKCS7_sign() is like PKCS7_sign_ex() except that it uses default values of
+ NULL for the library context I<libctx> and the property query I<propq>.
+-This is retained for API backward compatibiliy.
++This is retained for API backward compatibility.
+ 
+ =head1 BUGS
+ 
+diff --git a/doc/man3/SSL_CTX_set_options.pod b/doc/man3/SSL_CTX_set_options.pod
+index 7c2e46e0b6..2ae8288d03 100644
+--- a/doc/man3/SSL_CTX_set_options.pod
++++ b/doc/man3/SSL_CTX_set_options.pod
+@@ -211,7 +211,7 @@ description of the replay protection feature. Anti-replay measures are required
+ to comply with the TLSv1.3 specification. Some applications may be able to
+ mitigate the replay risks in other ways and in such cases the built in OpenSSL
+ functionality is not required. Those applications can turn this feature off by
+-setting this option. This is a server-side opton only. It is ignored by
++setting this option. This is a server-side option only. It is ignored by
+ clients.
+ 
+ =item SSL_OP_NO_COMPRESSION
+diff --git a/doc/man7/provider-base.pod b/doc/man7/provider-base.pod
+index 33c245d6ec..61c108b23c 100644
+--- a/doc/man7/provider-base.pod
++++ b/doc/man7/provider-base.pod
+@@ -312,7 +312,7 @@ get_nonce() retrieves a nonce using the passed I<salt> parameter
+ of length I<salt_len> and operating system specific information.
+ The I<salt> should contain uniquely identifying information and this is
+ included, in an unspecified manner, as part of the output.
+-The output is stored in a buffer which contrains at least I<min_len> and at
++The output is stored in a buffer which contains at least I<min_len> and at
+ most I<max_len> bytes.  The buffer address is stored in I<*pout> and the
+ buffer length returned to the caller.  On error, zero is returned.
+ 
+-- 
+2.34.1
+

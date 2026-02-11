@@ -1,0 +1,38 @@
+From 87da0e6a08c43665bd8124c42fb755d6504250cb Mon Sep 17 00:00:00 2001
+From: fullwaywang <fullwaywang@tencent.com>
+Date: Wed, 21 Jun 2023 15:00:06 +0800
+Subject: [PATCH 205/381] Check for 0 modulus in BN_RECP_CTX_set.
+
+The function BN_RECP_CTX_set did not check whether arg d is zero,
+in which case an early failure should be returned to the invoker.
+This is a similar fix to the cognate defect of CVE-2015-1794.
+
+Fixes #21111
+
+CLA: trivial
+
+Reviewed-by: Tomas Mraz <tomas@openssl.org>
+Reviewed-by: Paul Dale <pauli@openssl.org>
+(Merged from https://github.com/openssl/openssl/pull/21255)
+
+(cherry picked from commit 43596b306b1fe06da3b1a99e07c0cf235898010d)
+---
+ crypto/bn/bn_recp.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/crypto/bn/bn_recp.c b/crypto/bn/bn_recp.c
+index 96a6b19ab0..aebe8a223b 100644
+--- a/crypto/bn/bn_recp.c
++++ b/crypto/bn/bn_recp.c
+@@ -44,7 +44,7 @@ void BN_RECP_CTX_free(BN_RECP_CTX *recp)
+ 
+ int BN_RECP_CTX_set(BN_RECP_CTX *recp, const BIGNUM *d, BN_CTX *ctx)
+ {
+-    if (!BN_copy(&(recp->N), d))
++    if (BN_is_zero(d) || !BN_copy(&(recp->N), d))
+         return 0;
+     BN_zero(&(recp->Nr));
+     recp->num_bits = BN_num_bits(d);
+-- 
+2.34.1
+

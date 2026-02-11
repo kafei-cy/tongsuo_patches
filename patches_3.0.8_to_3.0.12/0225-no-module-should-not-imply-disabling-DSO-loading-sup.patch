@@ -1,0 +1,42 @@
+From e1ec729a178a1eab38b6413552a6dc9911cd4090 Mon Sep 17 00:00:00 2001
+From: Tomas Mraz <tomas@openssl.org>
+Date: Fri, 14 Jul 2023 10:25:42 +0200
+Subject: [PATCH 225/381] no-module should not imply disabling DSO loading
+ support
+
+Reviewed-by: Matt Caswell <matt@openssl.org>
+Reviewed-by: Dmitry Belyavskiy <beldmit@gmail.com>
+Reviewed-by: Paul Dale <pauli@openssl.org>
+(Merged from https://github.com/openssl/openssl/pull/21459)
+
+(cherry picked from commit 3d2f96e2c867fa3e79a453639304b70ba0508076)
+---
+ Configure | 5 +----
+ 1 file changed, 1 insertion(+), 4 deletions(-)
+
+diff --git a/Configure b/Configure
+index 4ddc275f78..dd06aa4898 100755
+--- a/Configure
++++ b/Configure
+@@ -597,8 +597,7 @@ my @disable_cascades = (
+ 
+     "crypto-mdebug"     => [ "crypto-mdebug-backtrace" ],
+ 
+-    # If no modules, then no dynamic engines either
+-    "module"            => [ "dynamic-engine" ],
++    "module"            => [ "dynamic-engine", "fips" ],
+ 
+     # Without shared libraries, dynamic engines aren't possible.
+     # This is due to them having to link with libcrypto and register features
+@@ -616,8 +615,6 @@ my @disable_cascades = (
+     # or modules.
+     "pic"               => [ "shared", "module" ],
+ 
+-    "module"            => [ "fips", "dso" ],
+-
+     "engine"            => [ "dynamic-engine", grep(/eng$/, @disablables) ],
+     "dynamic-engine"    => [ "loadereng" ],
+     "hw"                => [ "padlockeng" ],
+-- 
+2.34.1
+

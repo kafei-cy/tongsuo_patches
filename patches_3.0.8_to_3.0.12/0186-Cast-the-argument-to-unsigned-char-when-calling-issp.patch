@@ -1,0 +1,122 @@
+From fefeecf00dd75a44dc33569f857aa741f59ccbb4 Mon Sep 17 00:00:00 2001
+From: Michael Baentsch <57787676+baentsch@users.noreply.github.com>
+Date: Thu, 8 Jun 2023 08:05:42 +0200
+Subject: [PATCH 186/381] Cast the argument to unsigned char when calling
+ isspace()
+
+Reviewed-by: Matt Caswell <matt@openssl.org>
+Reviewed-by: Tomas Mraz <tomas@openssl.org>
+(Merged from https://github.com/openssl/openssl/pull/21151)
+
+(cherry picked from commit 8a2e74d0536c91585fbe789e0ab7b06cab0289c2)
+---
+ apps/cmp.c               | 4 ++--
+ apps/lib/apps.c          | 4 ++--
+ apps/req.c               | 4 ++--
+ test/evp_test.c          | 4 ++--
+ test/testutil/provider.c | 4 ++--
+ 5 files changed, 10 insertions(+), 10 deletions(-)
+
+diff --git a/apps/cmp.c b/apps/cmp.c
+index 3463579c24..4c3b29eba5 100644
+--- a/apps/cmp.c
++++ b/apps/cmp.c
+@@ -2115,7 +2115,7 @@ static const char *prev_item(const char *opt, const char *end)
+     beg = end;
+     while (beg > opt) {
+         --beg;
+-        if (beg[0] == ',' || isspace(beg[0])) {
++        if (beg[0] == ',' || isspace(_UC(beg[0]))) {
+             ++beg;
+             break;
+         }
+@@ -2130,7 +2130,7 @@ static const char *prev_item(const char *opt, const char *end)
+     opt_item[len] = '\0';
+     while (beg > opt) {
+         --beg;
+-        if (beg[0] != ',' && !isspace(beg[0])) {
++        if (beg[0] != ',' && !isspace(_UC(beg[0]))) {
+             ++beg;
+             break;
+         }
+diff --git a/apps/lib/apps.c b/apps/lib/apps.c
+index 79afa1deab..0ac828fdf5 100644
+--- a/apps/lib/apps.c
++++ b/apps/lib/apps.c
+@@ -638,13 +638,13 @@ void *app_malloc(size_t sz, const char *what)
+ char *next_item(char *opt) /* in list separated by comma and/or space */
+ {
+     /* advance to separator (comma or whitespace), if any */
+-    while (*opt != ',' && !isspace(*opt) && *opt != '\0')
++    while (*opt != ',' && !isspace(_UC(*opt)) && *opt != '\0')
+         opt++;
+     if (*opt != '\0') {
+         /* terminate current item */
+         *opt++ = '\0';
+         /* skip over any whitespace after separator */
+-        while (isspace(*opt))
++        while (isspace(_UC(*opt)))
+             opt++;
+     }
+     return *opt == '\0' ? NULL : opt; /* NULL indicates end of input */
+diff --git a/apps/req.c b/apps/req.c
+index 23757044ab..4b4e36c68a 100644
+--- a/apps/req.c
++++ b/apps/req.c
+@@ -199,7 +199,7 @@ static int duplicated(LHASH_OF(OPENSSL_STRING) *addexts, char *kv)
+ 
+     /* Check syntax. */
+     /* Skip leading whitespace, make a copy. */
+-    while (*kv && isspace(*kv))
++    while (*kv && isspace(_UC(*kv)))
+         if (*++kv == '\0')
+             return 1;
+     if ((p = strchr(kv, '=')) == NULL)
+@@ -210,7 +210,7 @@ static int duplicated(LHASH_OF(OPENSSL_STRING) *addexts, char *kv)
+ 
+     /* Skip trailing space before the equal sign. */
+     for (p = kv + off; p > kv; --p)
+-        if (!isspace(p[-1]))
++        if (!isspace(_UC(p[-1])))
+             break;
+     if (p == kv) {
+         OPENSSL_free(kv);
+diff --git a/test/evp_test.c b/test/evp_test.c
+index 19cabd6dce..efc6709673 100644
+--- a/test/evp_test.c
++++ b/test/evp_test.c
+@@ -3683,11 +3683,11 @@ static int prov_available(char *providers)
+     int more = 1;
+ 
+     while (more) {
+-        for (; isspace(*providers); providers++)
++        for (; isspace((unsigned char)(*providers)); providers++)
+             continue;
+         if (*providers == '\0')
+             break;               /* End of the road */
+-        for (p = providers; *p != '\0' && !isspace(*p); p++)
++        for (p = providers; *p != '\0' && !isspace((unsigned char)(*p)); p++)
+             continue;
+         if (*p == '\0')
+             more = 0;
+diff --git a/test/testutil/provider.c b/test/testutil/provider.c
+index 3f94d7506e..79ae13b42a 100644
+--- a/test/testutil/provider.c
++++ b/test/testutil/provider.c
+@@ -177,11 +177,11 @@ int fips_provider_version_match(OSSL_LIB_CTX *libctx, const char *versions)
+     } mode;
+ 
+     while (*versions != '\0') {
+-        for (; isspace(*versions); versions++)
++        for (; isspace((unsigned char)(*versions)); versions++)
+             continue;
+         if (*versions == '\0')
+             break;
+-        for (p = versions; *versions != '\0' && !isspace(*versions); versions++)
++        for (p = versions; *versions != '\0' && !isspace((unsigned char)(*versions)); versions++)
+             continue;
+         if (*p == '!') {
+             mode = MODE_NE;
+-- 
+2.34.1
+

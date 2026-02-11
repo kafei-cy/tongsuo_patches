@@ -1,0 +1,74 @@
+From 98c1660e67fc4cd6d063a6053c67e141b471b736 Mon Sep 17 00:00:00 2001
+From: Danny Carpenter <dcarp@microsoft.com>
+Date: Thu, 13 Apr 2023 19:16:44 +0000
+Subject: [PATCH 113/381] adding provider_unload functions for cmp_ tests
+
+CLA: trivial
+
+Reviewed-by: Todd Short <todd.short@me.com>
+Reviewed-by: Paul Dale <pauli@openssl.org>
+(Merged from https://github.com/openssl/openssl/pull/20731)
+
+(cherry picked from commit 8835940db58229fc467cdea1eebf3f064352a086)
+---
+ test/cmp_client_test.c  | 2 ++
+ test/cmp_msg_test.c     | 2 ++
+ test/cmp_protect_test.c | 2 ++
+ test/cmp_vfy_test.c     | 2 ++
+ 4 files changed, 8 insertions(+)
+
+diff --git a/test/cmp_client_test.c b/test/cmp_client_test.c
+index dc326250af..e8edcb835f 100644
+--- a/test/cmp_client_test.c
++++ b/test/cmp_client_test.c
+@@ -417,6 +417,8 @@ void cleanup_tests(void)
+     EVP_PKEY_free(server_key);
+     X509_free(client_cert);
+     EVP_PKEY_free(client_key);
++    OSSL_PROVIDER_unload(default_null_provider);
++    OSSL_PROVIDER_unload(provider);
+     OSSL_LIB_CTX_free(libctx);
+     return;
+ }
+diff --git a/test/cmp_msg_test.c b/test/cmp_msg_test.c
+index 4f2ca1b40b..9301843b9d 100644
+--- a/test/cmp_msg_test.c
++++ b/test/cmp_msg_test.c
+@@ -541,6 +541,8 @@ void cleanup_tests(void)
+ {
+     EVP_PKEY_free(newkey);
+     X509_free(cert);
++    OSSL_PROVIDER_unload(default_null_provider);
++    OSSL_PROVIDER_unload(provider);
+     OSSL_LIB_CTX_free(libctx);
+ }
+ 
+diff --git a/test/cmp_protect_test.c b/test/cmp_protect_test.c
+index 9111b89423..c9a1b9dfe2 100644
+--- a/test/cmp_protect_test.c
++++ b/test/cmp_protect_test.c
+@@ -528,6 +528,8 @@ void cleanup_tests(void)
+     X509_free(intermediate);
+     OSSL_CMP_MSG_free(ir_protected);
+     OSSL_CMP_MSG_free(ir_unprotected);
++    OSSL_PROVIDER_unload(default_null_provider);
++    OSSL_PROVIDER_unload(provider);
+     OSSL_LIB_CTX_free(libctx);
+ }
+ 
+diff --git a/test/cmp_vfy_test.c b/test/cmp_vfy_test.c
+index ed8e1b3143..b60e27841d 100644
+--- a/test/cmp_vfy_test.c
++++ b/test/cmp_vfy_test.c
+@@ -568,6 +568,8 @@ void cleanup_tests(void)
+     X509_free(instaca_cert);
+     OSSL_CMP_MSG_free(ir_unprotected);
+     OSSL_CMP_MSG_free(ir_rmprotection);
++    OSSL_PROVIDER_unload(default_null_provider);
++    OSSL_PROVIDER_unload(provider);
+     OSSL_LIB_CTX_free(libctx);
+     return;
+ }
+-- 
+2.34.1
+

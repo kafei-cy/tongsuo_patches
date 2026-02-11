@@ -1,0 +1,89 @@
+From 63541ba3b0232047e452ab5d90a4c33a09271cdb Mon Sep 17 00:00:00 2001
+From: slontis <shane.lontis@oracle.com>
+Date: Tue, 21 Mar 2023 16:06:06 +1000
+Subject: [PATCH 101/381] Fix mem leak in ECDSA_sign().
+
+Similiar to the issue found in PR #20553 for DSA_sign().
+ECDSA_sign() leaked memory if the signature was NULL
+when i2d_ECDSA_SIG was called.
+
+Note that this does not affect the higher level EVP
+functions as they correctly handle NULL.
+
+Reviewed-by: Tomas Mraz <tomas@openssl.org>
+Reviewed-by: Paul Dale <pauli@openssl.org>
+Reviewed-by: Todd Short <todd.short@me.com>
+(Merged from https://github.com/openssl/openssl/pull/20554)
+
+(cherry picked from commit 4befe81a99b89c52b749a87eece82c1cba4fab12)
+(cherry picked from commit 680b4be65eba2658c1d807dd9838ca88301bb7dd)
+---
+ crypto/ec/ecdsa_ossl.c |  2 +-
+ crypto/sm2/sm2_sign.c  |  2 +-
+ test/ecdsatest.c       | 17 +++++++++++++++++
+ 3 files changed, 19 insertions(+), 2 deletions(-)
+
+diff --git a/crypto/ec/ecdsa_ossl.c b/crypto/ec/ecdsa_ossl.c
+index 30d44567bc..5c07faadc8 100644
+--- a/crypto/ec/ecdsa_ossl.c
++++ b/crypto/ec/ecdsa_ossl.c
+@@ -75,7 +75,7 @@ int ossl_ecdsa_sign(int type, const unsigned char *dgst, int dlen,
+         *siglen = 0;
+         return 0;
+     }
+-    *siglen = i2d_ECDSA_SIG(s, &sig);
++    *siglen = i2d_ECDSA_SIG(s, sig != NULL ? &sig : NULL);
+     ECDSA_SIG_free(s);
+     return 1;
+ }
+diff --git a/crypto/sm2/sm2_sign.c b/crypto/sm2/sm2_sign.c
+index 5861f420fb..568a2e0d26 100644
+--- a/crypto/sm2/sm2_sign.c
++++ b/crypto/sm2/sm2_sign.c
+@@ -454,7 +454,7 @@ int ossl_sm2_internal_sign(const unsigned char *dgst, int dgstlen,
+         goto done;
+     }
+ 
+-    sigleni = i2d_ECDSA_SIG(s, &sig);
++    sigleni = i2d_ECDSA_SIG(s, sig != NULL ? &sig : NULL);
+     if (sigleni < 0) {
+        ERR_raise(ERR_LIB_SM2, ERR_R_INTERNAL_ERROR);
+        goto done;
+diff --git a/test/ecdsatest.c b/test/ecdsatest.c
+index 32e929ed3d..375bf2e9ea 100644
+--- a/test/ecdsatest.c
++++ b/test/ecdsatest.c
+@@ -346,6 +346,22 @@ static int test_builtin_as_sm2(int n)
+     return test_builtin(n, EVP_PKEY_SM2);
+ }
+ # endif
++
++static int test_ecdsa_sig_NULL(void)
++{
++    int ret;
++    unsigned int siglen;
++    unsigned char dgst[128] = { 0 };
++    EC_KEY *eckey = NULL;
++
++    ret = TEST_ptr(eckey = EC_KEY_new_by_curve_name(NID_X9_62_prime256v1))
++          && TEST_int_eq(EC_KEY_generate_key(eckey), 1)
++          && TEST_int_eq(ECDSA_sign(0, dgst, sizeof(dgst), NULL, &siglen, eckey), 1)
++          && TEST_int_gt(siglen, 0);
++    EC_KEY_free(eckey);
++    return ret;
++}
++
+ #endif /* OPENSSL_NO_EC */
+ 
+ int setup_tests(void)
+@@ -365,6 +381,7 @@ int setup_tests(void)
+         return 0;
+     }
+     ADD_ALL_TESTS(test_builtin_as_ec, crv_len);
++    ADD_TEST(test_ecdsa_sig_NULL);
+ # ifndef OPENSSL_NO_SM2
+     ADD_ALL_TESTS(test_builtin_as_sm2, crv_len);
+ # endif
+-- 
+2.34.1
+

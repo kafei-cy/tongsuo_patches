@@ -1,0 +1,44 @@
+From 7a7267ab64f4b67dbf8665873cae1f0651e26e5b Mon Sep 17 00:00:00 2001
+From: afshinpir <afshinpir@users.noreply.github.com>
+Date: Wed, 8 Mar 2023 20:31:54 +1300
+Subject: [PATCH 065/381] Updated `rsa_has()` for correct validation
+
+CLA: trivial
+In RSA, `(n,e)` and `(n,d)` identify public key and private key.
+Modulus `n` is the common part. So I updated `rsa_has()` to validate
+these pairs correctly. `OSSL_KEYMGMT_SELECT_KEYPAIR` is common part
+for both public and private key, so I changed it to check `n` of
+RSA and for `OSSL_KEYMGMT_SELECT_PUBLIC_KEY`, `e` is checked. Before
+this change, if `selection` was `OSSL_KEYMGMT_SELECT_PRIVATE_KEY` and
+only `e` and `d` was in the RSA structure, the function returns 1
+while it was incorrect.
+
+Reviewed-by: Richard Levitte <levitte@openssl.org>
+Reviewed-by: Tomas Mraz <tomas@openssl.org>
+Reviewed-by: Paul Dale <pauli@openssl.org>
+(Merged from https://github.com/openssl/openssl/pull/20455)
+
+(cherry picked from commit a3207163ef3d30658a41a9c9e3750ca4c5b16677)
+---
+ providers/implementations/keymgmt/rsa_kmgmt.c | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/providers/implementations/keymgmt/rsa_kmgmt.c b/providers/implementations/keymgmt/rsa_kmgmt.c
+index b76835ccc4..7e67316deb 100644
+--- a/providers/implementations/keymgmt/rsa_kmgmt.c
++++ b/providers/implementations/keymgmt/rsa_kmgmt.c
+@@ -124,9 +124,9 @@ static int rsa_has(const void *keydata, int selection)
+ 
+     /* OSSL_KEYMGMT_SELECT_OTHER_PARAMETERS are always available even if empty */
+     if ((selection & OSSL_KEYMGMT_SELECT_KEYPAIR) != 0)
+-        ok = ok && (RSA_get0_e(rsa) != NULL);
+-    if ((selection & OSSL_KEYMGMT_SELECT_PUBLIC_KEY) != 0)
+         ok = ok && (RSA_get0_n(rsa) != NULL);
++    if ((selection & OSSL_KEYMGMT_SELECT_PUBLIC_KEY) != 0)
++        ok = ok && (RSA_get0_e(rsa) != NULL);
+     if ((selection & OSSL_KEYMGMT_SELECT_PRIVATE_KEY) != 0)
+         ok = ok && (RSA_get0_d(rsa) != NULL);
+     return ok;
+-- 
+2.34.1
+

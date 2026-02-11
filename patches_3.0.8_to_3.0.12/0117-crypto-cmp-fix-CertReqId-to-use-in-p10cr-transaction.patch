@@ -1,0 +1,395 @@
+From 1f67a5ad39a8d24a0f4779a17105d09e4bee336c Mon Sep 17 00:00:00 2001
+From: "Dr. David von Oheimb" <David.von.Oheimb@siemens.com>
+Date: Wed, 15 Feb 2023 15:38:35 +0100
+Subject: [PATCH 117/381] crypto/cmp: fix CertReqId to use in p10cr
+ transactions acc. to RFC 4210
+
+Reviewed-by: Paul Dale <pauli@openssl.org>
+Reviewed-by: Tom Cosgrove <tom.cosgrove@arm.com>
+Reviewed-by: David von Oheimb <david.von.oheimb@siemens.com>
+(Merged from https://github.com/openssl/openssl/pull/20298)
+
+(cherry picked from commit 25b18e629d5cab40f88b33fd9ecf0d69e08c7707)
+---
+ apps/lib/cmp_mock_srv.c                    | 18 ++++++-----------
+ crypto/cmp/cmp_client.c                    | 23 +++++++++++-----------
+ crypto/cmp/cmp_local.h                     | 12 ++++++-----
+ crypto/cmp/cmp_msg.c                       | 15 ++++++++------
+ crypto/cmp/cmp_server.c                    | 23 ++++++++++++++++++----
+ doc/internal/man3/ossl_cmp_certreq_new.pod |  9 +++++----
+ test/cmp_client_test.c                     |  2 +-
+ test/cmp_msg_test.c                        |  3 ++-
+ 8 files changed, 61 insertions(+), 44 deletions(-)
+
+diff --git a/apps/lib/cmp_mock_srv.c b/apps/lib/cmp_mock_srv.c
+index b37f3dd3d8..b7f8ae439e 100644
+--- a/apps/lib/cmp_mock_srv.c
++++ b/apps/lib/cmp_mock_srv.c
+@@ -24,7 +24,6 @@ typedef struct
+     OSSL_CMP_PKISI *statusOut; /* status for ip/cp/kup/rp msg unless polling */
+     int sendError;             /* send error response also on valid requests */
+     OSSL_CMP_MSG *certReq;     /* ir/cr/p10cr/kur remembered while polling */
+-    int certReqId;             /* id of last ir/cr/kur, used for polling */
+     int pollCount;             /* number of polls before actual cert response */
+     int curr_pollCount;        /* number of polls so far for current request */
+     int checkAfterTime;        /* time the client should wait between polling */
+@@ -54,7 +53,7 @@ static mock_srv_ctx *mock_srv_ctx_new(void)
+     if ((ctx->statusOut = OSSL_CMP_PKISI_new()) == NULL)
+         goto err;
+ 
+-    ctx->certReqId = -1;
++    ctx->sendError = 0;
+ 
+     /* all other elements are initialized to 0 or NULL, respectively */
+     return ctx;
+@@ -172,7 +171,7 @@ int ossl_cmp_mock_srv_set_checkAfterTime(OSSL_CMP_SRV_CTX *srv_ctx, int sec)
+ 
+ static OSSL_CMP_PKISI *process_cert_request(OSSL_CMP_SRV_CTX *srv_ctx,
+                                             const OSSL_CMP_MSG *cert_req,
+-                                            int certReqId,
++                                            ossl_unused int certReqId,
+                                             const OSSL_CRMF_MSG *crm,
+                                             const X509_REQ *p10cr,
+                                             X509 **certOut,
+@@ -195,7 +194,6 @@ static OSSL_CMP_PKISI *process_cert_request(OSSL_CMP_SRV_CTX *srv_ctx,
+     *certOut = NULL;
+     *chainOut = NULL;
+     *caPubs = NULL;
+-    ctx->certReqId = certReqId;
+ 
+     if (ctx->pollCount > 0 && ctx->curr_pollCount == 0) {
+         /* start polling */
+@@ -358,7 +356,8 @@ static void process_error(OSSL_CMP_SRV_CTX *srv_ctx, const OSSL_CMP_MSG *error,
+ }
+ 
+ static int process_certConf(OSSL_CMP_SRV_CTX *srv_ctx,
+-                            const OSSL_CMP_MSG *certConf, int certReqId,
++                            const OSSL_CMP_MSG *certConf,
++                            ossl_unused int certReqId,
+                             const ASN1_OCTET_STRING *certHash,
+                             const OSSL_CMP_PKISI *si)
+ {
+@@ -374,12 +373,6 @@ static int process_certConf(OSSL_CMP_SRV_CTX *srv_ctx,
+         return 0;
+     }
+ 
+-    if (certReqId != ctx->certReqId) {
+-        /* in case of error, invalid reqId -1 */
+-        ERR_raise(ERR_LIB_CMP, CMP_R_BAD_REQUEST_ID);
+-        return 0;
+-    }
+-
+     if ((digest = X509_digest_sig(ctx->certOut, NULL, NULL)) == NULL)
+         return 0;
+     if (ASN1_OCTET_STRING_cmp(certHash, digest) != 0) {
+@@ -392,7 +385,8 @@ static int process_certConf(OSSL_CMP_SRV_CTX *srv_ctx,
+ }
+ 
+ static int process_pollReq(OSSL_CMP_SRV_CTX *srv_ctx,
+-                           const OSSL_CMP_MSG *pollReq, int certReqId,
++                           const OSSL_CMP_MSG *pollReq,
++                           ossl_unused int certReqId,
+                            OSSL_CMP_MSG **certReq, int64_t *check_after)
+ {
+     mock_srv_ctx *ctx = OSSL_CMP_SRV_CTX_get0_custom_ctx(srv_ctx);
+diff --git a/crypto/cmp/cmp_client.c b/crypto/cmp/cmp_client.c
+index decb9ef20e..df14d49aa0 100644
+--- a/crypto/cmp/cmp_client.c
++++ b/crypto/cmp/cmp_client.c
+@@ -64,10 +64,10 @@ static int unprotected_exception(const OSSL_CMP_CTX *ctx,
+         break;
+     default:
+         if (IS_CREP(rcvd_type)) {
++            int any_rid = OSSL_CMP_CERTREQID_NONE;
+             OSSL_CMP_CERTREPMESSAGE *crepmsg = rep->body->value.ip;
+             OSSL_CMP_CERTRESPONSE *crep =
+-                ossl_cmp_certrepmessage_get0_certresponse(crepmsg,
+-                                                          -1 /* any rid */);
++                ossl_cmp_certrepmessage_get0_certresponse(crepmsg, any_rid);
+ 
+             if (sk_OSSL_CMP_CERTRESPONSE_num(crepmsg->response) > 1)
+                 return -1;
+@@ -357,15 +357,16 @@ static int poll_for_response(OSSL_CMP_CTX *ctx, int sleep, int rid,
+  * Send certConf for IR, CR or KUR sequences and check response,
+  * not modifying ctx->status during the certConf exchange
+  */
+-int ossl_cmp_exchange_certConf(OSSL_CMP_CTX *ctx, int fail_info,
+-                               const char *txt)
++int ossl_cmp_exchange_certConf(OSSL_CMP_CTX *ctx, int certReqId,
++                               int fail_info, const char *txt)
+ {
+     OSSL_CMP_MSG *certConf;
+     OSSL_CMP_MSG *PKIconf = NULL;
+     int res = 0;
+ 
+     /* OSSL_CMP_certConf_new() also checks if all necessary options are set */
+-    if ((certConf = ossl_cmp_certConf_new(ctx, fail_info, txt)) == NULL)
++    certConf = ossl_cmp_certConf_new(ctx, certReqId, fail_info, txt);
++    if (certConf == NULL)
+         goto err;
+ 
+     res = send_receive_check(ctx, certConf, &PKIconf, OSSL_CMP_PKIBODY_PKICONF);
+@@ -549,6 +550,7 @@ int OSSL_CMP_certConf_cb(OSSL_CMP_CTX *ctx, X509 *cert, int fail_info,
+ 
+ /*-
+  * Perform the generic handling of certificate responses for IR/CR/KUR/P10CR.
++ * |rid| must be OSSL_CMP_CERTREQID_NONE if not available, namely for p10cr
+  * Returns -1 on receiving pollRep if sleep == 0, setting the checkAfter value.
+  * Returns 1 on success and provides the received PKIMESSAGE in *resp.
+  * Returns 0 on error (which includes the case that timeout has been reached).
+@@ -582,10 +584,9 @@ static int cert_response(OSSL_CMP_CTX *ctx, int sleep, int rid,
+         return 0;
+     if (!save_statusInfo(ctx, crep->status))
+         return 0;
+-    if (rid == -1) {
+-        /* for OSSL_CMP_PKIBODY_P10CR learn CertReqId from response */
++    if (rid == OSSL_CMP_CERTREQID_NONE) { /* used for OSSL_CMP_PKIBODY_P10CR */
+         rid = ossl_cmp_asn1_get_int(crep->certReqId);
+-        if (rid == -1) {
++        if (rid != OSSL_CMP_CERTREQID_NONE) {
+             ERR_raise(ERR_LIB_CMP, CMP_R_BAD_REQUEST_ID);
+             return 0;
+         }
+@@ -649,7 +650,7 @@ static int cert_response(OSSL_CMP_CTX *ctx, int sleep, int rid,
+                       "rejecting newly enrolled cert with subject: %s", subj);
+     if (!ctx->disableConfirm
+             && !ossl_cmp_hdr_has_implicitConfirm((*resp)->header)) {
+-        if (!ossl_cmp_exchange_certConf(ctx, fail_info, txt))
++        if (!ossl_cmp_exchange_certConf(ctx, rid, fail_info, txt))
+             ret = 0;
+     }
+ 
+@@ -690,7 +691,7 @@ int OSSL_CMP_try_certreq(OSSL_CMP_CTX *ctx, int req_type,
+ {
+     OSSL_CMP_MSG *rep = NULL;
+     int is_p10 = req_type == OSSL_CMP_PKIBODY_P10CR;
+-    int rid = is_p10 ? -1 : OSSL_CMP_CERTREQID;
++    int rid = is_p10 ? OSSL_CMP_CERTREQID_NONE : OSSL_CMP_CERTREQID;
+     int rep_type = is_p10 ? OSSL_CMP_PKIBODY_CP : req_type + 1;
+     int res = 0;
+ 
+@@ -732,7 +733,7 @@ X509 *OSSL_CMP_exec_certreq(OSSL_CMP_CTX *ctx, int req_type,
+ 
+     OSSL_CMP_MSG *rep = NULL;
+     int is_p10 = req_type == OSSL_CMP_PKIBODY_P10CR;
+-    int rid = is_p10 ? -1 : OSSL_CMP_CERTREQID;
++    int rid = is_p10 ? OSSL_CMP_CERTREQID_NONE : OSSL_CMP_CERTREQID;
+     int rep_type = is_p10 ? OSSL_CMP_PKIBODY_CP : req_type + 1;
+     X509 *result = NULL;
+ 
+diff --git a/crypto/cmp/cmp_local.h b/crypto/cmp/cmp_local.h
+index 3da021043b..3afeb16f8e 100644
+--- a/crypto/cmp/cmp_local.h
++++ b/crypto/cmp/cmp_local.h
+@@ -852,7 +852,9 @@ int ossl_cmp_hdr_init(OSSL_CMP_CTX *ctx, OSSL_CMP_PKIHEADER *hdr);
+ # define OSSL_CMP_PKIBODY_POLLREP  26
+ # define OSSL_CMP_PKIBODY_TYPE_MAX OSSL_CMP_PKIBODY_POLLREP
+ /* certReqId for the first - and so far only - certificate request */
+-# define OSSL_CMP_CERTREQID 0
++# define OSSL_CMP_CERTREQID         0
++# define OSSL_CMP_CERTREQID_NONE    -1
++# define OSSL_CMP_CERTREQID_INVALID -2
+ /* sequence id for the first - and so far only - revocation request */
+ # define OSSL_CMP_REVREQSID 0
+ int ossl_cmp_msg_set0_libctx(OSSL_CMP_MSG *msg, OSSL_LIB_CTX *libctx,
+@@ -885,8 +887,8 @@ OSSL_CMP_MSG *ossl_cmp_error_new(OSSL_CMP_CTX *ctx, const OSSL_CMP_PKISI *si,
+                                  int unprotected);
+ int ossl_cmp_certstatus_set0_certHash(OSSL_CMP_CERTSTATUS *certStatus,
+                                       ASN1_OCTET_STRING *hash);
+-OSSL_CMP_MSG *ossl_cmp_certConf_new(OSSL_CMP_CTX *ctx, int fail_info,
+-                                    const char *text);
++OSSL_CMP_MSG *ossl_cmp_certConf_new(OSSL_CMP_CTX *ctx, int certReqId,
++                                    int fail_info, const char *text);
+ OSSL_CMP_MSG *ossl_cmp_pollReq_new(OSSL_CMP_CTX *ctx, int crid);
+ OSSL_CMP_MSG *ossl_cmp_pollRep_new(OSSL_CMP_CTX *ctx, int crid,
+                                    int64_t poll_after);
+@@ -922,8 +924,8 @@ int ossl_cmp_verify_popo(const OSSL_CMP_CTX *ctx,
+                          const OSSL_CMP_MSG *msg, int accept_RAVerified);
+ 
+ /* from cmp_client.c */
+-int ossl_cmp_exchange_certConf(OSSL_CMP_CTX *ctx, int fail_info,
+-                               const char *txt);
++int ossl_cmp_exchange_certConf(OSSL_CMP_CTX *ctx, int certReqId,
++                               int fail_info, const char *txt);
+ int ossl_cmp_exchange_error(OSSL_CMP_CTX *ctx, int status, int fail_info,
+                             const char *txt, int errorCode, const char *detail);
+ 
+diff --git a/crypto/cmp/cmp_msg.c b/crypto/cmp/cmp_msg.c
+index da78435f02..552b033ec5 100644
+--- a/crypto/cmp/cmp_msg.c
++++ b/crypto/cmp/cmp_msg.c
+@@ -794,15 +794,17 @@ int ossl_cmp_certstatus_set0_certHash(OSSL_CMP_CERTSTATUS *certStatus,
+     return 1;
+ }
+ 
+-OSSL_CMP_MSG *ossl_cmp_certConf_new(OSSL_CMP_CTX *ctx, int fail_info,
+-                                    const char *text)
++OSSL_CMP_MSG *ossl_cmp_certConf_new(OSSL_CMP_CTX *ctx, int certReqId,
++                                    int fail_info, const char *text)
+ {
+     OSSL_CMP_MSG *msg = NULL;
+     OSSL_CMP_CERTSTATUS *certStatus = NULL;
+     ASN1_OCTET_STRING *certHash = NULL;
+     OSSL_CMP_PKISI *sinfo;
+ 
+-    if (!ossl_assert(ctx != NULL && ctx->newCert != NULL))
++    if (!ossl_assert(ctx != NULL && ctx->newCert != NULL
++                     && (certReqId == OSSL_CMP_CERTREQID
++                         || certReqId == OSSL_CMP_CERTREQID_NONE)))
+         return NULL;
+ 
+     if ((unsigned)fail_info > OSSL_CMP_PKIFAILUREINFO_MAX_BIT_PATTERN) {
+@@ -820,8 +822,9 @@ OSSL_CMP_MSG *ossl_cmp_certConf_new(OSSL_CMP_CTX *ctx, int fail_info,
+         OSSL_CMP_CERTSTATUS_free(certStatus);
+         goto err;
+     }
++
+     /* set the ID of the certReq */
+-    if (!ASN1_INTEGER_set(certStatus->certReqId, OSSL_CMP_CERTREQID))
++    if (!ASN1_INTEGER_set(certStatus->certReqId, certReqId))
+         goto err;
+     /*
+      * The hash of the certificate, using the same hash algorithm
+@@ -967,12 +970,12 @@ static int suitable_rid(const ASN1_INTEGER *certReqId, int rid)
+ {
+     int trid;
+ 
+-    if (rid == -1)
++    if (rid == OSSL_CMP_CERTREQID_NONE)
+         return 1;
+ 
+     trid = ossl_cmp_asn1_get_int(certReqId);
+ 
+-    if (trid == -1) {
++    if (trid == OSSL_CMP_CERTREQID_NONE) {
+         ERR_raise(ERR_LIB_CMP, CMP_R_BAD_REQUEST_ID);
+         return 0;
+     }
+diff --git a/crypto/cmp/cmp_server.c b/crypto/cmp/cmp_server.c
+index 946c32c45e..97eb3e52e9 100644
+--- a/crypto/cmp/cmp_server.c
++++ b/crypto/cmp/cmp_server.c
+@@ -22,8 +22,9 @@
+ /* the context for the generic CMP server */
+ struct ossl_cmp_srv_ctx_st
+ {
+-    OSSL_CMP_CTX *ctx; /* Client CMP context, partly reused for srv */
+-    void *custom_ctx;  /* pointer to specific server context */
++    void *custom_ctx;  /* pointer to application-specific server context */
++    OSSL_CMP_CTX *ctx; /* Client CMP context, reusing transactionID etc. */
++    int certReqId; /* id of last ir/cr/kur, OSSL_CMP_CERTREQID_NONE for p10cr */
+ 
+     OSSL_CMP_SRV_cert_request_cb_t process_cert_request;
+     OSSL_CMP_SRV_rr_cb_t process_rr;
+@@ -57,6 +58,7 @@ OSSL_CMP_SRV_CTX *OSSL_CMP_SRV_CTX_new(OSSL_LIB_CTX *libctx, const char *propq)
+ 
+     if ((ctx->ctx = OSSL_CMP_CTX_new(libctx, propq)) == NULL)
+         goto err;
++    ctx->certReqId = OSSL_CMP_CERTREQID_INVALID;
+ 
+     /* all other elements are initialized to 0 or NULL, respectively */
+     return ctx;
+@@ -184,7 +186,7 @@ static OSSL_CMP_MSG *process_cert_request(OSSL_CMP_SRV_CTX *srv_ctx,
+     }
+ 
+     if (OSSL_CMP_MSG_get_bodytype(req) == OSSL_CMP_PKIBODY_P10CR) {
+-        certReqId = OSSL_CMP_CERTREQID;
++        certReqId = OSSL_CMP_CERTREQID_NONE; /* p10cr does not include an Id */
+         p10cr = req->body->value.p10cr;
+     } else {
+         OSSL_CRMF_MSGS *reqs = req->body->value.ir; /* same for cr and kur */
+@@ -199,7 +201,12 @@ static OSSL_CMP_MSG *process_cert_request(OSSL_CMP_SRV_CTX *srv_ctx,
+             return NULL;
+         }
+         certReqId = OSSL_CRMF_MSG_get_certReqId(crm);
++        if (certReqId != OSSL_CMP_CERTREQID) {
++            ERR_raise(ERR_LIB_CMP, CMP_R_BAD_REQUEST_ID);
++            return 0;
++        }
+     }
++    srv_ctx->certReqId = certReqId;
+ 
+     if (!ossl_cmp_verify_popo(srv_ctx->ctx, req, srv_ctx->acceptRAVerified)) {
+         /* Proof of possession could not be verified */
+@@ -356,6 +363,10 @@ static OSSL_CMP_MSG *process_certConf(OSSL_CMP_SRV_CTX *srv_ctx,
+         ASN1_OCTET_STRING *certHash = status->certHash;
+         OSSL_CMP_PKISI *si = status->statusInfo;
+ 
++        if (certReqId != srv_ctx->certReqId) {
++            ERR_raise(ERR_LIB_CMP, CMP_R_BAD_REQUEST_ID);
++            return NULL;
++        }
+         if (!srv_ctx->process_certConf(srv_ctx, req, certReqId, certHash, si))
+             return NULL; /* reason code may be: CMP_R_CERTHASH_UNMATCHED */
+ 
+@@ -394,8 +405,12 @@ static OSSL_CMP_MSG *process_pollReq(OSSL_CMP_SRV_CTX *srv_ctx,
+         return NULL;
+     }
+ 
+-    pr = sk_OSSL_CMP_POLLREQ_value(prc, 0);
++    pr = sk_OSSL_CMP_POLLREQ_value(prc, OSSL_CMP_CERTREQID);
+     certReqId = ossl_cmp_asn1_get_int(pr->certReqId);
++    if (certReqId != srv_ctx->certReqId) {
++        ERR_raise(ERR_LIB_CMP, CMP_R_BAD_REQUEST_ID);
++        return NULL;
++    }
+     if (!srv_ctx->process_pollReq(srv_ctx, req, certReqId,
+                                   &certReq, &check_after))
+         return NULL;
+diff --git a/doc/internal/man3/ossl_cmp_certreq_new.pod b/doc/internal/man3/ossl_cmp_certreq_new.pod
+index 068e1b29b9..159a00c1ec 100644
+--- a/doc/internal/man3/ossl_cmp_certreq_new.pod
++++ b/doc/internal/man3/ossl_cmp_certreq_new.pod
+@@ -30,8 +30,8 @@ ossl_cmp_error_new
+  OSSL_CMP_MSG *ossl_cmp_rp_new(OSSL_CMP_CTX *ctx, const OSSL_CMP_PKISI *si,
+                                const OSSL_CRMF_CERTID *cid,
+                                int unprotectedErrors);
+- OSSL_CMP_MSG *ossl_cmp_certConf_new(OSSL_CMP_CTX *ctx, int fail_info,
+-                                     const char *text);
++ OSSL_CMP_MSG *ossl_cmp_certConf_new(OSSL_CMP_CTX *ctx, int certReqId,
++                                     int fail_info, const char *text);
+  OSSL_CMP_MSG *ossl_cmp_pkiconf_new(OSSL_CMP_CTX *ctx);
+  OSSL_CMP_MSG *ossl_cmp_pollReq_new(OSSL_CMP_CTX *ctx, int crid);
+  OSSL_CMP_MSG *ossl_cmp_pollRep_new(OSSL_CMP_CTX *ctx, int crid, int poll_after);
+@@ -124,8 +124,9 @@ It does not protect the message if the B<status> value in I<si> is B<rejected>
+ and I<unprotectedErrors> is nonzero.
+ 
+ ossl_cmp_certConf_new() creates a Certificate Confirmation message for the last
+-received certificate. PKIStatus defaults to B<accepted> if the I<fail_info> bit
+-field is 0. Else it is taken as the failInfo of the PKIStatusInfo, PKIStatus is
++received certificate with the given I<certReqId>.
++The PKIStatus defaults to B<accepted> if the I<fail_info> bit field is 0.
++Otherwise it is taken as the failInfo of the PKIStatusInfo, PKIStatus is
+ set to B<rejected>, and I<text> is copied to statusString unless it is NULL.
+ 
+ ossl_cmp_pkiconf_new() creates a PKI Confirmation message.
+diff --git a/test/cmp_client_test.c b/test/cmp_client_test.c
+index e8edcb835f..3276a27847 100644
+--- a/test/cmp_client_test.c
++++ b/test/cmp_client_test.c
+@@ -374,7 +374,7 @@ static int test_exec_GENM_ses_total_timeout(void)
+ static int execute_exchange_certConf_test(CMP_SES_TEST_FIXTURE *fixture)
+ {
+     int res =
+-        ossl_cmp_exchange_certConf(fixture->cmp_ctx,
++        ossl_cmp_exchange_certConf(fixture->cmp_ctx, OSSL_CMP_CERTREQID,
+                                    OSSL_CMP_PKIFAILUREINFO_addInfoNotAvailable,
+                                    "abcdefg");
+     return TEST_int_eq(fixture->expected, res);
+diff --git a/test/cmp_msg_test.c b/test/cmp_msg_test.c
+index 9301843b9d..348099470a 100644
+--- a/test/cmp_msg_test.c
++++ b/test/cmp_msg_test.c
+@@ -107,7 +107,8 @@ static int execute_rr_create_test(CMP_MSG_TEST_FIXTURE *fixture)
+ static int execute_certconf_create_test(CMP_MSG_TEST_FIXTURE *fixture)
+ {
+     EXECUTE_MSG_CREATION_TEST(ossl_cmp_certConf_new
+-                              (fixture->cmp_ctx, fixture->fail_info, NULL));
++                              (fixture->cmp_ctx, OSSL_CMP_CERTREQID,
++                               fixture->fail_info, NULL));
+ }
+ 
+ static int execute_genm_create_test(CMP_MSG_TEST_FIXTURE *fixture)
+-- 
+2.34.1
+

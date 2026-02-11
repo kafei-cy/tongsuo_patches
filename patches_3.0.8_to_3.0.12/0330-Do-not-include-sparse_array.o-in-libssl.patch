@@ -1,0 +1,33 @@
+From a31cd07af1ca34cdbbd2b077a933208d447ed0b2 Mon Sep 17 00:00:00 2001
+From: Huiyue Xu <xuhuiyue@huawei.com>
+Date: Thu, 14 Sep 2023 16:21:35 +0800
+Subject: [PATCH 330/381] Do not include sparse_array.o in libssl
+
+sparse_array.o is not needed in libssl at 3.0.x version.
+
+Signed-off-by: Huiyue Xu <xuhuiyue@huawei.com>
+
+Reviewed-by: Matt Caswell <matt@openssl.org>
+Reviewed-by: Paul Dale <pauli@openssl.org>
+Reviewed-by: Tomas Mraz <tomas@openssl.org>
+(Merged from https://github.com/openssl/openssl/pull/22111)
+---
+ crypto/build.info | 2 --
+ 1 file changed, 2 deletions(-)
+
+diff --git a/crypto/build.info b/crypto/build.info
+index b90390ae86..c04db55911 100644
+--- a/crypto/build.info
++++ b/crypto/build.info
+@@ -97,8 +97,6 @@ $UTIL_COMMON=\
+         context.c sparse_array.c asn1_dsa.c packet.c param_build.c \
+         param_build_set.c der_writer.c threads_lib.c params_dup.c
+ 
+-SHARED_SOURCE[../libssl]=sparse_array.c
+-
+ SOURCE[../libcrypto]=$UTIL_COMMON \
+         mem.c mem_sec.c \
+         cversion.c info.c cpt_err.c ebcdic.c uid.c o_time.c o_dir.c \
+-- 
+2.34.1
+

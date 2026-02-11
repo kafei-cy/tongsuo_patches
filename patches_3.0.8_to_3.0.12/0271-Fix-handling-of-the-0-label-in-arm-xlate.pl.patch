@@ -1,0 +1,45 @@
+From 89661d41e44090ab244652418e449eb1ceec6128 Mon Sep 17 00:00:00 2001
+From: Tom Cosgrove <tom.cosgrove@arm.com>
+Date: Thu, 3 Aug 2023 19:43:17 +0100
+Subject: [PATCH 271/381] Fix handling of the "0:" label in arm-xlate.pl
+
+When $label == "0", $label is not truthy, so `if ($label)` thinks there isn't
+a label. Correct this by looking at the result of the s/// command.
+
+Verified that there are no changes in the .S files created during a normal
+build, and that the "0:" labels appear in the translation given in the error
+report (and they are the only difference in the before and after output).
+
+Fixes #21647
+
+Change-Id: I5f2440100c62360bf4bdb7c7ece8dddd32553c79
+
+Reviewed-by: Paul Dale <pauli@openssl.org>
+Reviewed-by: Shane Lontis <shane.lontis@oracle.com>
+Reviewed-by: Tomas Mraz <tomas@openssl.org>
+(Merged from https://github.com/openssl/openssl/pull/21653)
+
+(cherry picked from commit 9607f5ccf285ac9988a86f95c5ad9f92b556a843)
+---
+ crypto/perlasm/arm-xlate.pl | 5 ++---
+ 1 file changed, 2 insertions(+), 3 deletions(-)
+
+diff --git a/crypto/perlasm/arm-xlate.pl b/crypto/perlasm/arm-xlate.pl
+index a90885905c..57b75c4e5d 100755
+--- a/crypto/perlasm/arm-xlate.pl
++++ b/crypto/perlasm/arm-xlate.pl
+@@ -159,9 +159,8 @@ while(my $line=<>) {
+     }
+ 
+     {
+-	$line =~ s|(^[\.\w]+)\:\s*||;
+-	my $label = $1;
+-	if ($label) {
++	if ($line =~ s|(^[\.\w]+)\:\s*||) {
++	    my $label = $1;
+ 	    printf "%s:",($GLOBALS{$label} or $label);
+ 	}
+     }
+-- 
+2.34.1
+

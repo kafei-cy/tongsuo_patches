@@ -1,0 +1,44 @@
+From 9e7cc1c3aa844a484c5a8cc15c5f3ef16e0dba39 Mon Sep 17 00:00:00 2001
+From: "Dr. David von Oheimb" <David.von.Oheimb@siemens.com>
+Date: Fri, 4 Aug 2023 08:23:58 +0200
+Subject: [PATCH 295/381] apps.c: improve warning texts of parse_name() when
+ skipping RDN input
+
+Reviewed-by: Tomas Mraz <tomas@openssl.org>
+Reviewed-by: Paul Dale <pauli@openssl.org>
+Reviewed-by: Hugo Landau <hlandau@openssl.org>
+(Merged from https://github.com/openssl/openssl/pull/21659)
+
+(cherry picked from commit 49e097344ba51a8b25016794d482813b9c1e137f)
+---
+ apps/lib/apps.c | 7 ++++---
+ 1 file changed, 4 insertions(+), 3 deletions(-)
+
+diff --git a/apps/lib/apps.c b/apps/lib/apps.c
+index 04425ea1d7..572f6a3f8f 100644
+--- a/apps/lib/apps.c
++++ b/apps/lib/apps.c
+@@ -1946,16 +1946,17 @@ X509_NAME *parse_name(const char *cp, int chtype, int canmulti,
+         nid = OBJ_txt2nid(typestr);
+         if (nid == NID_undef) {
+             BIO_printf(bio_err,
+-                       "%s: Skipping unknown %s name attribute \"%s\"\n",
++                       "%s warning: Skipping unknown %s name attribute \"%s\"\n",
+                        opt_getprog(), desc, typestr);
+             if (ismulti)
+                 BIO_printf(bio_err,
+-                           "Hint: a '+' in a value string needs be escaped using '\\' else a new member of a multi-valued RDN is expected\n");
++                           "%s hint: a '+' in a value string needs be escaped using '\\' else a new member of a multi-valued RDN is expected\n",
++                           opt_getprog());
+             continue;
+         }
+         if (*valstr == '\0') {
+             BIO_printf(bio_err,
+-                       "%s: No value provided for %s name attribute \"%s\", skipped\n",
++                       "%s warning: No value provided for %s name attribute \"%s\", skipped\n",
+                        opt_getprog(), desc, typestr);
+             continue;
+         }
+-- 
+2.34.1
+

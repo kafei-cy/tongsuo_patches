@@ -1,0 +1,58 @@
+From 7c14ec86fefeb3dc92e56e7937d10cbe60f13e67 Mon Sep 17 00:00:00 2001
+From: Bernd Edlinger <bernd.edlinger@hotmail.de>
+Date: Mon, 4 Sep 2023 09:40:28 +0200
+Subject: [PATCH 293/381] Fix internal memory leaks from
+ OPENSSL_MALLOC_FAILURES
+
+There is a rarely used feature that can be enabled
+with `./config enable-crypto-mdebug` when additionally
+the environment variable OPENSSL_MALLOC_FAILURES is used.
+It turns out to be possible that CRYPTO_zalloc may
+create a leak when the memory is allocated and then
+the shouldfail happens, then the memory is lost.
+Likewise when OPENSSL_realloc is used with size=0,
+then the memory is to be free'd but here the shouldfail
+check is too early, and the failure may prevent the
+memory to be freed thus creating a bogus memory leak.
+
+Reviewed-by: Matt Caswell <matt@openssl.org>
+Reviewed-by: Tomas Mraz <tomas@openssl.org>
+Reviewed-by: Hugo Landau <hlandau@openssl.org>
+(Merged from https://github.com/openssl/openssl/pull/21944)
+
+(cherry picked from commit e2cf38d5751d6b48c8625b622c3765d0a39958d7)
+---
+ crypto/mem.c | 3 +--
+ 1 file changed, 1 insertion(+), 2 deletions(-)
+
+diff --git a/crypto/mem.c b/crypto/mem.c
+index f6cdcf5a42..d575dcdc13 100644
+--- a/crypto/mem.c
++++ b/crypto/mem.c
+@@ -195,7 +195,6 @@ void *CRYPTO_zalloc(size_t num, const char *file, int line)
+     void *ret;
+ 
+     ret = CRYPTO_malloc(num, file, line);
+-    FAILTEST();
+     if (ret != NULL)
+         memset(ret, 0, num);
+ 
+@@ -208,7 +207,6 @@ void *CRYPTO_realloc(void *str, size_t num, const char *file, int line)
+     if (realloc_impl != CRYPTO_realloc)
+         return realloc_impl(str, num, file, line);
+ 
+-    FAILTEST();
+     if (str == NULL)
+         return CRYPTO_malloc(num, file, line);
+ 
+@@ -217,6 +215,7 @@ void *CRYPTO_realloc(void *str, size_t num, const char *file, int line)
+         return NULL;
+     }
+ 
++    FAILTEST();
+     return realloc(str, num);
+ }
+ 
+-- 
+2.34.1
+

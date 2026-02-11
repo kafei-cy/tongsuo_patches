@@ -1,0 +1,384 @@
+From c503577a606dc0ee4cba07d13d504f641998b98b Mon Sep 17 00:00:00 2001
+From: "dependabot[bot]" <49699333+dependabot[bot]@users.noreply.github.com>
+Date: Tue, 5 Sep 2023 07:56:28 +0000
+Subject: [PATCH 292/381] Bump actions/checkout from 2 to 4
+
+Bumps [actions/checkout](https://github.com/actions/checkout) from 2 to 4.
+- [Release notes](https://github.com/actions/checkout/releases)
+- [Changelog](https://github.com/actions/checkout/blob/main/CHANGELOG.md)
+- [Commits](https://github.com/actions/checkout/compare/v2...v4)
+
+---
+updated-dependencies:
+- dependency-name: actions/checkout
+  dependency-type: direct:production
+  update-type: version-update:semver-major
+...
+
+Signed-off-by: dependabot[bot] <support@github.com>
+
+CLA: trivial
+
+Reviewed-by: Hugo Landau <hlandau@openssl.org>
+Reviewed-by: Tomas Mraz <tomas@openssl.org>
+(Merged from https://github.com/openssl/openssl/pull/21953)
+
+(cherry picked from commit d4231af60a8d04196b3b873c2fa8638daff36173)
+---
+ .github/workflows/ci.yml                | 40 ++++++++++++-------------
+ .github/workflows/compiler-zoo.yml      |  2 +-
+ .github/workflows/coveralls.yml         |  2 +-
+ .github/workflows/cross-compiles.yml    |  2 +-
+ .github/workflows/fips-checksums.yml    |  4 +--
+ .github/workflows/fips-old.yml          |  2 +-
+ .github/workflows/fuzz-checker.yml      |  2 +-
+ .github/workflows/run-checker-ci.yml    |  2 +-
+ .github/workflows/run-checker-daily.yml |  2 +-
+ .github/workflows/run-checker-merge.yml |  2 +-
+ .github/workflows/windows.yml           |  6 ++--
+ 11 files changed, 33 insertions(+), 33 deletions(-)
+
+diff --git a/.github/workflows/ci.yml b/.github/workflows/ci.yml
+index fd419303c3..2f1564b379 100644
+--- a/.github/workflows/ci.yml
++++ b/.github/workflows/ci.yml
+@@ -29,7 +29,7 @@ jobs:
+       run: |
+         sudo apt-get update
+         sudo apt-get -yq --no-install-suggests --no-install-recommends --force-yes install unifdef
+-    - uses: actions/checkout@v3
++    - uses: actions/checkout@v4
+       with:
+         fetch-depth: 0
+     - name: config
+@@ -44,7 +44,7 @@ jobs:
+   check_docs:
+     runs-on: ubuntu-latest
+     steps:
+-    - uses: actions/checkout@v3
++    - uses: actions/checkout@v4
+     - name: config
+       run: ./config --banner=Configured --strict-warnings enable-fips && perl configdata.pm --dump
+     - name: make build_generated
+@@ -62,7 +62,7 @@ jobs:
+   check-ansi:
+     runs-on: ubuntu-latest
+     steps:
+-    - uses: actions/checkout@v3
++    - uses: actions/checkout@v4
+     - name: config
+       run: CPPFLAGS=-ansi ./config --banner=Configured no-asm no-makedepend enable-buildtest-c++ enable-fips --strict-warnings -D_DEFAULT_SOURCE && perl configdata.pm --dump
+     - name: make
+@@ -71,7 +71,7 @@ jobs:
+   basic_gcc:
+     runs-on: ubuntu-latest
+     steps:
+-    - uses: actions/checkout@v3
++    - uses: actions/checkout@v4
+     - name: localegen
+       run: sudo locale-gen tr_TR.UTF-8
+     - name: config
+@@ -84,7 +84,7 @@ jobs:
+   basic_clang:
+     runs-on: ubuntu-latest
+     steps:
+-    - uses: actions/checkout@v3
++    - uses: actions/checkout@v4
+     - name: config
+       run: CC=clang ./config --banner=Configured no-fips --strict-warnings && perl configdata.pm --dump
+     - name: make
+@@ -95,7 +95,7 @@ jobs:
+   minimal:
+     runs-on: ubuntu-latest
+     steps:
+-    - uses: actions/checkout@v3
++    - uses: actions/checkout@v4
+     - name: config
+       run: ./config --banner=Configured --strict-warnings no-bulk no-pic no-asm -DOPENSSL_NO_SECURE_MEMORY -DOPENSSL_SMALL_FOOTPRINT && perl configdata.pm --dump
+     - name: make
+@@ -106,7 +106,7 @@ jobs:
+   no-deprecated:
+     runs-on: ubuntu-latest
+     steps:
+-    - uses: actions/checkout@v3
++    - uses: actions/checkout@v4
+     - name: config
+       run: ./config --banner=Configured --strict-warnings no-deprecated enable-fips && perl configdata.pm --dump
+     - name: make
+@@ -120,7 +120,7 @@ jobs:
+         os: [ ubuntu-latest, macos-latest ]
+     runs-on: ${{matrix.os}}
+     steps:
+-    - uses: actions/checkout@v3
++    - uses: actions/checkout@v4
+     - name: config
+       run: ./config --banner=Configured --strict-warnings no-shared no-fips && perl configdata.pm --dump
+     - name: make
+@@ -131,7 +131,7 @@ jobs:
+   non-caching:
+     runs-on: ubuntu-latest
+     steps:
+-    - uses: actions/checkout@v3
++    - uses: actions/checkout@v4
+     - name: config
+       run: ./config --banner=Configured --debug enable-asan enable-ubsan no-cached-fetch no-fips no-dtls no-tls1 no-tls1-method no-tls1_1 no-tls1_1-method no-async && perl configdata.pm --dump
+     - name: make
+@@ -142,7 +142,7 @@ jobs:
+   address_ub_sanitizer:
+     runs-on: ubuntu-latest
+     steps:
+-    - uses: actions/checkout@v3
++    - uses: actions/checkout@v4
+     - name: config
+       run: ./config --banner=Configured --debug enable-asan enable-ubsan enable-rc5 enable-md2 enable-ec_nistp_64_gcc_128 enable-fips -DFUZZING_BUILD_MODE_UNSAFE_FOR_PRODUCTION && perl configdata.pm --dump
+     - name: make
+@@ -153,7 +153,7 @@ jobs:
+   memory_sanitizer:
+     runs-on: ubuntu-latest
+     steps:
+-    - uses: actions/checkout@v3
++    - uses: actions/checkout@v4
+     - name: config
+       # --debug -O1 is to produce a debug build that runs in a reasonable amount of time
+       run: CC=clang ./config --banner=Configured --debug -O1 -fsanitize=memory -DOSSL_SANITIZE_MEMORY -fno-optimize-sibling-calls enable-rc5 enable-md2 enable-ec_nistp_64_gcc_128 enable-fips && perl configdata.pm --dump
+@@ -165,7 +165,7 @@ jobs:
+   threads_sanitizer:
+     runs-on: ubuntu-latest
+     steps:
+-    - uses: actions/checkout@v3
++    - uses: actions/checkout@v4
+     - name: config
+       run: CC=clang ./config --banner=Configured no-fips --strict-warnings -fsanitize=thread && perl configdata.pm --dump
+     - name: make
+@@ -176,7 +176,7 @@ jobs:
+   enable_non-default_options:
+     runs-on: ubuntu-latest
+     steps:
+-    - uses: actions/checkout@v3
++    - uses: actions/checkout@v4
+     - name: modprobe tls
+       run: sudo modprobe tls
+     - name: config
+@@ -189,7 +189,7 @@ jobs:
+   fips_and_ktls:
+     runs-on: ubuntu-latest
+     steps:
+-    - uses: actions/checkout@v3
++    - uses: actions/checkout@v4
+     - name: modprobe tls
+       run: sudo modprobe tls
+     - name: config
+@@ -202,7 +202,7 @@ jobs:
+   no-legacy:
+     runs-on: ubuntu-latest
+     steps:
+-    - uses: actions/checkout@v3
++    - uses: actions/checkout@v4
+     - name: config
+       run: ./config --banner=Configured --strict-warnings no-legacy enable-fips && perl configdata.pm --dump
+     - name: make
+@@ -213,7 +213,7 @@ jobs:
+   legacy:
+     runs-on: ubuntu-latest
+     steps:
+-    - uses: actions/checkout@v3
++    - uses: actions/checkout@v4
+     - name: config
+       run: ./config --banner=Configured -Werror --debug no-afalgeng no-shared enable-crypto-mdebug enable-rc5 enable-md2 enable-ssl3 enable-ssl3-method enable-weak-ssl-ciphers enable-zlib enable-ec_nistp_64_gcc_128 no-fips && perl configdata.pm --dump
+     - name: make
+@@ -224,7 +224,7 @@ jobs:
+   buildtest:
+     runs-on: ubuntu-latest
+     steps:
+-    - uses: actions/checkout@v3
++    - uses: actions/checkout@v4
+     - name: config
+       run: ./config --banner=Configured no-asm no-makedepend enable-buildtest-c++ enable-fips --strict-warnings -D_DEFAULT_SOURCE && perl configdata.pm --dump
+     - name: make
+@@ -238,7 +238,7 @@ jobs:
+         os: [ubuntu-latest, macos-latest ]
+     runs-on: ${{matrix.os}}
+     steps:
+-    - uses: actions/checkout@v3
++    - uses: actions/checkout@v4
+     - name: extra preparations
+       run: |
+         mkdir ./build
+@@ -259,7 +259,7 @@ jobs:
+   external-tests:
+     runs-on: ubuntu-latest
+     steps:
+-    - uses: actions/checkout@v3
++    - uses: actions/checkout@v4
+       with:
+         submodules: recursive
+     - name: package installs
+@@ -290,7 +290,7 @@ jobs:
+         PYTHON:
+           - 3.9
+     steps:
+-    - uses: actions/checkout@v3
++    - uses: actions/checkout@v4
+       with:
+         submodules: recursive
+     - name: Configure OpenSSL
+diff --git a/.github/workflows/compiler-zoo.yml b/.github/workflows/compiler-zoo.yml
+index a20a84cffe..4f17322ec5 100644
+--- a/.github/workflows/compiler-zoo.yml
++++ b/.github/workflows/compiler-zoo.yml
+@@ -99,7 +99,7 @@ jobs:
+         sudo apt-get update
+         sudo apt-get -y install ${{ matrix.zoo.cc }}
+ 
+-    - uses: actions/checkout@v3
++    - uses: actions/checkout@v4
+ 
+     - name: config
+       run: |
+diff --git a/.github/workflows/coveralls.yml b/.github/workflows/coveralls.yml
+index 3d7800a894..5aa595ce8d 100644
+--- a/.github/workflows/coveralls.yml
++++ b/.github/workflows/coveralls.yml
+@@ -22,7 +22,7 @@ jobs:
+       contents: read  # for actions/checkout to fetch code
+     runs-on: ubuntu-latest
+     steps:
+-    - uses: actions/checkout@v3
++    - uses: actions/checkout@v4
+     - name: package installs
+       run: |
+         sudo apt-get -yq install lcov
+diff --git a/.github/workflows/cross-compiles.yml b/.github/workflows/cross-compiles.yml
+index 31b6cbd3f1..65bb9cbce4 100644
+--- a/.github/workflows/cross-compiles.yml
++++ b/.github/workflows/cross-compiles.yml
+@@ -137,7 +137,7 @@ jobs:
+         sudo apt-get -yq --force-yes install \
+             gcc-${{ matrix.platform.arch }} \
+             ${{ matrix.platform.libs }}
+-    - uses: actions/checkout@v3
++    - uses: actions/checkout@v4
+ 
+     - name: config with FIPS
+       if: matrix.platform.fips != 'no'
+diff --git a/.github/workflows/fips-checksums.yml b/.github/workflows/fips-checksums.yml
+index 1f62ed45b3..002494f58c 100644
+--- a/.github/workflows/fips-checksums.yml
++++ b/.github/workflows/fips-checksums.yml
+@@ -26,7 +26,7 @@ jobs:
+           mkdir ./build
+           mkdir ./source
+           mkdir ./artifact
+-      - uses: actions/checkout@v3
++      - uses: actions/checkout@v4
+         with:
+           repository: ${{ github.event.pull_request.base.repo.full_name }}
+           ref: ${{ github.event.pull_request.base.ref }}
+@@ -43,7 +43,7 @@ jobs:
+       - name: make fips-checksums pristine
+         run: make fips-checksums
+         working-directory: ./build-pristine
+-      - uses: actions/checkout@v3
++      - uses: actions/checkout@v4
+         with:
+           path: source
+       - name: config
+diff --git a/.github/workflows/fips-old.yml b/.github/workflows/fips-old.yml
+index 8ff4d850d2..3589c83266 100644
+--- a/.github/workflows/fips-old.yml
++++ b/.github/workflows/fips-old.yml
+@@ -26,7 +26,7 @@ jobs:
+     steps:
+       - name: create directory
+         run: mkdir ./current
+-      - uses: actions/checkout@v3
++      - uses: actions/checkout@v4
+         with:
+           path: current
+       - name: download module source
+diff --git a/.github/workflows/fuzz-checker.yml b/.github/workflows/fuzz-checker.yml
+index 247389e518..ce6d894a98 100644
+--- a/.github/workflows/fuzz-checker.yml
++++ b/.github/workflows/fuzz-checker.yml
+@@ -48,7 +48,7 @@ jobs:
+       run: |
+         sudo apt-get update
+         sudo apt-get -yq --force-yes install ${{ matrix.fuzzy.install }}
+-    - uses: actions/checkout@v3
++    - uses: actions/checkout@v4
+ 
+     - name: config
+       run: |
+diff --git a/.github/workflows/run-checker-ci.yml b/.github/workflows/run-checker-ci.yml
+index 05d1426a39..73ee5f1f80 100644
+--- a/.github/workflows/run-checker-ci.yml
++++ b/.github/workflows/run-checker-ci.yml
+@@ -40,7 +40,7 @@ jobs:
+         ]
+     runs-on: ubuntu-latest
+     steps:
+-    - uses: actions/checkout@v3
++    - uses: actions/checkout@v4
+     - name: config
+       run: CC=clang ./config --banner=Configured --strict-warnings ${{ matrix.opt }}
+     - name: config dump
+diff --git a/.github/workflows/run-checker-daily.yml b/.github/workflows/run-checker-daily.yml
+index 3303ca0d83..8b7252b128 100644
+--- a/.github/workflows/run-checker-daily.yml
++++ b/.github/workflows/run-checker-daily.yml
+@@ -133,7 +133,7 @@ jobs:
+         ]
+     runs-on: ubuntu-latest
+     steps:
+-    - uses: actions/checkout@v3
++    - uses: actions/checkout@v4
+     - name: config
+       run: CC=clang ./config --banner=Configured --strict-warnings ${{ matrix.opt }}
+     - name: config dump
+diff --git a/.github/workflows/run-checker-merge.yml b/.github/workflows/run-checker-merge.yml
+index 456477b8c8..14dfa7c2d4 100644
+--- a/.github/workflows/run-checker-merge.yml
++++ b/.github/workflows/run-checker-merge.yml
+@@ -32,7 +32,7 @@ jobs:
+         ]
+     runs-on: ubuntu-latest
+     steps:
+-    - uses: actions/checkout@v3
++    - uses: actions/checkout@v4
+     - name: config
+       run: CC=clang ./config --banner=Configured --strict-warnings ${{ matrix.opt }}
+     - name: config dump
+diff --git a/.github/workflows/windows.yml b/.github/workflows/windows.yml
+index 2d61ef8d24..8c518d17d9 100644
+--- a/.github/workflows/windows.yml
++++ b/.github/workflows/windows.yml
+@@ -27,7 +27,7 @@ jobs:
+             config: --strict-warnings no-fips
+     runs-on: ${{matrix.os}}
+     steps:
+-    - uses: actions/checkout@v3
++    - uses: actions/checkout@v4
+     - uses: ilammy/msvc-dev-cmd@v1
+       with:
+         arch: ${{ matrix.platform.arch }}
+@@ -63,7 +63,7 @@ jobs:
+           - windows-2022
+     runs-on: ${{matrix.os}}
+     steps:
+-    - uses: actions/checkout@v3
++    - uses: actions/checkout@v4
+     - uses: ilammy/msvc-dev-cmd@v1
+     - uses: shogo82148/actions-setup-perl@v1
+     - name: prepare the build directory
+@@ -87,7 +87,7 @@ jobs:
+           - windows-2022
+     runs-on: ${{matrix.os}}
+     steps:
+-    - uses: actions/checkout@v3
++    - uses: actions/checkout@v4
+     - uses: ilammy/msvc-dev-cmd@v1
+     - uses: shogo82148/actions-setup-perl@v1
+     - name: prepare the build directory
+-- 
+2.34.1
+

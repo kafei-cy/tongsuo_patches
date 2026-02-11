@@ -1,0 +1,51 @@
+From 3cc07fe0ff42be45d8931a21d7bef78ba5085ccb Mon Sep 17 00:00:00 2001
+From: Matt Caswell <matt@openssl.org>
+Date: Mon, 31 Jul 2023 12:32:16 +0100
+Subject: [PATCH 256/381] The PEM_read_bio_Parameters() function should not ask
+ for a password
+
+The PEM_read_bio_Parameters[_ex] function does not have the capability
+of specifying a password callback. We should not use the fallback password
+callback in this case because it will attempt to send a prompt for the
+password which might not be the correct thing to do. We should just not
+use a password in that case.
+
+Fixes #21588
+
+Reviewed-by: Tim Hudson <tjh@openssl.org>
+Reviewed-by: Tomas Mraz <tomas@openssl.org>
+(Merged from https://github.com/openssl/openssl/pull/21603)
+
+(cherry picked from commit 0d0791eedff7f0747503d816184810aa093f523e)
+---
+ crypto/pem/pem_pkey.c | 11 ++++++++++-
+ 1 file changed, 10 insertions(+), 1 deletion(-)
+
+diff --git a/crypto/pem/pem_pkey.c b/crypto/pem/pem_pkey.c
+index 3e76852c67..284b144fd6 100644
+--- a/crypto/pem/pem_pkey.c
++++ b/crypto/pem/pem_pkey.c
+@@ -366,10 +366,19 @@ int PEM_write_bio_PrivateKey_traditional(BIO *bp, const EVP_PKEY *x,
+     return ret;
+ }
+ 
++static int no_password_cb(char *buf, int num, int rwflag, void *userdata)
++{
++    return -1;
++}
++
+ EVP_PKEY *PEM_read_bio_Parameters_ex(BIO *bp, EVP_PKEY **x,
+                                      OSSL_LIB_CTX *libctx, const char *propq)
+ {
+-    return pem_read_bio_key(bp, x, NULL, NULL, libctx, propq,
++    /*
++     * PEM_read_bio_Parameters(_ex) should never ask for a password. Any attempt
++     * to get a password just fails.
++     */
++    return pem_read_bio_key(bp, x, no_password_cb, NULL, libctx, propq,
+                             EVP_PKEY_KEY_PARAMETERS);
+ }
+ 
+-- 
+2.34.1
+

@@ -1,0 +1,45 @@
+From c1f13e1d640602cf85ec1e7bd3605ae2cc4b8334 Mon Sep 17 00:00:00 2001
+From: Matt Caswell <matt@openssl.org>
+Date: Mon, 27 Mar 2023 15:59:41 +0100
+Subject: [PATCH 098/381] Handle app data records from the next epoch
+
+It is possible that DTLS records are received out of order such that
+records from the next epoch arrive before we have finished processing the
+current epoch. We are supposed to buffer such records but for some reason
+we only did that for handshake and alert records. This is incorrect since
+it is perfectly possible for app data records to arrive early too.
+
+Fixes #20597
+
+Reviewed-by: Tomas Mraz <tomas@openssl.org>
+Reviewed-by: Paul Dale <pauli@openssl.org>
+(Merged from https://github.com/openssl/openssl/pull/20638)
+---
+ ssl/record/rec_layer_d1.c | 10 ++++------
+ 1 file changed, 4 insertions(+), 6 deletions(-)
+
+diff --git a/ssl/record/rec_layer_d1.c b/ssl/record/rec_layer_d1.c
+index 7f3d1a7f0d..cb4f8082c4 100644
+--- a/ssl/record/rec_layer_d1.c
++++ b/ssl/record/rec_layer_d1.c
+@@ -1011,13 +1011,11 @@ DTLS1_BITMAP *dtls1_get_bitmap(SSL *s, SSL3_RECORD *rr,
+         return &s->rlayer.d->bitmap;
+ 
+     /*
+-     * Only HM and ALERT messages can be from the next epoch and only if we
+-     * have already processed all of the unprocessed records from the last
+-     * epoch
++     * We can only handle messages from the next epoch if we have already
++     * processed all of the unprocessed records from the previous epoch
+      */
+-    else if (rr->epoch == (unsigned long)(s->rlayer.d->r_epoch + 1) &&
+-             s->rlayer.d->unprocessed_rcds.epoch != s->rlayer.d->r_epoch &&
+-             (rr->type == SSL3_RT_HANDSHAKE || rr->type == SSL3_RT_ALERT)) {
++    else if (rr->epoch == (unsigned long)(s->rlayer.d->r_epoch + 1)
++             && s->rlayer.d->unprocessed_rcds.epoch != s->rlayer.d->r_epoch) {
+         *is_next_epoch = 1;
+         return &s->rlayer.d->next_bitmap;
+     }
+-- 
+2.34.1
+
